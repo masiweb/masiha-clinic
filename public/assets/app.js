@@ -1,0 +1,5 @@
+'use strict';
+document.querySelector('[data-menu]')?.addEventListener('click',()=>document.body.classList.toggle('menu-open'));
+document.addEventListener('click',e=>{if(document.body.classList.contains('menu-open')&&!e.target.closest('.sidebar,[data-menu]'))document.body.classList.remove('menu-open');const b=e.target.closest('.field-help>button');if(b)b.parentElement.classList.toggle('open');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.body.classList.remove('menu-open');document.querySelectorAll('.field-help.open').forEach(e=>e.classList.remove('open'));}});
+document.querySelectorAll('form[method=post]').forEach(form=>form.addEventListener('submit',e=>{if(e.defaultPrevented||!form.checkValidity())return;const confirmation=form.dataset.confirm;if(confirmation&&!confirm(confirmation)){e.preventDefault();return;}setTimeout(()=>{if(e.defaultPrevented)return;form.querySelectorAll('button[type=submit]').forEach(b=>{b.disabled=true;b.dataset.label=b.textContent;b.textContent='در حال ثبت…';});},0);}));
