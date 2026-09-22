@@ -102,3 +102,17 @@ php tests/otp.php
 لاگ زنده importer:
 
     journalctl -fu masiha-importer.service -o cat
+
+### نصب آزمایشی فقط با IP
+
+برای تست روی یک سرور بدون دامنه و SSL:
+
+    sudo bash setup.sh SERVER_IP --ip-only
+
+در این حالت session cookie برای HTTP آزمایشی Secure نیست تا ورود و پنل با IP کار کند. این حالت فقط برای تست است.
+
+بعداً، پس از انتقال DNS به سرور اصلی، همان نصب را بدون حذف دیتابیس یا داده‌ها به HTTPS تبدیل کنید:
+
+    sudo bash /var/www/masiha-clinic/deploy/enable-domain.sh clinic.example.com
+
+اسکریپت دامنه، Nginx و Certbot را تنظیم می‌کند و Secure cookie را دوباره فعال می‌کند.

@@ -10,16 +10,55 @@ source /etc/os-release
   exit 1
 }
 
-DOMAIN=${1:-}
+TARGET=${1:-}
 MODE=${2:-}
-[[ $DOMAIN =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?\.[a-zA-Z]{2,}$ ]] || {
-  echo 'Usage: sudo bash setup.sh clinic.example.com [--skip-ssl]'
+
+usage() {
+  cat <<USAGE
+Usage:
+  sudo bash setup.sh clinic.example.com
+  sudo bash setup.sh clinic.example.com --skip-ssl
+  sudo bash setup.sh 203.0.113.10 --ip-only
+USAGE
   exit 1
 }
-[[ -z $MODE || $MODE = --skip-ssl ]] || {
-  echo 'Second argument may only be --skip-ssl'
-  exit 1
+
+[[ -n $TARGET ]] || usage
+
+is_domain() {
+  [[ $1 =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?\.[a-zA-Z]{2,}$ ]]
 }
+
+is_ip() {
+  python3 - "$1" <<'PY'
+import ipaddress,sys
+try:
+    ipaddress.ip_address(sys.argv[1])
+except ValueError:
+    raise SystemExit(1)
+PY
+}
+
+case "$MODE" in
+  --ip-only)
+    is_ip "$TARGET" || usage
+    COOKIE_SECURE=0
+    USE_SSL=0
+    ;;
+  --skip-ssl)
+    is_domain "$TARGET" || usage
+    COOKIE_SECURE=0
+    USE_SSL=0
+    ;;
+  "")
+    is_domain "$TARGET" || usage
+    COOKIE_SECURE=1
+    USE_SSL=1
+    ;;
+  *)
+    usage
+    ;;
+esac
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 APP=/var/www/masiha-clinic
@@ -55,7 +94,6 @@ upload_max_filesize=10M
 post_max_size=12M
 max_execution_time=60
 session.cookie_httponly=1
-session.cookie_secure=1
 session.cookie_samesite=Lax
 expose_php=Off
 display_errors=Off
@@ -63,7 +101,7 @@ log_errors=On
 INI
 
 echo '[5/9] Configuring Nginx...'
-sed "s/__DOMAIN__/$DOMAIN/g" "$ROOT/deploy/nginx.conf" > /etc/nginx/sites-available/masiha-clinic
+sed   -e "s/__DOMAIN__/$TARGET/g"   -e "s/__COOKIE_SECURE__/$COOKIE_SECURE/g"   "$ROOT/deploy/nginx.conf" > /etc/nginx/sites-available/masiha-clinic
 ln -sfn /etc/nginx/sites-available/masiha-clinic /etc/nginx/sites-enabled/masiha-clinic
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
@@ -77,15 +115,15 @@ install -m 700 "$ROOT/deploy/backup.sh" /usr/local/sbin/masiha-backup
 printf '23 2 * * * root /usr/local/sbin/masiha-backup\n' > /etc/cron.d/masiha-clinic
 chmod 644 /etc/cron.d/masiha-clinic
 
-if [[ $MODE != --skip-ssl ]]; then
+if (( USE_SSL )); then
   echo '[8/9] Requesting TLS certificate...'
-  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos     --register-unsafely-without-email --redirect
-  CHECK_URL="https://$DOMAIN/health"
+  certbot --nginx -d "$TARGET" --non-interactive --agree-tos     --register-unsafely-without-email --redirect
+  CHECK_URL="https://$TARGET/health"
   CHECK_ARGS=()
 else
-  echo '[8/9] TLS skipped; run certbot after DNS points to this server.'
+  echo '[8/9] TLS disabled for this test installation.'
   CHECK_URL='http://127.0.0.1/health'
-  CHECK_ARGS=(-H "Host: $DOMAIN")
+  CHECK_ARGS=(-H "Host: $TARGET")
 fi
 
 echo '[9/9] Running health and service checks...'
@@ -111,10 +149,13 @@ Private storage: /var/lib/masiha-clinic
 Importer service: masiha-importer.service
 Importer timer: masiha-importer.timer
 
+Test URL:
+  http://$TARGET/
+
 Logs:
   journalctl -fu masiha-importer.service -o cat
 
-If installed with --skip-ssl after DNS cutover run:
-  certbot --nginx -d $DOMAIN --redirect
+To switch this installation to a real domain later:
+  sudo bash /var/www/masiha-clinic/deploy/enable-domain.sh clinic.example.com
 
 OUT
