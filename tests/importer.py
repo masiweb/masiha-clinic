@@ -32,6 +32,14 @@ try:
  sql(f"UPDATE {db}.import_runs SET status='running' WHERE id={rid}")
  assert bridge('reserve',run_id=rid)['wait']>0
  print('PASS hourly pacing, hourly ceiling and pause/resume quota retention')
+ sql(f"USE {db};INSERT INTO import_runs(account_key,status,hourly_limit,delay_seconds,total_limit,storage_mb,created_by) VALUES('{'c'*64}','running',0,3,4,16,1)")
+ unlimited=int(sql(f'SELECT MAX(id) FROM {db}.import_runs'))
+ assert bridge('reserve',run_id=unlimited)['ok']
+ paced=bridge('reserve',run_id=unlimited)
+ assert paced['wait']>0 and paced['wait']<=3
+ sql(f"UPDATE {db}.import_quota SET next_at=DATE_SUB(NOW(),INTERVAL 1 SECOND) WHERE account_key='{'c'*64}'")
+ assert bridge('reserve',run_id=unlimited)['ok']
+ print('PASS unlimited hourly mode keeps explicit per-record pacing')
  row=['۱','آزمایشی بیمار','ثبت ۱۴۰۵/۰۶/۳۱','۱۲۳۴۵۶۷۸۹۰','۰۹۱۲۳۴۵۶۷۸۹','info']
  r=record_from_dom(row,'اطلاعات شخصی\nآزمایشی بیمار','سوابق ویزیت و پرداخت\nآزمایشی',[],1,0,'https://app.boghrat.com/clinic/secretary/reception/')
  assert r['national_id']=='1234567890' and r['mobile']=='09123456789'
@@ -68,7 +76,7 @@ try:
  print('PASS encrypted credential roundtrip and administrative access guard')
  sql(f"USE {db};INSERT INTO staff(username,name,password_hash,role) VALUES('qa_admin','مدیر آزمایشی','invalid','admin')")
  html=php("require '"+str(root/'app/ui.php')+"';require '"+str(root/'app/admin-views.php')+"';$_SESSION=['uid'=>1,'csrf'=>str_repeat('a',64)];importsView();")
- assert 'تعداد استخراج در هر ساعت' in html and 'تعداد کل استخراج' in html and 'لینک ورود به بقراط' in html
+ assert 'تعداد استخراج در هر ساعت' in html and 'فاصله بین واکشی‌ها' in html and 'تعداد کل استخراج' in html and 'لینک ورود به بقراط' in html
  assert 'شماره پرونده بعدی' in html and 'ثبت خودکار رکوردهای واکشی‌شده' in html
  assert 'synthetic-test-secret' not in html
  print('PASS Persian import settings render without revealing stored credentials')
