@@ -40,4 +40,5 @@ ALTER TABLE patients ADD COLUMN IF NOT EXISTS marital_status VARCHAR(30) NOT NUL
 ALTER TABLE patients ADD COLUMN IF NOT EXISTS referral_source VARCHAR(160) NOT NULL DEFAULT '' AFTER marital_status;
 ALTER TABLE patients ADD COLUMN IF NOT EXISTS source_registered_date DATE NULL AFTER referral_source;
 ALTER TABLE patients ADD COLUMN IF NOT EXISTS clinic_registered_date DATE NULL AFTER source_registered_date;
-ALTER TABLE patients ADD COLUMN IF NOT EXISTS medical_conditions TEXT NOT NULL AFTER notes;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS medical_conditions TEXT NOT NULL DEFAULT '' AFTER notes;
+ALTER TABLE patients MODIFY COLUMN medical_conditions TEXT NOT NULL DEFAULT '';
