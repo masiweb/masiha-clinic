@@ -2,14 +2,14 @@ CREATE TABLE IF NOT EXISTS import_connections (
  id INT PRIMARY KEY, login_url VARCHAR(255) NOT NULL DEFAULT 'https://account.boghrat.com/auth/login',
  source_url VARCHAR(512) NOT NULL DEFAULT 'https://app.boghrat.com/clinic/secretary/reception/',
  username VARCHAR(100) NOT NULL DEFAULT '', password_cipher TEXT NULL,
- hourly_limit INT NOT NULL DEFAULT 30,total_limit INT NOT NULL DEFAULT 100,storage_mb INT NOT NULL DEFAULT 128,
+ hourly_limit INT NOT NULL DEFAULT 30,delay_seconds INT NOT NULL DEFAULT 8,total_limit INT NOT NULL DEFAULT 100,storage_mb INT NOT NULL DEFAULT 128,
  clinic_name VARCHAR(160) NOT NULL DEFAULT '', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 INSERT IGNORE INTO import_connections(id) VALUES(1);
 CREATE TABLE IF NOT EXISTS import_runs (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,account_key CHAR(64) NOT NULL,
  status VARCHAR(30) NOT NULL DEFAULT 'paused',page_no INT NOT NULL DEFAULT 1,row_no INT NOT NULL DEFAULT 0,
- hourly_limit INT NOT NULL,total_limit INT NOT NULL,storage_mb INT NOT NULL,
+ hourly_limit INT NOT NULL,delay_seconds INT NOT NULL DEFAULT 8,total_limit INT NOT NULL,storage_mb INT NOT NULL,
  processed INT NOT NULL DEFAULT 0,saved INT NOT NULL DEFAULT 0,duplicates INT NOT NULL DEFAULT 0,
  window_start DATETIME NULL,window_count INT NOT NULL DEFAULT 0, not_before DATETIME NULL,
  message VARCHAR(500) NOT NULL DEFAULT '',created_by BIGINT NOT NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -30,3 +30,6 @@ CREATE TABLE IF NOT EXISTS import_events (
 );
 CREATE TABLE IF NOT EXISTS import_quota(account_key CHAR(64) PRIMARY KEY,window_start DATETIME NOT NULL,attempts INT NOT NULL DEFAULT 0,next_at DATETIME NOT NULL);
 CREATE TABLE IF NOT EXISTS import_versions(id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,record_id BIGINT UNSIGNED NOT NULL,payload MEDIUMTEXT NOT NULL,bytes INT NOT NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,INDEX(record_id));
+
+ALTER TABLE import_connections ADD COLUMN IF NOT EXISTS delay_seconds INT NOT NULL DEFAULT 8 AFTER hourly_limit;
+ALTER TABLE import_runs ADD COLUMN IF NOT EXISTS delay_seconds INT NOT NULL DEFAULT 8 AFTER hourly_limit;
