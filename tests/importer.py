@@ -48,6 +48,20 @@ try:
  assert sql(f'SELECT status FROM {db}.import_runs WHERE id={rid}')=='limit'
  print('PASS Persian normalization, safe links, deduplication, history preservation and total cap')
  print('PASS raw archive does not silently create patient or financial records')
+ auto=json.loads(php("$db->exec('ALTER TABLE patients AUTO_INCREMENT=7000');setsetting('import_auto_register','1');echo json_encode(importRegisterPending(1));"))
+ assert auto['created']==1 and auto['conflict']==0
+ assert sql(f'SELECT pid FROM {db}.patients')=='7000'
+ assert sql(f'SELECT pid FROM {db}.import_records')=='7000'
+ sql(f"USE {db};INSERT INTO patients(fname,lname,address,notes,created_by) VALUES('دستی','آزمایشی','','',1)")
+ assert sql(f"SELECT MAX(pid) FROM {db}.patients")=='7001'
+ sql(f"USE {db};INSERT INTO import_runs(account_key,status,hourly_limit,total_limit,storage_mb,created_by) VALUES('{key}','running',300,5,16,1)")
+ auto_run=int(sql(f'SELECT MAX(id) FROM {db}.import_runs'))
+ row2=['۲','کاربر جدید','ثبت ۱۴۰۵/۰۶/۳۱','۲۲۳۴۵۶۷۸۹۰','۰۹۱۲۳۴۵۶۷۸۸','info']
+ r2=record_from_dom(row2,'اطلاعات شخصی\nکاربر جدید','سوابق ویزیت و پرداخت\nآزمایشی',[],1,1,'https://app.boghrat.com/clinic/secretary/reception/')
+ saved=bridge('save',run_id=auto_run,record=r2,next_page=1,next_row=2)
+ assert saved['ok'] and saved['registration']['status']=='created'
+ assert sql(f'SELECT MAX(pid) FROM {db}.patients')=='7002'
+ print('PASS configurable case-number sequence and automatic registration for archived and new imports')
  assert php("$x=importEncrypt('synthetic-test-secret');if(str_contains($x,'synthetic-test-secret')||importDecrypt($x)!=='synthetic-test-secret')exit(2);echo 'ok';")=='ok'
  denied=php("$_SESSION=['uid'=>0];importNeed();echo 'BAD';")
  assert 'BAD' not in denied
@@ -55,6 +69,7 @@ try:
  sql(f"USE {db};INSERT INTO staff(username,name,password_hash,role) VALUES('qa_admin','مدیر آزمایشی','invalid','admin')")
  html=php("require '"+str(root/'app/ui.php')+"';require '"+str(root/'app/admin-views.php')+"';$_SESSION=['uid'=>1,'csrf'=>str_repeat('a',64)];importsView();")
  assert 'تعداد استخراج در هر ساعت' in html and 'تعداد کل استخراج' in html and 'لینک ورود به بقراط' in html
+ assert 'شماره پرونده بعدی' in html and 'ثبت خودکار رکوردهای واکشی‌شده' in html
  assert 'synthetic-test-secret' not in html
  print('PASS Persian import settings render without revealing stored credentials')
  # Make a separate run with a full quota to exercise storage ceiling without real files.
