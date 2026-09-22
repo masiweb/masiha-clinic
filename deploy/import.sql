@@ -33,3 +33,11 @@ CREATE TABLE IF NOT EXISTS import_versions(id BIGINT UNSIGNED AUTO_INCREMENT PRI
 
 ALTER TABLE import_connections ADD COLUMN IF NOT EXISTS delay_seconds INT NOT NULL DEFAULT 8 AFTER hourly_limit;
 ALTER TABLE import_runs ADD COLUMN IF NOT EXISTS delay_seconds INT NOT NULL DEFAULT 8 AFTER hourly_limit;
+
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS phone_home VARCHAR(30) NOT NULL DEFAULT '' AFTER phone_cell;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS father_name VARCHAR(160) NOT NULL DEFAULT '' AFTER national_id;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS marital_status VARCHAR(30) NOT NULL DEFAULT '' AFTER sex;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS referral_source VARCHAR(160) NOT NULL DEFAULT '' AFTER marital_status;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS source_registered_date DATE NULL AFTER referral_source;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS clinic_registered_date DATE NULL AFTER source_registered_date;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS medical_conditions TEXT NOT NULL AFTER notes;
