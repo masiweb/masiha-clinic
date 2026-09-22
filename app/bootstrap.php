@@ -5,7 +5,7 @@ date_default_timezone_set('Asia/Tehran');
 $config=require (getenv('MASIHA_CONFIG')?:'/etc/masiha-clinic/config.php');
 $db=new PDO($config['dsn'],$config['user'],$config['password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);$db->exec("SET time_zone='+03:30'");
 if(PHP_SAPI!=='cli'){
- $cookieSecure=(getenv('MASIHA_COOKIE_SECURE')?:'1')!=='0';
+ $cookieSecureRaw=$_SERVER['MASIHA_COOKIE_SECURE']??getenv('MASIHA_COOKIE_SECURE');$cookieSecure=((string)($cookieSecureRaw===false||$cookieSecureRaw===null?'1':$cookieSecureRaw))!=='0';
  session_name('masiha_session');session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>$cookieSecure,'httponly'=>true,'samesite'=>'Lax']);ini_set('session.use_strict_mode','1');session_start();
  header('Cache-Control: no-store');header('X-Content-Type-Options: nosniff');header('X-Frame-Options: DENY');header('Referrer-Policy: same-origin');header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
  if(isset($_SESSION['last_seen'])&&time()-$_SESSION['last_seen']>3600){$_SESSION=[];session_regenerate_id(true);}$_SESSION['last_seen']=time();
