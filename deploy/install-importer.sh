@@ -21,6 +21,11 @@ python3 -m venv /opt/masiha-importer/venv
 
 PLAYWRIGHT_BROWSERS_PATH=/opt/masiha-importer/browsers PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT=120000 /opt/masiha-importer/venv/bin/playwright install --with-deps chromium
 
+# Service runs as www-data. Keep importer runtime root-owned and non-writable,
+# but grant the service group read/traverse/execute access to the venv and browsers.
+chgrp -R www-data /opt/masiha-importer
+chmod -R g+rX /opt/masiha-importer
+
 mariadb masiha_clinic < "$ROOT/deploy/import.sql"
 
 install -d -m 700 -o www-data -g www-data   /var/lib/masiha-clinic/importer   /var/lib/masiha-clinic/importer/chrome-home   /var/lib/masiha-clinic/importer/chrome-config   /var/lib/masiha-clinic/importer/chrome-cache
