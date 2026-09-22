@@ -64,12 +64,35 @@ try:
  assert sql(f"SELECT MAX(pid) FROM {db}.patients")=='7001'
  sql(f"USE {db};INSERT INTO import_runs(account_key,status,hourly_limit,total_limit,storage_mb,created_by) VALUES('{key}','running',300,5,16,1)")
  auto_run=int(sql(f'SELECT MAX(id) FROM {db}.import_runs'))
- row2=['۲','کاربر جدید','ثبت ۱۴۰۵/۰۶/۳۱','۲۲۳۴۵۶۷۸۹۰','۰۹۱۲۳۴۵۶۷۸۸','info']
- r2=record_from_dom(row2,'اطلاعات شخصی\nکاربر جدید','سوابق ویزیت و پرداخت\nآزمایشی',[],1,1,'https://app.boghrat.com/clinic/secretary/reception/')
+ row2=['۲','سروش میثمی فرد','ثبت ۱۴۰۵/۰۶/۳۱','۴۷۱۱۳۳۳۵۰۹','۰۹۱۲۳۲۶۱۰۲۹','info']
+ personal2='''اطلاعات مراجعه کننده سروش میثمی فرد
+person اطلاعات شخصی
+سروش میثمی فرد
+موبایل: 09123261029 تلفن منزل: 09128001093
+معرف: مادر
+ثبت در بقراط: 1405/6/28 ثبت در مطب: 1405/6/28
+کد ملی: 4711333509 نام پدر: امیر محمد
+وضعیت تاهل: مجرد
+تاریخ تولد: 1383/7/3 سن: 21 سال و 11 ماه و 28 روز
+آدرس: فرمانیه لواسان شرقی نوریان پ 45
+بیماری های خاص: Ankle sprain
+-برچسب حذف شده-
+assignment فرم های اختصاصی مراجعه کننده
+فرم پذیرش'''
+ r2=record_from_dom(row2,personal2,'سوابق ویزیت و پرداخت\nآزمایشی',[],1,1,'https://app.boghrat.com/clinic/secretary/reception/')
+ assert r2['profile']['phone_home']=='09128001093'
+ assert r2['profile']['referral_source']=='مادر'
+ assert r2['profile']['father_name']=='امیر محمد'
+ assert r2['profile']['marital_status']=='مجرد'
+ assert r2['profile']['birth_jalali']=='1383/7/3'
+ assert r2['profile']['address']=='فرمانیه لواسان شرقی نوریان پ 45'
+ assert r2['profile']['medical_conditions']=='Ankle sprain'
  saved=bridge('save',run_id=auto_run,record=r2,next_page=1,next_row=2)
  assert saved['ok'] and saved['registration']['status']=='created'
  assert sql(f'SELECT MAX(pid) FROM {db}.patients')=='7002'
- print('PASS configurable case-number sequence and automatic registration for archived and new imports')
+ fields=sql(f"SELECT CONCAT_WS('|',phone_cell,phone_home,national_id,father_name,marital_status,referral_source,address,medical_conditions,DATE_FORMAT(DOB,'%Y-%m-%d'),DATE_FORMAT(source_registered_date,'%Y-%m-%d'),DATE_FORMAT(clinic_registered_date,'%Y-%m-%d')) FROM {db}.patients WHERE pid=7002")
+ assert fields=='09123261029|09128001093|4711333509|امیر محمد|مجرد|مادر|فرمانیه لواسان شرقی نوریان پ 45|Ankle sprain|2004-09-24|2026-09-19|2026-09-19',fields
+ print('PASS configurable case-number sequence, structured Boghrat profile mapping and automatic registration')
  assert php("$x=importEncrypt('synthetic-test-secret');if(str_contains($x,'synthetic-test-secret')||importDecrypt($x)!=='synthetic-test-secret')exit(2);echo 'ok';")=='ok'
  denied=php("$_SESSION=['uid'=>0];importNeed();echo 'BAD';")
  assert 'BAD' not in denied
