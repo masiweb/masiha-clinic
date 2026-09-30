@@ -119,6 +119,8 @@ shopping_basket کالاهای ثبت شده: 1 ⨯ ملحفه، 1 ⨯ ساک د
  saved=bridge('save',run_id=auto_run,record=r2,next_page=1,next_row=2)
  assert saved['ok'] and saved['registration']['status']=='created'
  assert sql(f'SELECT MAX(pid) FROM {db}.patients')=='7002'
+ assert sql(f'SELECT COUNT(*) FROM {db}.import_patient_events WHERE record_id=(SELECT id FROM {db}.import_records WHERE national_id="4711333509")')=='2'
+ assert int(sql(f'SELECT COUNT(*) FROM {db}.import_financial_lines WHERE record_id=(SELECT id FROM {db}.import_records WHERE national_id="4711333509")'))>=1
  fields=sql(f"SELECT CONCAT_WS('|',phone_cell,phone_home,national_id,father_name,marital_status,referral_source,address,medical_conditions,DATE_FORMAT(DOB,'%Y-%m-%d'),DATE_FORMAT(source_registered_date,'%Y-%m-%d'),DATE_FORMAT(clinic_registered_date,'%Y-%m-%d')) FROM {db}.patients WHERE pid=7002")
  assert fields=='09123261029|09128001093|4711333509|امیر محمد|مجرد|مادر|فرمانیه لواسان شرقی نوریان پ 45|Ankle sprain|2004-09-24|2026-09-19|2026-09-19',fields
  print('PASS configurable case-number sequence, structured Boghrat profile mapping, visit/financial summary and automatic registration')
@@ -132,6 +134,16 @@ shopping_basket کالاهای ثبت شده: 1 ⨯ ملحفه، 1 ⨯ ساک د
  assert 'شماره پرونده بعدی' in html and 'ثبت خودکار رکوردهای واکشی‌شده' in html
  assert 'synthetic-test-secret' not in html
  print('PASS Persian import settings render without revealing stored credentials')
+ # Capability audit route policy is deliberately narrow: same-origin, safe query keys, no destructive paths.
+ import importlib.util
+ spec=importlib.util.spec_from_file_location('boghrat_audit',root/'importer'/'audit.py')
+ auditmod=importlib.util.module_from_spec(spec);spec.loader.exec_module(auditmod)
+ assert auditmod.safe_route('https://app.boghrat.com/dashboard/panel')
+ assert auditmod.safe_route('https://app.boghrat.com/clinic/secretary/reception/?_ilc=123')
+ assert auditmod.safe_route('https://app.boghrat.com/logout') is None
+ assert auditmod.safe_route('https://app.boghrat.com/patients?id=123') is None
+ assert auditmod.safe_route('https://evil.example/dashboard') is None
+ print('PASS capability audit same-origin and destructive-route guards')
  # Make a separate run with a full quota to exercise storage ceiling without real files.
  sql(f"USE {db};INSERT INTO import_runs(account_key,status,hourly_limit,total_limit,storage_mb,created_by) VALUES('{key}','running',2,10,0,1)")
  second=int(sql(f'SELECT MAX(id) FROM {db}.import_runs'))
