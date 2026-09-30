@@ -196,6 +196,23 @@ def extract_history_summary(history):
                 "payments_toman",
             )
         ):
+            charge = current.get("service_cost_toman")
+            if charge is not None:
+                current["charge_total_toman"] = charge
+                priced_services = current.get("service_items") or []
+                if priced_services and all(item.get("amount_toman") is not None for item in priced_services):
+                    service_total = sum(int(item["amount_toman"]) for item in priced_services)
+                    current["service_items_total_toman"] = service_total
+                    goods = current.get("goods_items") or []
+                    if goods and charge >= service_total:
+                        goods_total = charge - service_total
+                        current["goods_cost_toman"] = goods_total
+                        if len(goods) == 1:
+                            goods[0]["amount_toman"] = goods_total
+            current["discounts_toman"] = sum(
+                int(item.get("amount_toman") or 0)
+                for item in (current.get("discounts") or [])
+            )
             events.append(current)
         current = {}
 
@@ -372,7 +389,7 @@ def extract_history_summary(history):
                 "type": "service_charge",
                 "amount_toman": charge,
                 "method": "",
-                "description": "هزینه خدمات",
+                "description": "جمع هزینه مراجعه",
                 "is_snapshot": False,
             })
         for method in event.get("payment_methods") or []:
