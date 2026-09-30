@@ -41,6 +41,7 @@ function importInventoryItem(int $sourceId,string $name,?int $total,?float $quan
  return (int)q('SELECT id FROM inventory_items WHERE source_good_id=? OR name=? ORDER BY source_good_id=? DESC,id LIMIT 1',[$sourceId,$name,$sourceId])->fetchColumn();
 }
 function importSyncOpeningLedger(int $pid):void{
+ if(q("SELECT id FROM patient_account_ledger WHERE pid=? AND voided=0 AND entry_type<>'opening_balance' LIMIT 1",[$pid])->fetchColumn())return;
  $row=q("SELECT r.id,r.updated_at,f.outstanding_toman,f.credit_balance_toman
    FROM import_records r
    LEFT JOIN import_financial_summary f ON f.record_id=r.id
