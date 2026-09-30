@@ -113,6 +113,26 @@ shopping_basket کالاهای ثبت شده: 1 ⨯ ملحفه، 1 ⨯ ساک د
  assert hs['events'][1]['services']=='فیزیو یک (بدون ورزش)'
  assert 'ملحفه' in hs['events'][1]['goods']
  assert any('مانده بدهی' in x for x in hs['financial_lines'])
+ finance_history='''شنبه - 1405/7/1
+ساعت 10:00
+کد نوبت: 999001
+healing خدمات ارائه شده: فیزیوتراپی2 (5,000,000)، Extra (2,000,000)
+monetization_on هزینه خدمات: 7,050,000
+بستانکاری: 7,050,000
+attach_money پرداختی های مراجعه کننده: (مجموع پرداختی: 7,050,000 ، مجموع تسویه حساب: 7,050,000)
+7,000,000
+تومان کارتخوان
+50,000
+تومان انتقال به حساب
+بدهی: تسویه حساب'''
+ fh=extract_history_summary(finance_history)
+ assert len(fh['events'])==1
+ assert fh['events'][0]['service_items'][0]=={'name':'فیزیوتراپی2','amount_toman':5000000}
+ assert fh['events'][0]['service_items'][1]=={'name':'Extra','amount_toman':2000000}
+ assert len([x for x in fh['transactions'] if x['type']=='payment'])==2
+ assert sum(x['amount_toman'] for x in fh['transactions'] if x['type']=='payment')==7050000
+ assert any(x['type']=='service_charge' and x['amount_toman']==7050000 for x in fh['transactions'])
+ assert any(x['type']=='debt_snapshot' and x['amount_toman']==0 for x in fh['transactions'])
  r2['history']=history2
  r2['history_summary']=hs
  r2['forms']={'assignment فرم پذیرش':'فرم پذیرش آزمایشی'}
@@ -121,6 +141,16 @@ shopping_basket کالاهای ثبت شده: 1 ⨯ ملحفه، 1 ⨯ ساک د
  assert sql(f'SELECT MAX(pid) FROM {db}.patients')=='7002'
  assert sql(f'SELECT COUNT(*) FROM {db}.import_patient_events WHERE record_id=(SELECT id FROM {db}.import_records WHERE national_id="4711333509")')=='2'
  assert int(sql(f'SELECT COUNT(*) FROM {db}.import_financial_lines WHERE record_id=(SELECT id FROM {db}.import_records WHERE national_id="4711333509")'))>=1
+ # Rebuild one synthetic record with structured source-finance transactions.
+ r2['history']=finance_history
+ r2['history_summary']=fh
+ saved=bridge('save',run_id=auto_run,record=r2,next_page=1,next_row=2)
+ assert saved['ok']
+ rid2=sql(f'SELECT id FROM {db}.import_records WHERE national_id="4711333509"')
+ assert sql(f'SELECT COUNT(*) FROM {db}.import_event_services WHERE record_id={rid2}')=='2'
+ assert sql(f'SELECT SUM(COALESCE(amount_toman,0)) FROM {db}.import_event_services WHERE record_id={rid2}')=='7000000'
+ assert sql(f'SELECT COUNT(*) FROM {db}.import_financial_transactions WHERE record_id={rid2} AND tx_type="payment"')=='2'
+ assert sql(f'SELECT SUM(amount_toman) FROM {db}.import_financial_transactions WHERE record_id={rid2} AND tx_type="payment"')=='7050000'
  fields=sql(f"SELECT CONCAT_WS('|',phone_cell,phone_home,national_id,father_name,marital_status,referral_source,address,medical_conditions,DATE_FORMAT(DOB,'%Y-%m-%d'),DATE_FORMAT(source_registered_date,'%Y-%m-%d'),DATE_FORMAT(clinic_registered_date,'%Y-%m-%d')) FROM {db}.patients WHERE pid=7002")
  assert fields=='09123261029|09128001093|4711333509|امیر محمد|مجرد|مادر|فرمانیه لواسان شرقی نوریان پ 45|Ankle sprain|2004-09-24|2026-09-19|2026-09-19',fields
  print('PASS configurable case-number sequence, structured Boghrat profile mapping, visit/financial summary and automatic registration')
