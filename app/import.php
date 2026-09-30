@@ -42,10 +42,10 @@ function importApplyProfileArrayToPatient(int $pid,array $x,int $actor):void{
  if($mobile&&empty($p['phone_cell'])&&!q('SELECT pid FROM patients WHERE phone_cell=? AND pid<>?',[$mobile,$pid])->fetchColumn()){$p['phone_cell']=$mobile;q('UPDATE patients SET phone_cell=? WHERE pid=?',[$mobile,$pid]);}
  if($national&&empty($p['national_id'])&&!q('SELECT pid FROM patients WHERE national_id=? AND pid<>?',[$national,$pid])->fetchColumn()){$p['national_id']=$national;q('UPDATE patients SET national_id=? WHERE pid=?',[$national,$pid]);}
  $dateMap=['DOB'=>MasihaJalali::fromPersianDate((string)($x['birth_jalali']??'')),'source_registered_date'=>MasihaJalali::fromPersianDate((string)($x['source_registered_jalali']??'')),'clinic_registered_date'=>MasihaJalali::fromPersianDate((string)($x['clinic_registered_jalali']??''))];
- foreach($dateMap as $field=>$value)if($value&&empty($p[$field])){q("UPDATE patients SET $field=? WHERE pid=?",[$value,$pid]);$p[$field]=$value;}
+ foreach($dateMap as $field=>$value)if($value&&($p[$field]??null)!==$value){q("UPDATE patients SET $field=? WHERE pid=?",[$value,$pid]);$p[$field]=$value;}
  $textMap=['phone_home'=>[$x['phone_home']??'',30],'father_name'=>[$x['father_name']??'',160],'marital_status'=>[$x['marital_status']??'',30],'referral_source'=>[$x['referral_source']??'',160],'occupation'=>[$x['occupation']??'',160],'education'=>[$x['education']??'',160],'address'=>[$x['address']??'',2000],'medical_conditions'=>[$x['medical_conditions']??'',10000]];
- foreach($textMap as $field=>[$value,$max]){$value=mb_substr(trim((string)$value),0,$max);if($value!==''&&empty($p[$field])){q("UPDATE patients SET $field=? WHERE pid=?",[$value,$pid]);$p[$field]=$value;}}
- $height=MasihaOtp::digits((string)($x['height_cm']??''));if($height!==''&&ctype_digit($height)&&empty($p['height_cm'])){$height=(int)$height;if($height>=30&&$height<=250){q('UPDATE patients SET height_cm=? WHERE pid=?',[$height,$pid]);$p['height_cm']=$height;}}
+ foreach($textMap as $field=>[$value,$max]){$value=mb_substr(trim((string)$value),0,$max);if($value!==''&&(string)($p[$field]??'')!==$value){q("UPDATE patients SET $field=? WHERE pid=?",[$value,$pid]);$p[$field]=$value;}}
+ $height=MasihaOtp::digits((string)($x['height_cm']??''));if($height!==''&&ctype_digit($height)){$height=(int)$height;if($height>=30&&$height<=250&&(int)($p['height_cm']??0)!==$height){q('UPDATE patients SET height_cm=? WHERE pid=?',[$height,$pid]);$p['height_cm']=$height;}}
  q('INSERT INTO audit(actor,action,entity) VALUES(?,?,?)',[$actor,'import_patient_profile_sync',$pid]);
 }
 function importApplyProfileToPatient(int $pid,array $r,int $actor):void{importApplyProfileArrayToPatient($pid,importProfileFromRecord($r),$actor);}
