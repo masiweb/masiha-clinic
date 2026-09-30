@@ -8,7 +8,7 @@ function persistStructuredRecord(int $recordId,array $record):void{
  q('REPLACE INTO import_patient_profiles(record_id,full_name,mobile,phone_home,national_id,father_name,marital_status,birth_jalali,referral_source,source_registered_jalali,clinic_registered_jalali,address,medical_conditions,occupation,education,height_cm) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[
   $recordId,mb_substr((string)($record['name']??''),0,255),mb_substr((string)($profile['mobile']??$record['mobile']??''),0,30),mb_substr((string)($profile['phone_home']??''),0,30),mb_substr((string)($profile['national_id']??$record['national_id']??''),0,20),mb_substr((string)($profile['father_name']??''),0,160),mb_substr((string)($profile['marital_status']??''),0,30),mb_substr((string)($profile['birth_jalali']??''),0,20),mb_substr((string)($profile['referral_source']??''),0,160),mb_substr((string)($profile['source_registered_jalali']??''),0,20),mb_substr((string)($profile['clinic_registered_jalali']??''),0,20),(string)($profile['address']??''),(string)($profile['medical_conditions']??''),mb_substr((string)($profile['occupation']??''),0,160),mb_substr((string)($profile['education']??''),0,160),isset($profile['height_cm'])&&is_numeric($profile['height_cm'])?(int)$profile['height_cm']:null
  ]);
- foreach(['import_patient_events','import_financial_lines','import_event_services','import_event_goods','import_event_payments','import_patient_form_fields'] as $table)q("DELETE FROM $table WHERE record_id=?",[$recordId]);
+ foreach(['import_patient_events','import_financial_lines','import_event_services','import_event_goods','import_event_payments','import_patient_form_fields','import_financial_transactions'] as $table)q("DELETE FROM $table WHERE record_id=?",[$recordId]);
  q('DELETE FROM import_financial_summary WHERE record_id=?',[$recordId]);
  $summary=is_array($record['history_summary']??null)?$record['history_summary']:[];
  foreach(array_values($summary['events']??[]) as $eventNo=>$event){
@@ -17,11 +17,23 @@ function persistStructuredRecord(int $recordId,array $record):void{
   q('INSERT INTO import_patient_events(record_id,event_no,appointment_code,date_jalali,time_text,registered_at_jalali,registration_method,practitioner,reason,mode,status,debt_text,debt_toman,credit_toman,service_cost_toman,payments_toman,settled_toman,payment_methods,notes,services,goods,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[
    $recordId,$eventNo,mb_substr((string)($event['appointment_code']??''),0,40),mb_substr((string)($event['date_jalali']??''),0,20),mb_substr((string)($event['time']??''),0,20),mb_substr((string)($event['registered_at_jalali']??''),0,40),mb_substr((string)($event['registration_method']??''),0,160),mb_substr((string)($event['practitioner']??''),0,255),mb_substr((string)($event['reason']??''),0,255),mb_substr((string)($event['mode']??''),0,120),mb_substr((string)($event['status']??''),0,160),mb_substr((string)($event['debt']??''),0,255),isset($event['debt_toman'])?(int)$event['debt_toman']:null,isset($event['credit_toman'])?(int)$event['credit_toman']:null,isset($event['service_cost_toman'])?(int)$event['service_cost_toman']:null,isset($event['payments_toman'])?(int)$event['payments_toman']:null,isset($event['settled_toman'])?(int)$event['settled_toman']:null,json_encode($methods,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),(string)($event['notes']??''),(string)($event['services']??''),(string)($event['goods']??''),json_encode($event,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)
   ]);
-  foreach(array_values($event['service_items']??[]) as $itemNo=>$item){$name=mb_substr(trim((string)($item['name']??'')),0,255);if($name!=='')q('INSERT INTO import_event_services(record_id,event_no,item_no,service_name) VALUES(?,?,?,?)',[$recordId,$eventNo,$itemNo,$name]);}
+  foreach(array_values($event['service_items']??[]) as $itemNo=>$item){$name=mb_substr(trim((string)($item['name']??'')),0,255);if($name!=='')q('INSERT INTO import_event_services(record_id,event_no,item_no,service_name,amount_toman) VALUES(?,?,?,?,?)',[$recordId,$eventNo,$itemNo,$name,isset($item['amount_toman'])&&$item['amount_toman']!==null?(int)$item['amount_toman']:null]);}
   foreach(array_values($event['goods_items']??[]) as $itemNo=>$item){$name=mb_substr(trim((string)($item['name']??'')),0,255);if($name!=='')q('INSERT INTO import_event_goods(record_id,event_no,item_no,goods_name,quantity) VALUES(?,?,?,?,?)',[$recordId,$eventNo,$itemNo,$name,is_numeric($item['quantity']??null)?(float)$item['quantity']:1]);}
   foreach($methods as $paymentNo=>$method){q('INSERT INTO import_event_payments(record_id,event_no,payment_no,amount_toman,method) VALUES(?,?,?,?,?)',[$recordId,$eventNo,$paymentNo,isset($method['amount_toman'])?(int)$method['amount_toman']:null,mb_substr((string)($method['method']??''),0,160)]);}
  }
  foreach(array_values($summary['financial_lines']??[]) as $lineNo=>$line){$line=mb_substr(trim((string)$line),0,1000);if($line!=='')q('INSERT INTO import_financial_lines(record_id,line_no,line_text,line_hash) VALUES(?,?,?,?)',[$recordId,$lineNo,$line,hash('sha256',$line)]);}
+ $txCounters=[];
+ foreach(array_values($summary['transactions']??[]) as $tx){
+  $eventNo=is_numeric($tx['event_no']??null)?(int)$tx['event_no']:-1;
+  $txNo=$txCounters[$eventNo]??0;$txCounters[$eventNo]=$txNo+1;
+  q('INSERT INTO import_financial_transactions(record_id,event_no,tx_no,tx_type,amount_toman,method,date_jalali,appointment_code,description,is_snapshot,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?)',[
+   $recordId,$eventNo,$txNo,mb_substr((string)($tx['type']??'unknown'),0,40),
+   array_key_exists('amount_toman',$tx)&&$tx['amount_toman']!==null?(int)$tx['amount_toman']:null,
+   mb_substr((string)($tx['method']??''),0,160),mb_substr((string)($tx['date_jalali']??''),0,20),
+   mb_substr((string)($tx['appointment_code']??''),0,40),mb_substr((string)($tx['description']??''),0,500),
+   !empty($tx['is_snapshot'])?1:0,json_encode($tx,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)
+  ]);
+ }
  $finance=is_array($summary['financial_summary']??null)?$summary['financial_summary']:[];
  if($finance)q('INSERT INTO import_financial_summary(record_id,service_revenue_toman,goods_revenue_toman,payments_toman,refunds_toman,discounts_toman,difference_toman,payload) VALUES(?,?,?,?,?,?,?,?)',[
   $recordId,$finance['service_revenue_toman']??null,$finance['goods_revenue_toman']??null,$finance['payments_toman']??null,$finance['refunds_toman']??null,$finance['discounts_toman']??null,$finance['difference_toman']??null,json_encode($finance,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)
