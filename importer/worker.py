@@ -355,9 +355,9 @@ def main():
      for label in targets[:20]:
       btn=p.locator('button:visible').filter(has_text=label)
       if btn.count()<1:continue
-      btn.first.click();page.wait_for_timeout(350)
-      text=stable_text(p)
-      forms[label[:160]]=text
+      btn.first.click();page.wait_for_timeout(600)
+      text=p.inner_text(timeout=10000).strip()
+      if text:forms[label[:160]]=text
       links+=p.locator('a[href]').evaluate_all('(es)=>es.filter(e=>e.getClientRects().length).map(e=>({url:e.href,text:e.innerText}))')
     except Stop:
      raise
