@@ -203,3 +203,40 @@ ALTER TABLE import_event_goods ADD COLUMN IF NOT EXISTS amount_toman BIGINT NULL
 
 CREATE INDEX IF NOT EXISTS idx_import_patient_events_event_date ON import_patient_events(event_date);
 CREATE INDEX IF NOT EXISTS idx_import_financial_transactions_tx_date ON import_financial_transactions(tx_date);
+
+CREATE TABLE IF NOT EXISTS import_source_services (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ source_name VARCHAR(255) NOT NULL,
+ normalized_key CHAR(64) NOT NULL,
+ first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ UNIQUE(source_name),
+ INDEX(normalized_key)
+);
+
+CREATE TABLE IF NOT EXISTS import_source_goods (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ source_name VARCHAR(255) NOT NULL,
+ normalized_key CHAR(64) NOT NULL,
+ first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ UNIQUE(source_name),
+ INDEX(normalized_key)
+);
+
+ALTER TABLE import_event_services ADD COLUMN IF NOT EXISTS source_service_id BIGINT UNSIGNED NULL AFTER id;
+ALTER TABLE import_event_services ADD INDEX IF NOT EXISTS idx_import_event_services_source_service(source_service_id);
+ALTER TABLE import_event_goods ADD COLUMN IF NOT EXISTS source_goods_id BIGINT UNSIGNED NULL AFTER id;
+ALTER TABLE import_event_goods ADD INDEX IF NOT EXISTS idx_import_event_goods_source_goods(source_goods_id);
+
+CREATE TABLE IF NOT EXISTS import_financial_allocations (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ transaction_id BIGINT UNSIGNED NOT NULL,
+ record_id BIGINT UNSIGNED NOT NULL,
+ event_no INT NOT NULL,
+ appointment_code VARCHAR(40) NOT NULL DEFAULT '',
+ amount_toman BIGINT NOT NULL DEFAULT 0,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE(transaction_id,event_no),
+ INDEX(transaction_id),INDEX(record_id,event_no),INDEX(appointment_code)
+);
