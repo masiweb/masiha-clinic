@@ -183,3 +183,6 @@ CREATE TABLE IF NOT EXISTS import_financial_transactions (
  UNIQUE(record_id,event_no,tx_no),
  INDEX(record_id),INDEX(tx_type),INDEX(method),INDEX(appointment_code)
 );
+
+ALTER TABLE patients DROP INDEX IF EXISTS phone_cell;
+CREATE INDEX IF NOT EXISTS idx_patients_phone_cell ON patients(phone_cell);
