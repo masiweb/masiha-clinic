@@ -3,6 +3,16 @@
 if(PHP_SAPI!=='cli')exit(1);
 require __DIR__.'/../app/bootstrap.php';require __DIR__.'/../app/import.php';
 function response($v):never{echo json_encode($v,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);exit;}
+function importSourceDate(?string $value):?string{
+ $value=trim((string)$value);if($value==='')return null;
+ $date=preg_split('/\s+/',$value,2)[0]??'';
+ return MasihaJalali::fromPersianDate($date);
+}
+function importSourceDateTime(?string $value):?string{
+ $value=trim((string)$value);if(!preg_match('/^(1[2345]\d{2}\/\d{1,2}\/\d{1,2})\s+([0-2]?\d):([0-5]?\d)$/',$value,$m))return null;
+ $date=MasihaJalali::fromPersianDate($m[1]);if(!$date)return null;
+ return $date.' '.sprintf('%02d:%02d:00',(int)$m[2],(int)$m[3]);
+}
 function persistStructuredRecord(int $recordId,array $record):void{
  $profile=is_array($record['profile']??null)?$record['profile']:[];
  q('REPLACE INTO import_patient_profiles(record_id,full_name,mobile,phone_home,national_id,father_name,marital_status,birth_jalali,referral_source,source_registered_jalali,clinic_registered_jalali,address,medical_conditions,occupation,education,height_cm) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[
@@ -14,11 +24,11 @@ function persistStructuredRecord(int $recordId,array $record):void{
  foreach(array_values($summary['events']??[]) as $eventNo=>$event){
   $event=is_array($event)?$event:[];
   $methods=is_array($event['payment_methods']??null)?$event['payment_methods']:[];
-  q('INSERT INTO import_patient_events(record_id,event_no,appointment_code,date_jalali,time_text,registered_at_jalali,registration_method,practitioner,reason,mode,status,debt_text,debt_toman,credit_toman,service_cost_toman,payments_toman,settled_toman,payment_methods,notes,services,goods,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[
-   $recordId,$eventNo,mb_substr((string)($event['appointment_code']??''),0,40),mb_substr((string)($event['date_jalali']??''),0,20),mb_substr((string)($event['time']??''),0,20),mb_substr((string)($event['registered_at_jalali']??''),0,40),mb_substr((string)($event['registration_method']??''),0,160),mb_substr((string)($event['practitioner']??''),0,255),mb_substr((string)($event['reason']??''),0,255),mb_substr((string)($event['mode']??''),0,120),mb_substr((string)($event['status']??''),0,160),mb_substr((string)($event['debt']??''),0,255),isset($event['debt_toman'])?(int)$event['debt_toman']:null,isset($event['credit_toman'])?(int)$event['credit_toman']:null,isset($event['service_cost_toman'])?(int)$event['service_cost_toman']:null,isset($event['payments_toman'])?(int)$event['payments_toman']:null,isset($event['settled_toman'])?(int)$event['settled_toman']:null,json_encode($methods,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),(string)($event['notes']??''),(string)($event['services']??''),(string)($event['goods']??''),json_encode($event,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)
+  q('INSERT INTO import_patient_events(record_id,event_no,appointment_code,date_jalali,event_date,time_text,registered_at_jalali,registered_at,registration_method,practitioner,reason,mode,status,debt_text,debt_toman,credit_toman,service_cost_toman,charge_total_toman,service_items_total_toman,goods_cost_toman,discounts_toman,payments_toman,settled_toman,payment_methods,notes,services,goods,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[
+   $recordId,$eventNo,mb_substr((string)($event['appointment_code']??''),0,40),mb_substr((string)($event['date_jalali']??''),0,20),importSourceDate((string)($event['date_jalali']??'')),mb_substr((string)($event['time']??''),0,20),mb_substr((string)($event['registered_at_jalali']??''),0,40),importSourceDateTime((string)($event['registered_at_jalali']??'')),mb_substr((string)($event['registration_method']??''),0,160),mb_substr((string)($event['practitioner']??''),0,255),mb_substr((string)($event['reason']??''),0,255),mb_substr((string)($event['mode']??''),0,120),mb_substr((string)($event['status']??''),0,160),mb_substr((string)($event['debt']??''),0,255),isset($event['debt_toman'])?(int)$event['debt_toman']:null,isset($event['credit_toman'])?(int)$event['credit_toman']:null,isset($event['service_cost_toman'])?(int)$event['service_cost_toman']:null,isset($event['charge_total_toman'])?(int)$event['charge_total_toman']:null,isset($event['service_items_total_toman'])?(int)$event['service_items_total_toman']:null,isset($event['goods_cost_toman'])?(int)$event['goods_cost_toman']:null,isset($event['discounts_toman'])?(int)$event['discounts_toman']:null,isset($event['payments_toman'])?(int)$event['payments_toman']:null,isset($event['settled_toman'])?(int)$event['settled_toman']:null,json_encode($methods,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),(string)($event['notes']??''),(string)($event['services']??''),(string)($event['goods']??''),json_encode($event,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)
   ]);
   foreach(array_values($event['service_items']??[]) as $itemNo=>$item){$name=mb_substr(trim((string)($item['name']??'')),0,255);if($name!=='')q('INSERT INTO import_event_services(record_id,event_no,item_no,service_name,amount_toman) VALUES(?,?,?,?,?)',[$recordId,$eventNo,$itemNo,$name,isset($item['amount_toman'])&&$item['amount_toman']!==null?(int)$item['amount_toman']:null]);}
-  foreach(array_values($event['goods_items']??[]) as $itemNo=>$item){$name=mb_substr(trim((string)($item['name']??'')),0,255);if($name!=='')q('INSERT INTO import_event_goods(record_id,event_no,item_no,goods_name,quantity) VALUES(?,?,?,?,?)',[$recordId,$eventNo,$itemNo,$name,is_numeric($item['quantity']??null)?(float)$item['quantity']:1]);}
+  foreach(array_values($event['goods_items']??[]) as $itemNo=>$item){$name=mb_substr(trim((string)($item['name']??'')),0,255);if($name!=='')q('INSERT INTO import_event_goods(record_id,event_no,item_no,goods_name,quantity,amount_toman) VALUES(?,?,?,?,?,?)',[$recordId,$eventNo,$itemNo,$name,is_numeric($item['quantity']??null)?(float)$item['quantity']:1,isset($item['amount_toman'])&&$item['amount_toman']!==null?(int)$item['amount_toman']:null]);}
   foreach($methods as $paymentNo=>$method){q('INSERT INTO import_event_payments(record_id,event_no,payment_no,amount_toman,method) VALUES(?,?,?,?,?)',[$recordId,$eventNo,$paymentNo,isset($method['amount_toman'])?(int)$method['amount_toman']:null,mb_substr((string)($method['method']??''),0,160)]);}
  }
  foreach(array_values($summary['financial_lines']??[]) as $lineNo=>$line){$line=mb_substr(trim((string)$line),0,1000);if($line!=='')q('INSERT INTO import_financial_lines(record_id,line_no,line_text,line_hash) VALUES(?,?,?,?)',[$recordId,$lineNo,$line,hash('sha256',$line)]);}
@@ -26,17 +36,17 @@ function persistStructuredRecord(int $recordId,array $record):void{
  foreach(array_values($summary['transactions']??[]) as $tx){
   $eventNo=is_numeric($tx['event_no']??null)?(int)$tx['event_no']:-1;
   $txNo=$txCounters[$eventNo]??0;$txCounters[$eventNo]=$txNo+1;
-  q('INSERT INTO import_financial_transactions(record_id,event_no,tx_no,tx_type,amount_toman,method,date_jalali,appointment_code,description,is_snapshot,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?)',[
+  q('INSERT INTO import_financial_transactions(record_id,event_no,tx_no,tx_type,amount_toman,method,date_jalali,tx_date,appointment_code,description,is_snapshot,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',[
    $recordId,$eventNo,$txNo,mb_substr((string)($tx['type']??'unknown'),0,40),
    array_key_exists('amount_toman',$tx)&&$tx['amount_toman']!==null?(int)$tx['amount_toman']:null,
-   mb_substr((string)($tx['method']??''),0,160),mb_substr((string)($tx['date_jalali']??''),0,20),
+   mb_substr((string)($tx['method']??''),0,160),mb_substr((string)($tx['date_jalali']??''),0,20),importSourceDate((string)($tx['date_jalali']??'')),
    mb_substr((string)($tx['appointment_code']??''),0,40),mb_substr((string)($tx['description']??''),0,500),
    !empty($tx['is_snapshot'])?1:0,json_encode($tx,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)
   ]);
  }
  $finance=is_array($summary['financial_summary']??null)?$summary['financial_summary']:[];
- if($finance)q('INSERT INTO import_financial_summary(record_id,service_revenue_toman,goods_revenue_toman,payments_toman,refunds_toman,discounts_toman,difference_toman,payload) VALUES(?,?,?,?,?,?,?,?)',[
-  $recordId,$finance['service_revenue_toman']??null,$finance['goods_revenue_toman']??null,$finance['payments_toman']??null,$finance['refunds_toman']??null,$finance['discounts_toman']??null,$finance['difference_toman']??null,json_encode($finance,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)
+ if($finance)q('INSERT INTO import_financial_summary(record_id,service_revenue_toman,goods_revenue_toman,payments_toman,refunds_toman,discounts_toman,difference_toman,outstanding_toman,credit_balance_toman,payload) VALUES(?,?,?,?,?,?,?,?,?,?)',[
+  $recordId,$finance['service_revenue_toman']??null,$finance['goods_revenue_toman']??null,$finance['payments_toman']??null,$finance['refunds_toman']??null,$finance['discounts_toman']??null,$finance['difference_toman']??null,$finance['outstanding_toman']??null,$finance['credit_balance_toman']??null,json_encode($finance,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)
  ]);
  $formGroups=[];$formNo=0;
  foreach(array_values($record['form_fields']??[]) as $fieldNo=>$field){$formName=mb_substr((string)($field['form_name']??''),0,160);if(!array_key_exists($formName,$formGroups))$formGroups[$formName]=$formNo++;q('INSERT INTO import_patient_form_fields(record_id,form_no,field_no,form_name,field_name,field_value) VALUES(?,?,?,?,?,?)',[$recordId,$formGroups[$formName],$fieldNo,$formName,mb_substr((string)($field['field_name']??''),0,160),(string)($field['field_value']??'')]);}
