@@ -316,11 +316,12 @@ def extract_history_summary(history):
             if settled is not None:
                 current["settled_toman"] = settled
 
-        if re.fullmatch(r"[\d,]+", line) and index + 1 < len(lines):
+        amount_line = re.fullmatch(r"\(?\s*([\d,]+)\s*\)?", line)
+        if amount_line and index + 1 < len(lines):
             next_line = lines[index + 1]
             method_match = re.match(r"تومان\s*(.*)$", next_line)
             if method_match:
-                amount = money_number(line)
+                amount = money_number(amount_line.group(1))
                 method = clean(method_match.group(1)) or "نامشخص"
                 if amount is not None:
                     if method == "تخفیف":
@@ -333,6 +334,36 @@ def extract_history_summary(history):
                         )
 
     flush()
+
+    # Boghrat sometimes renders payment/credit details as a second block with
+    # the same date but without an appointment code. Merge that block only
+    # when there is exactly one coded encounter on the same date. This keeps
+    # payments attached to the visit without guessing on multi-visit days.
+    merged_events = []
+    for event in events:
+        if not event.get("appointment_code") and event.get("date_jalali"):
+            candidates = [
+                item for item in merged_events
+                if item.get("date_jalali") == event.get("date_jalali")
+                and item.get("appointment_code")
+            ]
+            if len(candidates) == 1:
+                target = candidates[0]
+                for key in ("payment_methods", "discounts"):
+                    if event.get(key):
+                        target.setdefault(key, []).extend(event[key])
+                for key, value in event.items():
+                    if key in ("payment_methods", "discounts", "date_jalali"):
+                        continue
+                    if value not in (None, "", [], {}):
+                        target[key] = value
+                target["discounts_toman"] = sum(
+                    int(item.get("amount_toman") or 0)
+                    for item in (target.get("discounts") or [])
+                )
+                continue
+        merged_events.append(event)
+    events = merged_events
 
     financial_keywords = (
         "پرداخت",
