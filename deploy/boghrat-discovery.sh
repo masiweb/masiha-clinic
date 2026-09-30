@@ -43,19 +43,15 @@ prepare_100() {
   php -l importer/bridge.php
   python3 -m py_compile importer/parser.py importer/worker.py importer/audit.py importer/audit_summary.py
 
-  # Keep existing Boghrat credentials/clinic selection, but make this a controlled
-  # 100-patient discovery run with unlimited hourly ceiling and 8-second pacing.
-  mariadb masiha_clinic -e "
-  UPDATE import_connections
-  SET hourly_limit=0, delay_seconds=8, total_limit=100
-  WHERE id=1;
-  UPDATE import_runs
-  SET status='paused', message='متوقف برای شروع تست کنترل‌شده ۱۰۰ مراجعه'
-  WHERE status='running';
-  "
+  # Preserve credentials/clinic and current case-number settings. Start a fresh
+  # controlled 100-patient run with unlimited hourly ceiling and 8-second pacing.
+  php deploy/start-boghrat-100.php
 
-  echo "Preparation complete."
-  echo "Open /imports, confirm automatic patient registration/case-number settings, then click 'شروع انتقال جدید'."
+  systemctl enable --now masiha-importer.timer
+  systemctl start --no-block masiha-importer.service
+
+  echo "Controlled 100-patient run started."
+  status
 }
 
 audit() {
