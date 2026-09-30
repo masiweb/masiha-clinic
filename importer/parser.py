@@ -218,7 +218,7 @@ def extract_history_summary(history):
 
     for index, line in enumerate(lines):
         for label, key in summary_labels.items():
-            match = re.search(re.escape(label) + r":\s*([\d,]+)", line)
+            match = re.search(re.escape(label) + r":\s*(-?[\d,]+)", line)
             if match:
                 value = money_number(match.group(1))
                 if value is not None:
