@@ -338,11 +338,32 @@ def main():
     p.get_by_role('button',name='person اطلاعات شخصی',exact=True).click();personal=stable_text(p)
     links=p.locator('a[href]').evaluate_all('(es)=>es.filter(e=>e.getClientRects().length).map(e=>({url:e.href,text:e.innerText}))')
     p.get_by_role('button',name='history سوابق ویزیت و پرداخت',exact=True).click();stable_text(p);visible_block(page)
-    details=p.get_by_role('checkbox',name='نمایش جزئیات',exact=True)
-    if details.count()==1 and details.is_visible() and details.get_attribute('aria-checked')!='true':details.click();page.wait_for_timeout(500)
-    # Read all rendered history, including content below the modal scroll viewport.
+    for checkbox_name in ['نمایش بدهی لحظه ای','نمایش جزئیات']:
+     box=p.get_by_role('checkbox',name=checkbox_name,exact=True)
+     if box.count()==1 and box.is_visible() and box.get_attribute('aria-checked')!='true':
+      box.click();page.wait_for_timeout(500)
+    # Read all rendered history, including balance/detail views the current account is allowed to see.
     history=stable_text(p);links+=p.locator('a[href]').evaluate_all('(es)=>es.filter(e=>e.getClientRects().length).map(e=>({url:e.href,text:e.innerText}))')
-    record=record_from_dom(cells,personal,history,links,number,index,c['source_url'])
+    forms={}
+    try:
+     candidates=p.locator('button:visible').all_inner_texts()
+     targets=[]
+     for label in candidates:
+      label=re.sub(r'\s+',' ',label).strip()
+      if 'فرم' in label and label not in targets and 'سوابق ویزیت' not in label and 'اطلاعات شخصی' not in label:
+       targets.append(label)
+     for label in targets[:20]:
+      btn=p.locator('button:visible').filter(has_text=label)
+      if btn.count()<1:continue
+      btn.first.click();page.wait_for_timeout(350)
+      text=stable_text(p)
+      forms[label[:160]]=text
+      links+=p.locator('a[href]').evaluate_all('(es)=>es.filter(e=>e.getClientRects().length).map(e=>({url:e.href,text:e.innerText}))')
+    except Stop:
+     raise
+    except Exception:
+     pass
+    record=record_from_dom(cells,personal,history,links,number,index,c['source_url'],forms=forms)
     # Nested history pagination is deliberately reported partial until reviewed.
     if p.locator('li[role="button"]').count():record['complete']=False;record['limitations'].append('history_pagination_requires_review')
     result=bridge('save',run_id=RUN,record=record,next_page=number,next_row=index+1)
