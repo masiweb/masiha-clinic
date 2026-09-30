@@ -77,10 +77,34 @@ def extract_profile(personal):
     }
 
 
+def money_number(value):
+    text = clean(value)
+    match = re.search(r"-?\d[\d,]*", text)
+    if not match:
+        return None
+    try:
+        return int(match.group(0).replace(",", ""))
+    except ValueError:
+        return None
+
+
 def extract_history_summary(history):
     lines = [clean(line) for line in str(history).splitlines() if clean(line)]
     events = []
     current = {}
+    finance_summary = {}
+
+    summary_labels = {
+        "درآمد خدمات": "service_revenue_toman",
+        "درآمد کالاها": "goods_revenue_toman",
+        "پرداختی ها": "payments_toman",
+        "پرداختی‌ها": "payments_toman",
+        "بازگشت وجه": "refunds_toman",
+        "تخفیف ها": "discounts_toman",
+        "تخفیف‌ها": "discounts_toman",
+        "مابه التفاوت": "difference_toman",
+        "مابه‌التفاوت": "difference_toman",
+    }
 
     def flush():
         nonlocal current
@@ -94,12 +118,23 @@ def extract_history_summary(history):
                 "goods",
                 "notes",
                 "practitioner",
+                "debt",
+                "credit_toman",
+                "service_cost_toman",
+                "payments_toman",
             )
         ):
             events.append(current)
         current = {}
 
-    for line in lines:
+    for index, line in enumerate(lines):
+        for label, key in summary_labels.items():
+            match = re.search(re.escape(label) + r":\s*([\d,]+)", line)
+            if match:
+                value = money_number(match.group(1))
+                if value is not None:
+                    finance_summary[key] = value
+
         match = re.search(
             r"(?:(?:شنبه|یکشنبه|دوشنبه|سه شنبه|سه‌شنبه|چهارشنبه|پنجشنبه|جمعه)\s*-\s*)?"
             r"(1[2345]\d{2}/\d{1,2}/\d{1,2})",
@@ -147,26 +182,83 @@ def extract_history_summary(history):
         if match:
             current["goods"] = clean(match.group(1))
 
+        match = re.search(r"بدهی:\s*(.+)$", line)
+        if match:
+            current["debt"] = clean(match.group(1))
+            amount = money_number(match.group(1))
+            if amount is not None:
+                current["debt_toman"] = amount
+
+        match = re.search(r"بستانکاری:\s*([\d,]+)", line)
+        if match:
+            amount = money_number(match.group(1))
+            if amount is not None:
+                current["credit_toman"] = amount
+
+        match = re.search(r"هزینه خدمات:\s*([\d,]+)", line)
+        if match:
+            amount = money_number(match.group(1))
+            if amount is not None:
+                current["service_cost_toman"] = amount
+
+        match = re.search(
+            r"مجموع پرداختی:\s*([\d,]+).*?مجموع تسویه حساب:\s*([\d,]+)",
+            line,
+        )
+        if match:
+            paid = money_number(match.group(1))
+            settled = money_number(match.group(2))
+            if paid is not None:
+                current["payments_toman"] = paid
+            if settled is not None:
+                current["settled_toman"] = settled
+
+        if re.fullmatch(r"[\d,]+", line) and index + 1 < len(lines):
+            next_line = lines[index + 1]
+            method_match = re.match(r"تومان\s*(.*)$", next_line)
+            if method_match:
+                amount = money_number(line)
+                if amount is not None:
+                    current.setdefault("payment_methods", []).append(
+                        {
+                            "amount_toman": amount,
+                            "method": clean(method_match.group(1)) or "نامشخص",
+                        }
+                    )
+
     flush()
 
     financial_keywords = (
         "پرداخت",
-        "پرداختی",
         "بدهی",
         "بستانکار",
         "دریافتی",
-        "مبلغ",
-        "تومان",
-        "ریال",
         "تخفیف",
         "بیمه",
         "کسورات",
         "هزینه",
         "فاکتور",
         "مانده",
+        "درآمد",
+        "بازگشت وجه",
+        "مابه التفاوت",
+        "مابه‌التفاوت",
+        "کارتخوان",
+        "انتقال به حساب",
     )
+    ui_only = {
+        "history سوابق ویزیت و پرداخت",
+        "پرداختی ها",
+        "پرداختی‌ها",
+        "نمایش بدهی لحظه ای",
+        "نمایش بدهی لحظه‌ای",
+        "تومان",
+        "ریال",
+    }
     financial_lines = []
     for line in lines:
+        if line in ui_only or line.startswith("adjust سوابق ویزیت و پرداخت"):
+            continue
         if any(keyword in line for keyword in financial_keywords):
             clipped = line[:800]
             if clipped not in financial_lines:
@@ -175,6 +267,7 @@ def extract_history_summary(history):
     return {
         "events": events[:500],
         "financial_lines": financial_lines[:500],
+        "financial_summary": finance_summary,
     }
 
 
