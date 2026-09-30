@@ -74,6 +74,13 @@ def extract_profile(personal):
         "medical_conditions": first(
             r"بیماری(?:\s+های|‌های)\s+خاص:\s*(.+?)(?=\s+-برچسب|\s+assignment\s+فرم|$)"
         ),
+        "occupation": first(
+            r"شغل:\s*(.+?)(?=\s+تحصیلات:|\s+قد:|\s+آدرس:|\s+بیماری(?:\s+های|‌های)\s+خاص:|$)"
+        ),
+        "education": first(
+            r"تحصیلات:\s*(.+?)(?=\s+شغل:|\s+قد:|\s+آدرس:|\s+بیماری(?:\s+های|‌های)\s+خاص:|$)"
+        ),
+        "height_cm": money_number(first(r"قد:\s*([0-9۰-۹٠-٩]+)")),
     }
 
 
@@ -86,6 +93,46 @@ def money_number(value):
         return int(match.group(0).replace(",", ""))
     except ValueError:
         return None
+
+
+def split_services(value):
+    text = clean(value)
+    if not text:
+        return []
+    parts = [clean(x) for x in re.split(r"\s*[،,]\s*", text) if clean(x)]
+    return [{"name": x} for x in parts[:100]]
+
+
+def split_goods(value):
+    text = clean(value)
+    if not text:
+        return []
+    items = []
+    for part in re.split(r"\s*[،,]\s*", text):
+        part = clean(part)
+        if not part:
+            continue
+        match = re.match(r"(\d+)\s*[×xX⨯]\s*(.+)$", part)
+        if match:
+            items.append({"quantity": int(match.group(1)), "name": clean(match.group(2))})
+        else:
+            items.append({"quantity": 1, "name": part})
+    return items[:100]
+
+
+def extract_form_fields(forms):
+    out = []
+    for form_name, content in (forms or {}).items():
+        form_name = clean(form_name)[:160]
+        for line in str(content).splitlines():
+            line = clean(line)
+            if ":" not in line:
+                continue
+            field, value = line.split(":", 1)
+            field, value = clean(field)[:160], clean(value)[:2000]
+            if field and value and field not in ("اطلاعات مراجعه کننده",):
+                out.append({"form_name": form_name, "field_name": field, "field_value": value})
+    return out[:1000]
 
 
 def extract_history_summary(history):
@@ -170,6 +217,14 @@ def extract_history_summary(history):
         if match:
             current["status"] = clean(match.group(1))
 
+        match = re.search(r"زمان ثبت نوبت:\s*(1[2345]\d{2}/\d{1,2}/\d{1,2})\s+([0-2]?\d:[0-5]?\d)", line)
+        if match:
+            current["registered_at_jalali"] = match.group(1) + " " + match.group(2)
+
+        match = re.search(r"نحوه ثبت نوبت:\s*(.+)$", line)
+        if match:
+            current["registration_method"] = clean(match.group(1))
+
         match = re.search(r"توضیحات:\s*(.+)$", line)
         if match:
             current["notes"] = clean(match.group(1))
@@ -177,10 +232,12 @@ def extract_history_summary(history):
         match = re.search(r"خدمات ارائه شده:\s*(.+)$", line)
         if match:
             current["services"] = clean(match.group(1))
+            current["service_items"] = split_services(match.group(1))
 
         match = re.search(r"کالاهای ثبت شده:\s*(.+)$", line)
         if match:
             current["goods"] = clean(match.group(1))
+            current["goods_items"] = split_goods(match.group(1))
 
         match = re.search(r"بدهی:\s*(.+)$", line)
         if match:
@@ -320,6 +377,7 @@ def record_from_dom(row, personal, history, links, page, index, base, forms=None
         "profile": profile,
         "history_summary": extract_history_summary(history),
         "forms": forms or {},
+        "form_fields": extract_form_fields(forms or {}),
         "confidence": "national" if national else ("contact" if mobile else "review"),
         "page": page,
         "row": index,
