@@ -21,6 +21,43 @@ function financeV2($report=false):void{need($report?'reports':'finance');[$from,
  if($report&&($_GET['export']??'')==='csv'){header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="clinic-finance.csv"');echo "\xEF\xBB\xBF";$f=fopen('php://output','w');fputcsv($f,['شناسه','تاریخ شمسی','بیمار','مبلغ تومان','پیگیری','ثبت‌کننده']);$st=q("SELECT x.*,p.fname,p.lname,u.name actor FROM physio_payments x JOIN physio_episodes e ON e.id=x.episode_id JOIN patients p ON p.pid=e.pid LEFT JOIN staff u ON u.id=x.created_by WHERE $paywhere ORDER BY x.created_at",$args);while($r=$st->fetch()){fputcsv($f,array_map(fn($v)=>preg_match('/^[=+@\-\t\r]/u',(string)$v)?"'".$v:$v,[$r['id'],jd($r['created_at'],'yyyy/MM/dd HH:mm'),patientName($r),$r['amount_toman'],$r['reference'],$r['actor']]));}fclose($f);exit;}
  layout($report?'reports':'finance',$report?'گزارش‌های مالی و عملکرد':'امور مالی','تمام مبالغ تومان است. دریافت وجه با درآمد تحقق‌یافته و ارزش خدمات تفاوت دارد.');echo '<section class="panel form-panel"><form method="get"><div class="form-grid three">';field('from','از تاریخ',$from,'date','بازه تراکنش‌ها و جلسات گزارش.',true);field('to','تا تاریخ',$to,'date','روز پایانی نیز در گزارش محاسبه می‌شود.',true);selectfield('therapist','درمانگر',['0'=>'همه درمانگران']+therapists(),$tid,'مالی: دوره‌های دارای جلسه با این درمانگر؛ سهم: فقط جلسات خود درمانگر.');selectfield('clinic','کلینیک',['0'=>'همه کلینیک‌ها']+options('clinics'),$clinic,'دوره‌های دارای جلسه در کلینیک انتخابی.');echo '</div><button class="button primary">نمایش گزارش</button>';if($report)echo ' <a class="button secondary" href="?'.e(http_build_query(['from'=>$from,'to'=>$to,'therapist'=>$tid,'clinic'=>$clinic,'export'=>'csv'])).'">دریافت CSV همه تراکنش‌ها</a>';echo '</form></section>';
  if($canHistory){$sum=q("SELECT COALESCE(SUM(IF(x.amount_toman>0,x.amount_toman,0)),0) incoming,COALESCE(SUM(IF(x.amount_toman<0,-x.amount_toman,0)),0) refunds FROM physio_payments x JOIN physio_episodes e ON e.id=x.episode_id WHERE $paywhere",$args)->fetch();echo '<div class="stats-grid three">';foreach(['دریافت در بازه'=>$sum['incoming'],'بازگشت وجه در بازه'=>$sum['refunds'],'خالص دریافت در بازه'=>$sum['incoming']-$sum['refunds']] as $k=>$v)echo '<article class="stat-card"><span>'.$k.'</span><strong>'.money($v).'</strong><small>تومان</small></article>';echo '</div>';}
+ if($canHistory||$canDebt){
+  $src=q("SELECT
+    COALESCE(SUM(CASE WHEN t.tx_type='payment' THEN t.amount_toman ELSE 0 END),0) payments,
+    COALESCE(SUM(CASE WHEN t.tx_type='service_charge' THEN t.amount_toman ELSE 0 END),0) charges,
+    COALESCE(SUM(CASE WHEN t.tx_type='discount' THEN t.amount_toman ELSE 0 END),0) discounts
+    FROM import_financial_transactions t
+    WHERE t.is_snapshot=0 AND t.tx_date>=? AND t.tx_date<DATE_ADD(?,INTERVAL 1 DAY)",[$from,$to])->fetch();
+  $sourceDebt=(int)q("SELECT COALESCE(SUM(f.outstanding_toman),0)
+    FROM import_financial_summary f
+    JOIN import_records r ON r.id=f.record_id
+    WHERE r.pid IS NOT NULL
+      AND r.id=(SELECT r2.id FROM import_records r2 WHERE r2.pid=r.pid ORDER BY r2.updated_at DESC,r2.id DESC LIMIT 1)")->fetchColumn();
+  echo '<section class="panel form-panel"><div class="panel-header"><h2>سوابق مالی تاریخی بقراط</h2><span class="muted">مستقل از اسناد مالی داخلی مسیحا</span></div><p class="hint">فیلتر تاریخ روی تراکنش‌های منبع اعمال می‌شود؛ فیلتر درمانگر/کلینیک داخلی روی این داده تاریخی اعمال نمی‌شود.</p><div class="stats-grid three">';
+  foreach(['جمع هزینه مراجعه در بازه'=>$src['charges'],'پرداخت واقعی در بازه'=>$src['payments'],'تخفیف در بازه'=>$src['discounts'],'بدهی فعلی منبع'=>$sourceDebt] as $k=>$v)echo '<article class="stat-card"><span>'.$k.'</span><strong>'.money($v).'</strong><small>تومان</small></article>';
+  echo '</div>';
+  if($canHistory){$sourceRows=q("SELECT t.*,p.pid,p.fname,p.lname
+      FROM import_financial_transactions t
+      JOIN import_records r ON r.id=t.record_id
+      JOIN patients p ON p.pid=r.pid
+      WHERE t.is_snapshot=0 AND t.tx_date>=? AND t.tx_date<DATE_ADD(?,INTERVAL 1 DAY)
+      ORDER BY t.tx_date DESC,t.id DESC LIMIT 50",[$from,$to])->fetchAll();
+    $labels=['service_charge'=>'جمع هزینه مراجعه','payment'=>'پرداخت','discount'=>'تخفیف'];
+    echo '<div class="table-scroll"><table><thead><tr><th>تاریخ</th><th>بیمار</th><th>نوع</th><th>مبلغ</th><th>روش</th><th>کد نوبت</th></tr></thead><tbody>';
+    foreach($sourceRows as $r)echo '<tr><td>'.jd($r['tx_date']).'</td><td><a href="/patient?id='.(int)$r['pid'].'">'.e(patientName($r)).'</a></td><td>'.e($labels[$r['tx_type']]??$r['tx_type']).'</td><td>'.money($r['amount_toman']).'</td><td>'.e($r['method']?:'—').'</td><td>'.fa($r['appointment_code']?:'—').'</td></tr>';
+    echo '</tbody></table></div>';
+  }
+  if($canDebt){$sourceDebts=q("SELECT p.pid,p.fname,p.lname,f.outstanding_toman
+      FROM import_financial_summary f
+      JOIN import_records r ON r.id=f.record_id
+      JOIN patients p ON p.pid=r.pid
+      WHERE f.outstanding_toman>0
+        AND r.id=(SELECT r2.id FROM import_records r2 WHERE r2.pid=r.pid ORDER BY r2.updated_at DESC,r2.id DESC LIMIT 1)
+      ORDER BY f.outstanding_toman DESC LIMIT 50")->fetchAll();
+    if($sourceDebts){echo '<h3>بدهی فعلی ثبت‌شده در بقراط</h3><div class="table-scroll"><table><thead><tr><th>بیمار</th><th>مانده بدهی</th></tr></thead><tbody>';foreach($sourceDebts as $r)echo '<tr><td><a href="/patient?id='.(int)$r['pid'].'">'.e(patientName($r)).'</a></td><td>'.money($r['outstanding_toman']).'</td></tr>';echo '</tbody></table></div>';}
+  }
+  echo '</section>';
+ }
  $eps=q("SELECT e.id,e.diagnosis,e.fee_toman,p.fname,p.lname,COALESCE((SELECT SUM(amount_toman) FROM physio_payments px WHERE px.episode_id=e.id AND px.voided=0),0) paid FROM physio_episodes e JOIN patients p ON p.pid=e.pid WHERE $where ORDER BY e.id DESC LIMIT 50 OFFSET ".(($page-1)*50))->fetchAll();
  if($canDebt){$debts=q("SELECT COALESCE(SUM(GREATEST(e.fee_toman-COALESCE((SELECT SUM(amount_toman) FROM physio_payments px WHERE px.episode_id=e.id AND px.voided=0),0),0)),0) debt FROM physio_episodes e WHERE $where")->fetchColumn();echo '<section class="panel form-panel"><h2>بدهی جاری: '.money($debts).' تومان</h2><p class="hint">مانده حساب تا این لحظه؛ مستقل از فیلتر تاریخ تراکنش‌ها.</p><div class="table-scroll"><table><thead><tr><th>بیمار / دوره</th><th>بدهی فعلی</th></tr></thead><tbody>';foreach($eps as $ep)echo '<tr><td>'.e(patientName($ep)).'<small>'.e($ep['diagnosis']).'</small></td><td>'.money(max(0,$ep['fee_toman']-$ep['paid'])).'</td></tr>';echo '</tbody></table></div><div class="pagination">';if($page>1)echo '<a href="?'.e(http_build_query(array_merge($_GET,['p'=>$page-1]))).'">صفحه قبل</a>';if(count($eps)===50)echo '<a href="?'.e(http_build_query(array_merge($_GET,['p'=>$page+1]))).'">صفحه بعد</a>';echo '</div></section>';}
  $epopts=[''=>'انتخاب دوره'];if(!$report&&(allowed('finance.pay')||allowed('finance.referral')||allowed('finance.edit')))foreach(q('SELECT e.id,e.diagnosis,p.fname,p.lname FROM physio_episodes e JOIN patients p ON p.pid=e.pid ORDER BY e.id DESC')->fetchAll() as $ep)$epopts[$ep['id']]=patientName($ep).' — '.$ep['diagnosis'];
