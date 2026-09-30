@@ -196,3 +196,7 @@ ALTER TABLE import_financial_summary ADD COLUMN IF NOT EXISTS outstanding_toman 
 ALTER TABLE import_financial_summary ADD COLUMN IF NOT EXISTS credit_balance_toman BIGINT NULL AFTER outstanding_toman;
 
 ALTER TABLE import_financial_transactions ADD COLUMN IF NOT EXISTS tx_date DATE NULL AFTER date_jalali;
+
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS service_items_total_toman BIGINT NULL AFTER charge_total_toman;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS discounts_toman BIGINT NULL AFTER goods_cost_toman;
+ALTER TABLE import_event_goods ADD COLUMN IF NOT EXISTS amount_toman BIGINT NULL AFTER quantity;
