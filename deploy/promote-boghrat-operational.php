@@ -63,10 +63,13 @@ try{
         $credit=max(0,(int)($row['credit_balance_toman']??0));
         $date=substr((string)$row['updated_at'],0,10);
         if(!preg_match('/^\d{4}-\d{2}-\d{2}$/D',$date))$date=date('Y-m-d');
-        q("INSERT INTO patient_account_ledger(pid,entry_date,entry_type,debit_toman,credit_toman,reference,source_system,source_record_id,entry_key,created_by,voided)
-           VALUES(? ,? ,'opening_balance',?,?, 'مانده افتتاحیه انتقال‌یافته از بقراط','boghrat',?,CONCAT('boghrat-opening:',?),0,0)
-           ON DUPLICATE KEY UPDATE entry_date=VALUES(entry_date),debit_toman=VALUES(debit_toman),credit_toman=VALUES(credit_toman),source_record_id=VALUES(source_record_id),reference=VALUES(reference),voided=0",
-          [$pid,$date,$debt,$credit,(int)$row['id'],$pid]);
+        $locked=(bool)q("SELECT id FROM patient_account_ledger WHERE pid=? AND voided=0 AND entry_type<>'opening_balance' LIMIT 1",[$pid])->fetchColumn();
+        if(!$locked){
+            q("INSERT INTO patient_account_ledger(pid,entry_date,entry_type,debit_toman,credit_toman,reference,source_system,source_record_id,entry_key,created_by,voided)
+               VALUES(? ,? ,'opening_balance',?,?, 'مانده افتتاحیه انتقال‌یافته از بقراط','boghrat',?,CONCAT('boghrat-opening:',?),0,0)
+               ON DUPLICATE KEY UPDATE entry_date=VALUES(entry_date),debit_toman=VALUES(debit_toman),credit_toman=VALUES(credit_toman),source_record_id=VALUES(source_record_id),reference=VALUES(reference),voided=0",
+              [$pid,$date,$debt,$credit,(int)$row['id'],$pid]);
+        }
         $openingCount++;
     }
 
