@@ -113,11 +113,18 @@ shopping_basket کالاهای ثبت شده: 1 ⨯ ملحفه، 1 ⨯ ساک د
  assert hs['events'][1]['services']=='فیزیو یک (بدون ورزش)'
  assert 'ملحفه' in hs['events'][1]['goods']
  assert any('مانده بدهی' in x for x in hs['financial_lines'])
- finance_history='''شنبه - 1405/7/1
+ finance_history='''درآمد خدمات: 7,000,000
+درآمد کالاها: 50,000
+پرداختی ها: 7,050,000
+بازگشت وجه: 0
+تخفیف ها: 0
+مابه التفاوت: 0
+شنبه - 1405/7/1
 ساعت 10:00
 کد نوبت: 999001
 healing خدمات ارائه شده: فیزیوتراپی2 (5,000,000)، Extra (2,000,000)
 monetization_on هزینه خدمات: 7,050,000
+shopping_basket کالاهای ثبت شده: 1 ⨯ ملحفه یکبارمصرف
 بستانکاری: 7,050,000
 attach_money پرداختی های مراجعه کننده: (مجموع پرداختی: 7,050,000 ، مجموع تسویه حساب: 7,050,000)
 7,000,000
@@ -125,10 +132,14 @@ attach_money پرداختی های مراجعه کننده: (مجموع پردا
 50,000
 تومان انتقال به حساب
 بدهی: تسویه حساب'''
- fh=extract_history_summary(finance_history)
+ fh=extract_history_summary(finance_history.replace('\n','\\n'))
  assert len(fh['events'])==1
  assert fh['events'][0]['service_items'][0]=={'name':'فیزیوتراپی2','amount_toman':5000000}
  assert fh['events'][0]['service_items'][1]=={'name':'Extra','amount_toman':2000000}
+ assert fh['events'][0]['charge_total_toman']==7050000
+ assert fh['events'][0]['service_items_total_toman']==7000000
+ assert fh['events'][0]['goods_cost_toman']==50000
+ assert fh['events'][0]['goods_items'][0]['amount_toman']==50000
  assert len([x for x in fh['transactions'] if x['type']=='payment'])==2
  assert sum(x['amount_toman'] for x in fh['transactions'] if x['type']=='payment')==7050000
  assert any(x['type']=='service_charge' and x['amount_toman']==7050000 for x in fh['transactions'])
