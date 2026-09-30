@@ -10,6 +10,14 @@ function importPatientAutoEnabled():bool{return setting('import_auto_register','
 function importPatientNextNumber():int{$max=(int)q('SELECT COALESCE(MAX(pid),0)+1 FROM patients')->fetchColumn();$auto=(int)(q("SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='patients'")->fetchColumn()?:1);return max(1,$max,$auto);}
 function importSetPatientNextNumber(int $next):void{$minimum=(int)q('SELECT COALESCE(MAX(pid),0)+1 FROM patients')->fetchColumn();if($next<$minimum)throw new DomainException('شماره پرونده بعدی باید حداقل '.fa($minimum).' باشد؛ شماره‌های پرونده موجود تغییر داده نمی‌شوند.');q('ALTER TABLE patients AUTO_INCREMENT='.$next);setsetting('patient_case_start',(string)$next);}
 function importPatientNameParts(string $name):array{$name=preg_replace('/\s+/u',' ',trim($name));if($name==='')return ['بدون نام',''];$parts=preg_split('/\s+/u',$name,-1,PREG_SPLIT_NO_EMPTY)?:[];if(count($parts)<=1)return [$name,''];$fname=(string)array_shift($parts);return [mb_substr($fname,0,80),mb_substr(implode(' ',$parts),0,100)];}
+function importNormalizePersonName(string $name):string{
+ $name=str_replace(['ي','ك','‌'],['ی','ک',' '],trim($name));
+ $name=preg_replace('/^(?:آقای|اقای|خانم|جناب|دکتر)\s+/u','',$name);
+ return mb_strtolower(preg_replace('/\s+/u',' ',$name));
+}
+function importPatientNameMatches(string $source,array $patient):bool{
+ return importNormalizePersonName($source)!==''&&importNormalizePersonName($source)===importNormalizePersonName(trim((string)($patient['fname']??'')).' '.trim((string)($patient['lname']??'')));
+}
 function importProfileFromRecord(array $r):array{
  $payload=json_decode((string)($r['payload']??''),true)?:[];$profile=is_array($payload['profile']??null)?$payload['profile']:[];
  $text=preg_replace('/\s+/u',' ',(string)($payload['personal']??''));
@@ -34,13 +42,15 @@ function importProfileFromRecord(array $r):array{
  foreach($fallback as $k=>$v)if(!isset($profile[$k])||trim((string)$profile[$k])==='')$profile[$k]=$v;
  $profile['mobile']=$digits($profile['mobile']??($r['mobile']??''));$profile['phone_home']=$digits($profile['phone_home']??'');$profile['national_id']=$digits($profile['national_id']??($r['national_id']??''));
  foreach(['source_registered_jalali','clinic_registered_jalali','birth_jalali'] as $k)$profile[$k]=$digits($profile[$k]??'');
+ $profile['full_name']=trim((string)($profile['full_name']??($r['display_name']??'')));
  return $profile;
 }
 function importApplyProfileArrayToPatient(int $pid,array $x,int $actor):void{
  $p=q('SELECT * FROM patients WHERE pid=? FOR UPDATE',[$pid])->fetch();if(!$p)return;
  $mobile=MasihaOtp::mobile((string)($x['mobile']??''));$national=preg_match('/^\d{10}$/D',(string)($x['national_id']??''))?(string)$x['national_id']:null;
- if($mobile&&empty($p['phone_cell'])&&!q('SELECT pid FROM patients WHERE phone_cell=? AND pid<>?',[$mobile,$pid])->fetchColumn()){$p['phone_cell']=$mobile;q('UPDATE patients SET phone_cell=? WHERE pid=?',[$mobile,$pid]);}
- if($national&&empty($p['national_id'])&&!q('SELECT pid FROM patients WHERE national_id=? AND pid<>?',[$national,$pid])->fetchColumn()){$p['national_id']=$national;q('UPDATE patients SET national_id=? WHERE pid=?',[$national,$pid]);}
+ if($mobile&&($p['phone_cell']??'')!==$mobile){$p['phone_cell']=$mobile;q('UPDATE patients SET phone_cell=? WHERE pid=?',[$mobile,$pid]);}
+ if($national&&($p['national_id']??'')!==$national&&!q('SELECT pid FROM patients WHERE national_id=? AND pid<>?',[$national,$pid])->fetchColumn()){$p['national_id']=$national;q('UPDATE patients SET national_id=? WHERE pid=?',[$national,$pid]);}
+ if(trim((string)($x['full_name']??''))!==''){[$fname,$lname]=importPatientNameParts((string)$x['full_name']);if($fname!==$p['fname']||$lname!==$p['lname']){q('UPDATE patients SET fname=?,lname=? WHERE pid=?',[$fname,$lname,$pid]);$p['fname']=$fname;$p['lname']=$lname;}}
  $dateMap=['DOB'=>MasihaJalali::fromPersianDate((string)($x['birth_jalali']??'')),'source_registered_date'=>MasihaJalali::fromPersianDate((string)($x['source_registered_jalali']??'')),'clinic_registered_date'=>MasihaJalali::fromPersianDate((string)($x['clinic_registered_jalali']??''))];
  foreach($dateMap as $field=>$value)if($value&&($p[$field]??null)!==$value){q("UPDATE patients SET $field=? WHERE pid=?",[$value,$pid]);$p[$field]=$value;}
  $textMap=['phone_home'=>[$x['phone_home']??'',30],'father_name'=>[$x['father_name']??'',160],'marital_status'=>[$x['marital_status']??'',30],'referral_source'=>[$x['referral_source']??'',160],'occupation'=>[$x['occupation']??'',160],'education'=>[$x['education']??'',160],'address'=>[$x['address']??'',2000],'medical_conditions'=>[$x['medical_conditions']??'',10000]];
@@ -53,7 +63,8 @@ function importRegisterRecord(int $id,int $actor):array{
  $r=q('SELECT * FROM import_records WHERE id=? FOR UPDATE',[$id])->fetch();if(!$r)return ['status'=>'missing'];
  if($r['pid']){importApplyProfileToPatient((int)$r['pid'],$r,$actor);return ['status'=>'already','pid'=>(int)$r['pid']];}
  $x=importProfileFromRecord($r);$national=preg_match('/^\d{10}$/D',(string)($x['national_id']??''))?(string)$x['national_id']:null;$mobile=MasihaOtp::mobile((string)($x['mobile']??''));
- $byNational=$national?q('SELECT * FROM patients WHERE national_id=? FOR UPDATE',[$national])->fetch():false;$byMobile=$mobile?q('SELECT * FROM patients WHERE phone_cell=? FOR UPDATE',[$mobile])->fetch():false;
+ $byNational=$national?q('SELECT * FROM patients WHERE national_id=? FOR UPDATE',[$national])->fetch():false;
+ $byMobile=false;if($mobile){$mobileRows=q('SELECT * FROM patients WHERE phone_cell=? FOR UPDATE',[$mobile])->fetchAll();$nameMatches=array_values(array_filter($mobileRows,fn($p)=>importPatientNameMatches((string)$r['display_name'],$p)));if(count($nameMatches)===1)$byMobile=$nameMatches[0];}
  if($byNational&&$byMobile&&(int)$byNational['pid']!==(int)$byMobile['pid'])return ['status'=>'conflict'];$existing=$byNational?:$byMobile;
  if($existing){$pid=(int)$existing['pid'];q('UPDATE import_records SET pid=? WHERE id=?',[$pid,$id]);importApplyProfileToPatient($pid,$r,$actor);q('INSERT INTO audit(actor,action,entity) VALUES(?,?,?)',[$actor,'import_patient_linked',$pid]);return ['status'=>'linked','pid'=>$pid];}
  [$fname,$lname]=importPatientNameParts((string)$r['display_name']);
