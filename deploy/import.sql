@@ -163,3 +163,23 @@ CREATE TABLE IF NOT EXISTS import_patient_form_fields (
  UNIQUE(record_id,form_no,field_no),
  INDEX(record_id),INDEX(form_name),INDEX(field_name)
 );
+
+ALTER TABLE import_event_services ADD COLUMN IF NOT EXISTS amount_toman BIGINT NULL AFTER service_name;
+
+CREATE TABLE IF NOT EXISTS import_financial_transactions (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ record_id BIGINT UNSIGNED NOT NULL,
+ event_no INT NOT NULL DEFAULT -1,
+ tx_no INT NOT NULL DEFAULT 0,
+ tx_type VARCHAR(40) NOT NULL,
+ amount_toman BIGINT NULL,
+ method VARCHAR(160) NOT NULL DEFAULT '',
+ date_jalali VARCHAR(20) NOT NULL DEFAULT '',
+ appointment_code VARCHAR(40) NOT NULL DEFAULT '',
+ description VARCHAR(500) NOT NULL DEFAULT '',
+ is_snapshot TINYINT NOT NULL DEFAULT 0,
+ payload TEXT NOT NULL DEFAULT '',
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ UNIQUE(record_id,event_no,tx_no),
+ INDEX(record_id),INDEX(tx_type),INDEX(method),INDEX(appointment_code)
+);
