@@ -13,11 +13,22 @@ function importSourceDateTime(?string $value):?string{
  $date=MasihaJalali::fromPersianDate($m[1]);if(!$date)return null;
  return $date.' '.sprintf('%02d:%02d:00',(int)$m[2],(int)$m[3]);
 }
+function importSourceKey(string $value):string{
+ $value=str_replace(['ي','ك','‌'],['ی','ک',' '],trim($value));
+ $value=mb_strtolower(preg_replace('/\s+/u',' ',$value));
+ return hash('sha256',$value);
+}
+function importCatalogId(string $table,string $name):int{
+ $name=mb_substr(trim($name),0,255);if($name==='')return 0;
+ q("INSERT INTO $table(source_name,normalized_key) VALUES(?,?) ON DUPLICATE KEY UPDATE normalized_key=VALUES(normalized_key),last_seen=CURRENT_TIMESTAMP",[$name,importSourceKey($name)]);
+ return (int)q("SELECT id FROM $table WHERE source_name=?",[$name])->fetchColumn();
+}
 function persistStructuredRecord(int $recordId,array $record):void{
  $profile=is_array($record['profile']??null)?$record['profile']:[];
  q('REPLACE INTO import_patient_profiles(record_id,full_name,mobile,phone_home,national_id,father_name,marital_status,birth_jalali,referral_source,source_registered_jalali,clinic_registered_jalali,address,medical_conditions,occupation,education,height_cm) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[
   $recordId,mb_substr((string)($record['name']??''),0,255),mb_substr((string)($profile['mobile']??$record['mobile']??''),0,30),mb_substr((string)($profile['phone_home']??''),0,30),mb_substr((string)($profile['national_id']??$record['national_id']??''),0,20),mb_substr((string)($profile['father_name']??''),0,160),mb_substr((string)($profile['marital_status']??''),0,30),mb_substr((string)($profile['birth_jalali']??''),0,20),mb_substr((string)($profile['referral_source']??''),0,160),mb_substr((string)($profile['source_registered_jalali']??''),0,20),mb_substr((string)($profile['clinic_registered_jalali']??''),0,20),(string)($profile['address']??''),(string)($profile['medical_conditions']??''),mb_substr((string)($profile['occupation']??''),0,160),mb_substr((string)($profile['education']??''),0,160),isset($profile['height_cm'])&&is_numeric($profile['height_cm'])?(int)$profile['height_cm']:null
  ]);
+ q('DELETE a FROM import_financial_allocations a JOIN import_financial_transactions t ON t.id=a.transaction_id WHERE t.record_id=?',[$recordId]);
  foreach(['import_patient_events','import_financial_lines','import_event_services','import_event_goods','import_event_payments','import_patient_form_fields','import_financial_transactions'] as $table)q("DELETE FROM $table WHERE record_id=?",[$recordId]);
  q('DELETE FROM import_financial_summary WHERE record_id=?',[$recordId]);
  $summary=is_array($record['history_summary']??null)?$record['history_summary']:[];
@@ -27,8 +38,8 @@ function persistStructuredRecord(int $recordId,array $record):void{
   q('INSERT INTO import_patient_events(record_id,event_no,appointment_code,date_jalali,event_date,time_text,registered_at_jalali,registered_at,registration_method,practitioner,reason,mode,status,debt_text,debt_toman,credit_toman,service_cost_toman,charge_total_toman,service_items_total_toman,goods_cost_toman,discounts_toman,payments_toman,settled_toman,payment_methods,notes,services,goods,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[
    $recordId,$eventNo,mb_substr((string)($event['appointment_code']??''),0,40),mb_substr((string)($event['date_jalali']??''),0,20),importSourceDate((string)($event['date_jalali']??'')),mb_substr((string)($event['time']??''),0,20),mb_substr((string)($event['registered_at_jalali']??''),0,40),importSourceDateTime((string)($event['registered_at_jalali']??'')),mb_substr((string)($event['registration_method']??''),0,160),mb_substr((string)($event['practitioner']??''),0,255),mb_substr((string)($event['reason']??''),0,255),mb_substr((string)($event['mode']??''),0,120),mb_substr((string)($event['status']??''),0,160),mb_substr((string)($event['debt']??''),0,255),isset($event['debt_toman'])?(int)$event['debt_toman']:null,isset($event['credit_toman'])?(int)$event['credit_toman']:null,isset($event['service_cost_toman'])?(int)$event['service_cost_toman']:null,isset($event['charge_total_toman'])?(int)$event['charge_total_toman']:null,isset($event['service_items_total_toman'])?(int)$event['service_items_total_toman']:null,isset($event['goods_cost_toman'])?(int)$event['goods_cost_toman']:null,isset($event['discounts_toman'])?(int)$event['discounts_toman']:null,isset($event['payments_toman'])?(int)$event['payments_toman']:null,isset($event['settled_toman'])?(int)$event['settled_toman']:null,json_encode($methods,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),(string)($event['notes']??''),(string)($event['services']??''),(string)($event['goods']??''),json_encode($event,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)
   ]);
-  foreach(array_values($event['service_items']??[]) as $itemNo=>$item){$name=mb_substr(trim((string)($item['name']??'')),0,255);if($name!=='')q('INSERT INTO import_event_services(record_id,event_no,item_no,service_name,amount_toman) VALUES(?,?,?,?,?)',[$recordId,$eventNo,$itemNo,$name,isset($item['amount_toman'])&&$item['amount_toman']!==null?(int)$item['amount_toman']:null]);}
-  foreach(array_values($event['goods_items']??[]) as $itemNo=>$item){$name=mb_substr(trim((string)($item['name']??'')),0,255);if($name!=='')q('INSERT INTO import_event_goods(record_id,event_no,item_no,goods_name,quantity,amount_toman) VALUES(?,?,?,?,?,?)',[$recordId,$eventNo,$itemNo,$name,is_numeric($item['quantity']??null)?(float)$item['quantity']:1,isset($item['amount_toman'])&&$item['amount_toman']!==null?(int)$item['amount_toman']:null]);}
+  foreach(array_values($event['service_items']??[]) as $itemNo=>$item){$name=mb_substr(trim((string)($item['name']??'')),0,255);if($name!==''){$sourceId=importCatalogId('import_source_services',$name);q('INSERT INTO import_event_services(record_id,event_no,item_no,source_service_id,service_name,amount_toman) VALUES(?,?,?,?,?,?)',[$recordId,$eventNo,$itemNo,$sourceId?:null,$name,isset($item['amount_toman'])&&$item['amount_toman']!==null?(int)$item['amount_toman']:null]);}}
+  foreach(array_values($event['goods_items']??[]) as $itemNo=>$item){$name=mb_substr(trim((string)($item['name']??'')),0,255);if($name!==''){$sourceId=importCatalogId('import_source_goods',$name);q('INSERT INTO import_event_goods(record_id,event_no,item_no,source_goods_id,goods_name,quantity,amount_toman) VALUES(?,?,?,?,?,?,?)',[$recordId,$eventNo,$itemNo,$sourceId?:null,$name,is_numeric($item['quantity']??null)?(float)$item['quantity']:1,isset($item['amount_toman'])&&$item['amount_toman']!==null?(int)$item['amount_toman']:null]);}}
   foreach($methods as $paymentNo=>$method){q('INSERT INTO import_event_payments(record_id,event_no,payment_no,amount_toman,method) VALUES(?,?,?,?,?)',[$recordId,$eventNo,$paymentNo,isset($method['amount_toman'])?(int)$method['amount_toman']:null,mb_substr((string)($method['method']??''),0,160)]);}
  }
  foreach(array_values($summary['financial_lines']??[]) as $lineNo=>$line){$line=mb_substr(trim((string)$line),0,1000);if($line!=='')q('INSERT INTO import_financial_lines(record_id,line_no,line_text,line_hash) VALUES(?,?,?,?)',[$recordId,$lineNo,$line,hash('sha256',$line)]);}
@@ -43,6 +54,8 @@ function persistStructuredRecord(int $recordId,array $record):void{
    mb_substr((string)($tx['appointment_code']??''),0,40),mb_substr((string)($tx['description']??''),0,500),
    !empty($tx['is_snapshot'])?1:0,json_encode($tx,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)
   ]);
+  $transactionId=(int)$GLOBALS['db']->lastInsertId();
+  foreach(array_values($tx['allocations']??[]) as $allocation){q('INSERT INTO import_financial_allocations(transaction_id,record_id,event_no,appointment_code,amount_toman) VALUES(?,?,?,?,?)',[$transactionId,$recordId,(int)($allocation['event_no']??-1),mb_substr((string)($allocation['appointment_code']??''),0,40),(int)($allocation['amount_toman']??0)]);}
  }
  $finance=is_array($summary['financial_summary']??null)?$summary['financial_summary']:[];
  if($finance)q('INSERT INTO import_financial_summary(record_id,service_revenue_toman,goods_revenue_toman,payments_toman,refunds_toman,discounts_toman,difference_toman,outstanding_toman,credit_balance_toman,payload) VALUES(?,?,?,?,?,?,?,?,?,?)',[
