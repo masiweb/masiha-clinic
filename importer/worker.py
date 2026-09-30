@@ -22,14 +22,15 @@ def visible_block(page):
  if page.locator('input[autocomplete="one-time-code"]:visible').count():raise Stop('verification_required','blocked')
  return text
 
-def stable_text(loc):
+def stable_text(loc,min_chars=12):
  end=time.monotonic()+20;last=None;stable=0
  while time.monotonic()<end:
   current=loc.inner_text()
-  if current==last and '{{' not in current:stable+=1
+  ready='{{' not in current and len(current.strip())>=min_chars
+  if ready and current==last:stable+=1
   else:stable=0
-  if stable>=3 and len(current)>100:return current
-  last=current;time.sleep(.5)
+  if stable>=2:return current
+  last=current;time.sleep(.35)
  raise Stop('content_not_ready')
 
 def panel(page):
