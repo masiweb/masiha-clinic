@@ -18,6 +18,7 @@ function patientView():void{
  $services=q('SELECT s.* FROM import_event_services s JOIN import_records r ON r.id=s.record_id WHERE r.pid=? ORDER BY s.record_id,s.event_no,s.item_no',[$pid])->fetchAll();
  $goods=q('SELECT g.* FROM import_event_goods g JOIN import_records r ON r.id=g.record_id WHERE r.pid=? ORDER BY g.record_id,g.event_no,g.item_no',[$pid])->fetchAll();
  $payments=$financeAllowed?q('SELECT x.* FROM import_event_payments x JOIN import_records r ON r.id=x.record_id WHERE r.pid=? ORDER BY x.record_id,x.event_no,x.payment_no',[$pid])->fetchAll():[];
+ $sourceTransactions=$financeAllowed?q('SELECT t.* FROM import_financial_transactions t JOIN import_records r ON r.id=t.record_id WHERE r.pid=? ORDER BY t.date_jalali DESC,t.record_id DESC,t.event_no DESC,t.tx_no',[$pid])->fetchAll():[];
  $financial=$financeAllowed?q('SELECT f.* FROM import_financial_summary f JOIN import_records r ON r.id=f.record_id WHERE r.pid=? ORDER BY f.updated_at DESC LIMIT 1',[$pid])->fetch():false;
  $formFields=q('SELECT f.* FROM import_patient_form_fields f JOIN import_records r ON r.id=f.record_id WHERE r.pid=? ORDER BY f.record_id,f.form_no,f.field_no',[$pid])->fetchAll();
  $servicesBy=[];foreach($services as $x)$servicesBy[$x['record_id'].':'.$x['event_no']][]=$x;
@@ -81,6 +82,25 @@ function patientView():void{
  </section>
  <?php endif;?>
 
+ <?php if($sourceTransactions&&$financeAllowed):?>
+ <section class="panel form-panel">
+  <div class="panel-header"><h2>گردش مالی تفکیک‌شده بقراط</h2><span class="count"><?=fa(count($sourceTransactions))?></span></div>
+  <p class="hint">«پرداخت» و «هزینه خدمت» حرکت مالی‌اند؛ «وضعیت بدهی/بستانکاری» snapshot منبع است و در جمع تراکنش‌ها دوباره محاسبه نمی‌شود.</p>
+  <div class="table-scroll"><table><thead><tr><th>تاریخ</th><th>نوع</th><th>مبلغ (تومان)</th><th>روش</th><th>کد نوبت</th><th>توضیح</th></tr></thead><tbody>
+  <?php $txLabels=['service_charge'=>'هزینه خدمت','payment'=>'پرداخت','debt_snapshot'=>'وضعیت بدهی','credit_snapshot'=>'وضعیت بستانکاری'];foreach($sourceTransactions as $tx):?>
+   <tr>
+    <td><?=e($tx['date_jalali']?:'—')?></td>
+    <td><?=e($txLabels[$tx['tx_type']]??$tx['tx_type'])?><?=$tx['is_snapshot']?' <small>وضعیت</small>':''?></td>
+    <td><?=$tx['amount_toman']===null?'—':fa(number_format((int)$tx['amount_toman']))?></td>
+    <td><?=e($tx['method']?:'—')?></td>
+    <td><?=fa($tx['appointment_code']?:'—')?></td>
+    <td><?=e($tx['description']?:'—')?></td>
+   </tr>
+  <?php endforeach;?>
+  </tbody></table></div>
+ </section>
+ <?php endif;?>
+
  <?php if($events):?>
  <section class="panel form-panel">
   <div class="panel-header"><h2>سوابق ویزیت و مراجعه</h2><span class="count"><?=fa(count($events))?></span></div>
@@ -92,7 +112,7 @@ function patientView():void{
     <td><?=e($ev['practitioner']?:'—')?></td>
     <td><strong><?=e($ev['reason']?:'—')?></strong><br><small><?=e($ev['mode']?:'')?></small></td>
     <td><?=e($ev['status']?:'—')?></td>
-    <td><?php if(!empty($servicesBy[$key])):foreach($servicesBy[$key] as $x):?><div><?=e($x['service_name'])?></div><?php endforeach;else:?>—<?php endif;?></td>
+    <td><?php if(!empty($servicesBy[$key])):foreach($servicesBy[$key] as $x):?><div><?=e($x['service_name'])?><?php if($x['amount_toman']!==null):?> <small>· <?=fa(number_format((int)$x['amount_toman']))?> ت</small><?php endif;?></div><?php endforeach;else:?>—<?php endif;?></td>
     <td><?php if(!empty($goodsBy[$key])):foreach($goodsBy[$key] as $x):?><div><?=fa(rtrim(rtrim(number_format((float)$x['quantity'],3,'.',''),'0'),'.'))?> × <?=e($x['goods_name'])?></div><?php endforeach;else:?>—<?php endif;?></td>
     <?php if($financeAllowed):?><td>
      <?php if($ev['service_cost_toman']!==null):?><div>هزینه خدمت: <?=fa(number_format((int)$ev['service_cost_toman']))?> ت</div><?php endif;?>
