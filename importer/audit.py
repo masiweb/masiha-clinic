@@ -180,7 +180,6 @@ def expand_navigation(page):
         'nav button[aria-expanded="false"]:visible',
         '[role="navigation"] button[aria-expanded="false"]:visible',
         'md-sidenav button[aria-expanded="false"]:visible',
-        'aside button[aria-expanded="false"]:visible',
     ]
     for selector in selectors:
         loc = page.locator(selector)
@@ -256,8 +255,7 @@ def navigation_candidates(page):
     selectors = (
         'nav a:visible, nav button:visible, '
         '[role="navigation"] a:visible, [role="navigation"] button:visible, '
-        'md-sidenav a:visible, md-sidenav button:visible, '
-        'aside a:visible, aside button:visible'
+        'md-sidenav a:visible, md-sidenav button:visible'
     )
     try:
         items = page.locator(selectors).evaluate_all(
@@ -266,6 +264,7 @@ def navigation_candidates(page):
               text:(e.innerText || e.getAttribute('aria-label') || e.getAttribute('title') || '').replace(/\s+/g,' ').trim().slice(0,240),
               href:e.href || e.getAttribute('href') || e.getAttribute('ng-href') || '',
               disabled:!!e.disabled,
+              type:(e.getAttribute('type') || '').toLowerCase(),
               tag:e.tagName.toLowerCase()
             }))"""
         )
@@ -275,7 +274,7 @@ def navigation_candidates(page):
     for item in items:
         text=(item.get("text") or "").strip()
         low=text.lower()
-        if not text or item.get("disabled"):
+        if not text or item.get("disabled") or item.get("type") == "submit":
             continue
         if any(x in low for x in ("خروج","حذف","ابطال","غیرفعال","delete","remove","logout","sign out","revoke")):
             continue
@@ -290,8 +289,7 @@ def discover_navigation_routes(page, base_url):
     selector=(
         'nav a:visible, nav button:visible, '
         '[role="navigation"] a:visible, [role="navigation"] button:visible, '
-        'md-sidenav a:visible, md-sidenav button:visible, '
-        'aside a:visible, aside button:visible'
+        'md-sidenav a:visible, md-sidenav button:visible'
     )
     for item in candidates:
         if item.get("route"):
