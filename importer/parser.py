@@ -14,11 +14,25 @@ def latin(value):
     )
 
 
+def source_text(value):
+    text=str(value)
+    # Boghrat panel text can arrive with visible JSON-style escapes already
+    # embedded in the DOM text. Decode only the harmless display escapes we
+    # expect; do not run a general unicode_escape codec on patient content.
+    return (
+        text.replace("\\r\\n","\n")
+            .replace("\\n","\n")
+            .replace("\\r","\n")
+            .replace("\\t","\t")
+            .replace("\\/","/")
+    )
+
+
 def clean(value):
     return re.sub(
         r"\s+",
         " ",
-        unicodedata.normalize("NFKC", latin(value))
+        unicodedata.normalize("NFKC", latin(source_text(value)))
         .replace("ي", "ی")
         .replace("ك", "ک"),
     ).strip()
@@ -52,7 +66,7 @@ def extract_profile(personal):
         "mobile": digits(r"موبایل:\s*([0-9۰-۹٠-٩]+)"),
         "phone_home": digits(r"تلفن منزل:\s*([0-9۰-۹٠-٩]+)"),
         "referral_source": first(
-            r"معرف:\s*(.+?)(?=\s+ثبت در بقراط:|\s+ثبت در مطب:|\s+کد ملی:|$)"
+            r"معرف:\s*(.+?)(?=\s+ثبت در بقراط:|\s+ثبت در مطب:|\s+کد ملی:|\s+نام پدر:|\s+تاریخ تولد:|\s+آدرس:|$)"
         ),
         "source_registered_jalali": digits(
             r"ثبت در بقراط:\s*([0-9۰-۹٠-٩/\-]+)"
@@ -62,10 +76,10 @@ def extract_profile(personal):
         ),
         "national_id": digits(r"کد ملی:\s*([0-9۰-۹٠-٩]{10})"),
         "father_name": first(
-            r"نام پدر:\s*(.+?)(?=\s+وضعیت تاهل:|\s+وضعیت تأهل:|\s+تاریخ تولد:|$)"
+            r"نام پدر:\s*(.+?)(?=\s+وضعیت تاهل:|\s+وضعیت تأهل:|\s+تاریخ تولد:|\s+آدرس:|\s+بیماری(?:\s+های|‌های)\s+خاص:|\s+assignment\s+فرم|$)"
         ),
         "marital_status": first(
-            r"وضعیت (?:تاهل|تأهل):\s*(.+?)(?=\s+تاریخ تولد:|\s+آدرس:|$)"
+            r"وضعیت (?:تاهل|تأهل):\s*(.+?)(?=\s+تاریخ تولد:|\s+آدرس:|\s+بیماری(?:\s+های|‌های)\s+خاص:|\s+assignment\s+فرم|$)"
         ),
         "birth_jalali": digits(r"تاریخ تولد:\s*([0-9۰-۹٠-٩/\-]+)"),
         "address": first(
