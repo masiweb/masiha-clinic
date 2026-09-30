@@ -26,7 +26,10 @@ function importProfileFromRecord(array $r):array{
   'marital_status'=>$pick('/وضعیت (?:تاهل|تأهل):\s*(.+?)(?=\s+تاریخ تولد:|\s+آدرس:|$)/u'),
   'birth_jalali'=>$pick('/تاریخ تولد:\s*([0-9۰-۹٠-٩\/\-]+)/u'),
   'address'=>$pick('/آدرس:\s*(.+?)(?=\s+بیماری(?:\s+های|‌های)\s+خاص:|\s+assignment\s+فرم|$)/u'),
-  'medical_conditions'=>$pick('/بیماری(?:\s+های|‌های)\s+خاص:\s*(.+?)(?=\s+-برچسب|\s+assignment\s+فرم|$)/u')
+  'medical_conditions'=>$pick('/بیماری(?:\s+های|‌های)\s+خاص:\s*(.+?)(?=\s+-برچسب|\s+assignment\s+فرم|$)/u'),
+  'occupation'=>$pick('/شغل:\s*(.+?)(?=\s+تحصیلات:|\s+قد:|\s+آدرس:|\s+بیماری(?:\s+های|‌های)\s+خاص:|$)/u'),
+  'education'=>$pick('/تحصیلات:\s*(.+?)(?=\s+شغل:|\s+قد:|\s+آدرس:|\s+بیماری(?:\s+های|‌های)\s+خاص:|$)/u'),
+  'height_cm'=>$pick('/قد:\s*([0-9۰-۹٠-٩]+)/u')
  ];
  foreach($fallback as $k=>$v)if(!isset($profile[$k])||trim((string)$profile[$k])==='')$profile[$k]=$v;
  $profile['mobile']=$digits($profile['mobile']??($r['mobile']??''));$profile['phone_home']=$digits($profile['phone_home']??'');$profile['national_id']=$digits($profile['national_id']??($r['national_id']??''));
@@ -40,8 +43,9 @@ function importApplyProfileToPatient(int $pid,array $r,int $actor):void{
  if($national&&empty($p['national_id'])&&!q('SELECT pid FROM patients WHERE national_id=? AND pid<>?',[$national,$pid])->fetchColumn()){$p['national_id']=$national;q('UPDATE patients SET national_id=? WHERE pid=?',[$national,$pid]);}
  $dateMap=['DOB'=>MasihaJalali::fromPersianDate((string)($x['birth_jalali']??'')),'source_registered_date'=>MasihaJalali::fromPersianDate((string)($x['source_registered_jalali']??'')),'clinic_registered_date'=>MasihaJalali::fromPersianDate((string)($x['clinic_registered_jalali']??''))];
  foreach($dateMap as $field=>$value)if($value&&empty($p[$field])){q("UPDATE patients SET $field=? WHERE pid=?",[$value,$pid]);$p[$field]=$value;}
- $textMap=['phone_home'=>[$x['phone_home']??'',30],'father_name'=>[$x['father_name']??'',160],'marital_status'=>[$x['marital_status']??'',30],'referral_source'=>[$x['referral_source']??'',160],'address'=>[$x['address']??'',2000],'medical_conditions'=>[$x['medical_conditions']??'',10000]];
+ $textMap=['phone_home'=>[$x['phone_home']??'',30],'father_name'=>[$x['father_name']??'',160],'marital_status'=>[$x['marital_status']??'',30],'referral_source'=>[$x['referral_source']??'',160],'occupation'=>[$x['occupation']??'',160],'education'=>[$x['education']??'',160],'address'=>[$x['address']??'',2000],'medical_conditions'=>[$x['medical_conditions']??'',10000]];
  foreach($textMap as $field=>[$value,$max]){$value=mb_substr(trim((string)$value),0,$max);if($value!==''&&empty($p[$field])){q("UPDATE patients SET $field=? WHERE pid=?",[$value,$pid]);$p[$field]=$value;}}
+ $height=MasihaOtp::digits((string)($x['height_cm']??''));if($height!==''&&ctype_digit($height)&&empty($p['height_cm'])){$height=(int)$height;if($height>=30&&$height<=250){q('UPDATE patients SET height_cm=? WHERE pid=?',[$height,$pid]);$p['height_cm']=$height;}}
  q('INSERT INTO audit(actor,action,entity) VALUES(?,?,?)',[$actor,'import_patient_profile_sync',$pid]);
 }
 function importRegisterRecord(int $id,int $actor):array{
