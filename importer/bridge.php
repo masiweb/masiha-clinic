@@ -23,6 +23,37 @@ function importCatalogId(string $table,string $name):int{
  q("INSERT INTO $table(source_name,normalized_key) VALUES(?,?) ON DUPLICATE KEY UPDATE normalized_key=VALUES(normalized_key),last_seen=CURRENT_TIMESTAMP",[$name,importSourceKey($name)]);
  return (int)q("SELECT id FROM $table WHERE source_name=?",[$name])->fetchColumn();
 }
+function importServiceMapping(int $sourceId,string $name,?int $price):int{
+ $mapped=(int)q('SELECT service_id FROM import_source_service_map WHERE source_service_id=?',[$sourceId])->fetchColumn();
+ if($mapped)return $mapped;
+ $category=(int)q("SELECT id FROM service_categories WHERE name='بقراط - واردشده' AND deleted=0 ORDER BY id LIMIT 1")->fetchColumn();
+ if(!$category){q("INSERT INTO service_categories(name,active,deleted) VALUES('بقراط - واردشده',1,0)");$category=(int)$GLOBALS['db']->lastInsertId();}
+ $service=(int)q('SELECT id FROM services WHERE name=? AND deleted=0 ORDER BY id LIMIT 1',[$name])->fetchColumn();
+ if(!$service){q('INSERT INTO services(name,price,duration,active,category_id,deleted) VALUES(?,?,?,?,?,0)',[$name,max(0,(int)($price??0)),30,1,$category]);$service=(int)$GLOBALS['db']->lastInsertId();}
+ q("INSERT INTO import_source_service_map(source_service_id,service_id,mapping_mode) VALUES(?,?,'auto') ON DUPLICATE KEY UPDATE service_id=VALUES(service_id)",[$sourceId,$service]);
+ return $service;
+}
+function importInventoryItem(int $sourceId,string $name,?int $total,?float $quantity):int{
+ $item=(int)q('SELECT id FROM inventory_items WHERE source_good_id=?',[$sourceId])->fetchColumn();
+ if($item)return $item;
+ $price=0;if($total!==null&&$quantity!==null&&$quantity>0)$price=(int)round($total/$quantity);
+ q("INSERT INTO inventory_items(name,unit,sale_price_toman,active,source_good_id) VALUES(?,'عدد',?,1,?) ON DUPLICATE KEY UPDATE source_good_id=COALESCE(source_good_id,VALUES(source_good_id))",[$name,max(0,$price),$sourceId]);
+ return (int)q('SELECT id FROM inventory_items WHERE source_good_id=? OR name=? ORDER BY source_good_id=? DESC,id LIMIT 1',[$sourceId,$name,$sourceId])->fetchColumn();
+}
+function importSyncOpeningLedger(int $pid):void{
+ $row=q("SELECT r.id,r.updated_at,f.outstanding_toman,f.credit_balance_toman
+   FROM import_records r
+   LEFT JOIN import_financial_summary f ON f.record_id=r.id
+   WHERE r.pid=?
+   ORDER BY r.updated_at DESC,r.id DESC LIMIT 1",[$pid])->fetch();
+ if(!$row)return;
+ $debt=max(0,(int)($row['outstanding_toman']??0));$credit=max(0,(int)($row['credit_balance_toman']??0));
+ $date=substr((string)$row['updated_at'],0,10);if(!preg_match('/^\d{4}-\d{2}-\d{2}$/D',$date))$date=date('Y-m-d');
+ q("INSERT INTO patient_account_ledger(pid,entry_date,entry_type,debit_toman,credit_toman,reference,source_system,source_record_id,created_by,voided)
+    VALUES(? ,? ,'opening_balance',?,?, 'مانده افتتاحیه انتقال‌یافته از بقراط','boghrat',?,0,0)
+    ON DUPLICATE KEY UPDATE entry_date=VALUES(entry_date),debit_toman=VALUES(debit_toman),credit_toman=VALUES(credit_toman),source_record_id=VALUES(source_record_id),reference=VALUES(reference),voided=0",
+   [$pid,$date,$debt,$credit,(int)$row['id']]);
+}
 function persistStructuredRecord(int $recordId,array $record):void{
  $profile=is_array($record['profile']??null)?$record['profile']:[];
  q('REPLACE INTO import_patient_profiles(record_id,full_name,mobile,phone_home,national_id,father_name,marital_status,birth_jalali,referral_source,source_registered_jalali,clinic_registered_jalali,address,medical_conditions,occupation,education,height_cm) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[
