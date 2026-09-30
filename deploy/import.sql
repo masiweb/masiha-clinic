@@ -240,3 +240,66 @@ CREATE TABLE IF NOT EXISTS import_financial_allocations (
  UNIQUE(transaction_id,event_no),
  INDEX(transaction_id),INDEX(record_id,event_no),INDEX(appointment_code)
 );
+
+
+CREATE TABLE IF NOT EXISTS import_source_service_map (
+ source_service_id BIGINT UNSIGNED PRIMARY KEY,
+ service_id BIGINT UNSIGNED NOT NULL,
+ mapping_mode VARCHAR(20) NOT NULL DEFAULT 'auto',
+ mapped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ INDEX(service_id)
+);
+
+CREATE TABLE IF NOT EXISTS inventory_items (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ name VARCHAR(255) NOT NULL,
+ unit VARCHAR(40) NOT NULL DEFAULT 'عدد',
+ sale_price_toman BIGINT UNSIGNED NOT NULL DEFAULT 0,
+ opening_quantity DECIMAL(14,3) NULL,
+ opening_as_of DATE NULL,
+ active TINYINT NOT NULL DEFAULT 1,
+ source_good_id BIGINT UNSIGNED NULL,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ UNIQUE(source_good_id),
+ UNIQUE(name)
+);
+
+CREATE TABLE IF NOT EXISTS inventory_movements (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ item_id BIGINT UNSIGNED NOT NULL,
+ pid BIGINT NULL,
+ source_record_id BIGINT UNSIGNED NULL,
+ event_no INT NULL,
+ item_no INT NULL,
+ appointment_code VARCHAR(40) NOT NULL DEFAULT '',
+ movement_type VARCHAR(40) NOT NULL,
+ quantity_delta DECIMAL(14,3) NOT NULL,
+ unit_price_toman BIGINT NULL,
+ total_toman BIGINT NULL,
+ occurred_on DATE NULL,
+ affects_stock TINYINT NOT NULL DEFAULT 1,
+ note VARCHAR(500) NOT NULL DEFAULT '',
+ created_by BIGINT NOT NULL DEFAULT 0,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE(source_record_id,event_no,item_no,movement_type),
+ INDEX(item_id),INDEX(pid),INDEX(occurred_on),INDEX(movement_type)
+);
+
+CREATE TABLE IF NOT EXISTS patient_account_ledger (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ pid BIGINT NOT NULL,
+ entry_date DATE NOT NULL,
+ entry_type VARCHAR(40) NOT NULL,
+ debit_toman BIGINT UNSIGNED NOT NULL DEFAULT 0,
+ credit_toman BIGINT UNSIGNED NOT NULL DEFAULT 0,
+ reference VARCHAR(255) NOT NULL DEFAULT '',
+ source_system VARCHAR(40) NOT NULL DEFAULT 'masiha',
+ source_record_id BIGINT UNSIGNED NULL,
+ created_by BIGINT NOT NULL DEFAULT 0,
+ voided TINYINT NOT NULL DEFAULT 0,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ UNIQUE(pid,source_system,entry_type,source_record_id),
+ INDEX(pid),INDEX(entry_date),INDEX(entry_type),INDEX(source_system)
+);
