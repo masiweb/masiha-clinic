@@ -466,6 +466,29 @@ def extract_history_summary(history):
                 "is_snapshot": True,
             })
 
+    for tx in transactions:
+        if tx.get("type") != "payment" or tx.get("appointment_code") or not tx.get("date_jalali"):
+            continue
+        candidates = [
+            (event_no, event)
+            for event_no, event in enumerate(events[:500])
+            if event.get("date_jalali") == tx.get("date_jalali")
+            and event.get("appointment_code")
+            and event.get("charge_total_toman") is not None
+        ]
+        amount = tx.get("amount_toman")
+        if candidates and amount is not None:
+            total = sum(int(event.get("charge_total_toman") or 0) for _, event in candidates)
+            if total == int(amount):
+                tx["allocations"] = [
+                    {
+                        "event_no": event_no,
+                        "appointment_code": event.get("appointment_code", ""),
+                        "amount_toman": int(event.get("charge_total_toman") or 0),
+                    }
+                    for event_no, event in candidates
+                ]
+
     return {
         "events": events[:500],
         "financial_lines": financial_lines[:500],
