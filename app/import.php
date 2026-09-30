@@ -36,8 +36,8 @@ function importProfileFromRecord(array $r):array{
  foreach(['source_registered_jalali','clinic_registered_jalali','birth_jalali'] as $k)$profile[$k]=$digits($profile[$k]??'');
  return $profile;
 }
-function importApplyProfileToPatient(int $pid,array $r,int $actor):void{
- $p=q('SELECT * FROM patients WHERE pid=? FOR UPDATE',[$pid])->fetch();if(!$p)return;$x=importProfileFromRecord($r);
+function importApplyProfileArrayToPatient(int $pid,array $x,int $actor):void{
+ $p=q('SELECT * FROM patients WHERE pid=? FOR UPDATE',[$pid])->fetch();if(!$p)return;
  $mobile=MasihaOtp::mobile((string)($x['mobile']??''));$national=preg_match('/^\d{10}$/D',(string)($x['national_id']??''))?(string)$x['national_id']:null;
  if($mobile&&empty($p['phone_cell'])&&!q('SELECT pid FROM patients WHERE phone_cell=? AND pid<>?',[$mobile,$pid])->fetchColumn()){$p['phone_cell']=$mobile;q('UPDATE patients SET phone_cell=? WHERE pid=?',[$mobile,$pid]);}
  if($national&&empty($p['national_id'])&&!q('SELECT pid FROM patients WHERE national_id=? AND pid<>?',[$national,$pid])->fetchColumn()){$p['national_id']=$national;q('UPDATE patients SET national_id=? WHERE pid=?',[$national,$pid]);}
@@ -48,6 +48,7 @@ function importApplyProfileToPatient(int $pid,array $r,int $actor):void{
  $height=MasihaOtp::digits((string)($x['height_cm']??''));if($height!==''&&ctype_digit($height)&&empty($p['height_cm'])){$height=(int)$height;if($height>=30&&$height<=250){q('UPDATE patients SET height_cm=? WHERE pid=?',[$height,$pid]);$p['height_cm']=$height;}}
  q('INSERT INTO audit(actor,action,entity) VALUES(?,?,?)',[$actor,'import_patient_profile_sync',$pid]);
 }
+function importApplyProfileToPatient(int $pid,array $r,int $actor):void{importApplyProfileArrayToPatient($pid,importProfileFromRecord($r),$actor);}
 function importRegisterRecord(int $id,int $actor):array{
  $r=q('SELECT * FROM import_records WHERE id=? FOR UPDATE',[$id])->fetch();if(!$r)return ['status'=>'missing'];
  if($r['pid']){importApplyProfileToPatient((int)$r['pid'],$r,$actor);return ['status'=>'already','pid'=>(int)$r['pid']];}
