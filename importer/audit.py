@@ -325,6 +325,18 @@ def discover_navigation_routes(page, base_url):
 def extract_page(page):
     body_text(page)
     expand_navigation(page)
+    route_before=canonical_route(page.url)
+    if route_before.startswith("/clinic/secretary/reception"):
+        try:
+            all_patients=page.get_by_role("button",name="supervisor_account تمامی مراجعین",exact=True)
+            if all_patients.count()==1 and all_patients.is_visible():
+                all_patients.click(timeout=3000)
+                page.wait_for_timeout(900)
+                body_text(page)
+        except AuditStop:
+            raise
+        except Exception:
+            pass
     page.wait_for_timeout(250)
     links = extract_links(page)
     headings = visible_strings(page.locator("h1:visible,h2:visible,h3:visible,h4:visible"), 120)
