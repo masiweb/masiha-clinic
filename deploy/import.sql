@@ -200,3 +200,6 @@ ALTER TABLE import_financial_transactions ADD COLUMN IF NOT EXISTS tx_date DATE 
 ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS service_items_total_toman BIGINT NULL AFTER charge_total_toman;
 ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS discounts_toman BIGINT NULL AFTER goods_cost_toman;
 ALTER TABLE import_event_goods ADD COLUMN IF NOT EXISTS amount_toman BIGINT NULL AFTER quantity;
+
+CREATE INDEX IF NOT EXISTS idx_import_patient_events_event_date ON import_patient_events(event_date);
+CREATE INDEX IF NOT EXISTS idx_import_financial_transactions_tx_date ON import_financial_transactions(tx_date);
