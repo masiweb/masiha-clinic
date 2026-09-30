@@ -90,3 +90,76 @@ CREATE TABLE IF NOT EXISTS import_financial_summary (
  payload TEXT NOT NULL DEFAULT '',
  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS occupation VARCHAR(160) NOT NULL DEFAULT '' AFTER referral_source;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS education VARCHAR(160) NOT NULL DEFAULT '' AFTER occupation;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS height_cm SMALLINT UNSIGNED NULL AFTER education;
+
+CREATE TABLE IF NOT EXISTS import_patient_profiles (
+ record_id BIGINT UNSIGNED PRIMARY KEY,
+ full_name VARCHAR(255) NOT NULL DEFAULT '',
+ mobile VARCHAR(30) NOT NULL DEFAULT '',
+ phone_home VARCHAR(30) NOT NULL DEFAULT '',
+ national_id VARCHAR(20) NOT NULL DEFAULT '',
+ father_name VARCHAR(160) NOT NULL DEFAULT '',
+ marital_status VARCHAR(30) NOT NULL DEFAULT '',
+ birth_jalali VARCHAR(20) NOT NULL DEFAULT '',
+ referral_source VARCHAR(160) NOT NULL DEFAULT '',
+ source_registered_jalali VARCHAR(20) NOT NULL DEFAULT '',
+ clinic_registered_jalali VARCHAR(20) NOT NULL DEFAULT '',
+ address TEXT NOT NULL DEFAULT '',
+ medical_conditions TEXT NOT NULL DEFAULT '',
+ occupation VARCHAR(160) NOT NULL DEFAULT '',
+ education VARCHAR(160) NOT NULL DEFAULT '',
+ height_cm SMALLINT UNSIGNED NULL,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ INDEX(mobile),INDEX(national_id)
+);
+
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS registered_at_jalali VARCHAR(40) NOT NULL DEFAULT '' AFTER time_text;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS registration_method VARCHAR(160) NOT NULL DEFAULT '' AFTER registered_at_jalali;
+
+CREATE TABLE IF NOT EXISTS import_event_services (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ record_id BIGINT UNSIGNED NOT NULL,
+ event_no INT NOT NULL,
+ item_no INT NOT NULL,
+ service_name VARCHAR(255) NOT NULL,
+ UNIQUE(record_id,event_no,item_no),
+ INDEX(record_id),INDEX(service_name)
+);
+
+CREATE TABLE IF NOT EXISTS import_event_goods (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ record_id BIGINT UNSIGNED NOT NULL,
+ event_no INT NOT NULL,
+ item_no INT NOT NULL,
+ goods_name VARCHAR(255) NOT NULL,
+ quantity DECIMAL(12,3) NOT NULL DEFAULT 1,
+ UNIQUE(record_id,event_no,item_no),
+ INDEX(record_id),INDEX(goods_name)
+);
+
+CREATE TABLE IF NOT EXISTS import_event_payments (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ record_id BIGINT UNSIGNED NOT NULL,
+ event_no INT NOT NULL,
+ payment_no INT NOT NULL,
+ amount_toman BIGINT NULL,
+ method VARCHAR(160) NOT NULL DEFAULT '',
+ UNIQUE(record_id,event_no,payment_no),
+ INDEX(record_id),INDEX(method)
+);
+
+CREATE TABLE IF NOT EXISTS import_patient_form_fields (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ record_id BIGINT UNSIGNED NOT NULL,
+ form_no INT NOT NULL DEFAULT 0,
+ field_no INT NOT NULL DEFAULT 0,
+ form_name VARCHAR(160) NOT NULL DEFAULT '',
+ field_name VARCHAR(160) NOT NULL DEFAULT '',
+ field_value TEXT NOT NULL DEFAULT '',
+ UNIQUE(record_id,form_no,field_no),
+ INDEX(record_id),INDEX(form_name),INDEX(field_name)
+);
