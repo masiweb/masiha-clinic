@@ -158,7 +158,7 @@ def canonical_route(url):
 def visible_strings(locator, limit=120):
     try:
         values = locator.evaluate_all(
-            """els => els.filter(e => e.getClientRects().length)
+            r"""els => els.filter(e => e.getClientRects().length)
               .map(e => (e.innerText || e.textContent || '').replace(/\s+/g,' ').trim())
               .filter(Boolean)"""
         )
@@ -194,7 +194,7 @@ def expand_navigation(page):
 def extract_fields(page):
     try:
         return page.locator("input:visible, select:visible, textarea:visible").evaluate_all(
-            """els => els.slice(0,250).map(e => {
+            r"""els => els.slice(0,250).map(e => {
               const id=e.id || '';
               const label=id ? document.querySelector('label[for="'+CSS.escape(id)+'"]') : null;
               return {
@@ -215,7 +215,7 @@ def extract_fields(page):
 def extract_buttons(page):
     try:
         return page.locator("button:visible, [role=button]:visible").evaluate_all(
-            """els => {
+            r"""els => {
               const out=[];
               for (const e of els.slice(0,300)) {
                 const text=(e.innerText || e.getAttribute('aria-label') || e.getAttribute('title') || '').replace(/\s+/g,' ').trim().slice(0,240);
@@ -233,7 +233,7 @@ def extract_buttons(page):
 def extract_links(page):
     try:
         links = page.locator("a[href]:visible").evaluate_all(
-            """els => els.slice(0,600).map(e => ({
+            r"""els => els.slice(0,600).map(e => ({
               href:e.href,
               text:(e.innerText || e.getAttribute('aria-label') || e.getAttribute('title') || '').replace(/\s+/g,' ').trim().slice(0,240)
             }))"""
@@ -259,7 +259,7 @@ def navigation_candidates(page):
     )
     try:
         items = page.locator(selectors).evaluate_all(
-            """els => els.slice(0,160).map((e,i) => ({
+            r"""els => els.slice(0,160).map((e,i) => ({
               index:i,
               text:(e.innerText || e.getAttribute('aria-label') || e.getAttribute('title') || '').replace(/\s+/g,' ').trim().slice(0,240),
               href:e.href || e.getAttribute('href') || e.getAttribute('ng-href') || '',
