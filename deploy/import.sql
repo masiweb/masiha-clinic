@@ -300,6 +300,6 @@ CREATE TABLE IF NOT EXISTS patient_account_ledger (
  voided TINYINT NOT NULL DEFAULT 0,
  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
- UNIQUE(pid,source_system,entry_type,source_record_id),
+ UNIQUE(pid,source_system,entry_type),
  INDEX(pid),INDEX(entry_date),INDEX(entry_type),INDEX(source_system)
 );
