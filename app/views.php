@@ -18,12 +18,14 @@ function patientView():void{
  $services=q('SELECT s.* FROM import_event_services s JOIN import_records r ON r.id=s.record_id WHERE r.pid=? ORDER BY s.record_id,s.event_no,s.item_no',[$pid])->fetchAll();
  $goods=q('SELECT g.* FROM import_event_goods g JOIN import_records r ON r.id=g.record_id WHERE r.pid=? ORDER BY g.record_id,g.event_no,g.item_no',[$pid])->fetchAll();
  $payments=$financeAllowed?q('SELECT x.* FROM import_event_payments x JOIN import_records r ON r.id=x.record_id WHERE r.pid=? ORDER BY x.record_id,x.event_no,x.payment_no',[$pid])->fetchAll():[];
- $sourceTransactions=$financeAllowed?q('SELECT t.* FROM import_financial_transactions t JOIN import_records r ON r.id=t.record_id WHERE r.pid=? ORDER BY t.date_jalali DESC,t.record_id DESC,t.event_no DESC,t.tx_no',[$pid])->fetchAll():[];
+ $sourceTransactions=$financeAllowed?q('SELECT t.* FROM import_financial_transactions t JOIN import_records r ON r.id=t.record_id WHERE r.pid=? ORDER BY t.tx_date DESC,t.record_id DESC,t.event_no DESC,t.tx_no',[$pid])->fetchAll():[];
+ $sourceAllocations=$financeAllowed?q('SELECT a.* FROM import_financial_allocations a JOIN import_financial_transactions t ON t.id=a.transaction_id JOIN import_records r ON r.id=t.record_id WHERE r.pid=? ORDER BY a.transaction_id,a.event_no',[$pid])->fetchAll():[];
  $financial=$financeAllowed?q('SELECT f.* FROM import_financial_summary f JOIN import_records r ON r.id=f.record_id WHERE r.pid=? ORDER BY f.updated_at DESC LIMIT 1',[$pid])->fetch():false;
  $formFields=q('SELECT f.* FROM import_patient_form_fields f JOIN import_records r ON r.id=f.record_id WHERE r.pid=? ORDER BY f.record_id,f.form_no,f.field_no',[$pid])->fetchAll();
  $servicesBy=[];foreach($services as $x)$servicesBy[$x['record_id'].':'.$x['event_no']][]=$x;
  $goodsBy=[];foreach($goods as $x)$goodsBy[$x['record_id'].':'.$x['event_no']][]=$x;
  $paymentsBy=[];foreach($payments as $x)$paymentsBy[$x['record_id'].':'.$x['event_no']][]=$x;
+ $allocationsBy=[];foreach($sourceAllocations as $x)$allocationsBy[(int)$x['transaction_id']][]=$x;
  $formsBy=[];foreach($formFields as $x){$k=$x['record_id'].':'.$x['form_no'];$formsBy[$k]['name']=$x['form_name'];$formsBy[$k]['fields'][]=$x;}
  layout('patients',patientName($p),'پرونده شماره '.fa($pid).' · '.($p['phone_cell']?fa($p['phone_cell']):'شماره همراه ثبت نشده'));?>
  <?php patientExtras($pid,$p);?>
@@ -94,7 +96,7 @@ function patientView():void{
     <td><?=e($txLabels[$tx['tx_type']]??$tx['tx_type'])?><?=$tx['is_snapshot']?' <small>وضعیت</small>':''?></td>
     <td><?=$tx['amount_toman']===null?'—':fa(number_format((int)$tx['amount_toman']))?></td>
     <td><?=e($tx['method']?:'—')?></td>
-    <td><?=fa($tx['appointment_code']?:'—')?></td>
+    <td><?php if($tx['appointment_code']):?><?=fa($tx['appointment_code'])?><?php elseif(!empty($allocationsBy[(int)$tx['id']])):foreach($allocationsBy[(int)$tx['id']] as $a):?><div><?=fa($a['appointment_code'])?> <small>· <?=fa(number_format((int)$a['amount_toman']))?> ت</small></div><?php endforeach;else:?>—<?php endif;?></td>
     <td><?=e($tx['description']?:'—')?></td>
    </tr>
   <?php endforeach;?>
