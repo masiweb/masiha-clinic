@@ -296,10 +296,11 @@ CREATE TABLE IF NOT EXISTS patient_account_ledger (
  reference VARCHAR(255) NOT NULL DEFAULT '',
  source_system VARCHAR(40) NOT NULL DEFAULT 'masiha',
  source_record_id BIGINT UNSIGNED NULL,
+ entry_key VARCHAR(120) NULL,
  created_by BIGINT NOT NULL DEFAULT 0,
  voided TINYINT NOT NULL DEFAULT 0,
  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
- UNIQUE(pid,source_system,entry_type),
+ UNIQUE(entry_key),
  INDEX(pid),INDEX(entry_date),INDEX(entry_type),INDEX(source_system)
 );
