@@ -4,6 +4,7 @@ if(PHP_SAPI!=='cli')exit(1);
 require __DIR__.'/../app/bootstrap.php';require __DIR__.'/../app/import.php';
 function response($v):never{echo json_encode($v,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);exit;}
 try{$in=json_decode(stream_get_contents(STDIN),true,32,JSON_THROW_ON_ERROR);$op=$in['op']??'';
+ if($op==='audit_config'){$c=importConfig();if(!$c['username']||!$c['password_cipher']||!$c['clinic_name'])response(['active'=>false]);$c['password']=importDecrypt($c['password_cipher']);unset($c['password_cipher']);response(['active'=>true,'connection'=>$c,'storage'=>$config['storage']]);}
  if($op==='config'){$r=q("SELECT * FROM import_runs WHERE status='running' ORDER BY id LIMIT 1")->fetch();if(!$r)response(['active'=>false]);$c=importConfig();if($r['account_key']!==importAccount($c)||!$c['password_cipher']){q("UPDATE import_runs SET status='blocked',message='تنظیمات حساب تغییر کرده یا رمز ذخیره نشده است.' WHERE id=?",[$r['id']]);response(['active'=>false]);}$c['password']=importDecrypt($c['password_cipher']);unset($c['password_cipher']);response(['active'=>true,'run'=>$r,'connection'=>$c,'storage'=>$config['storage']]);}
  $id=(int)($in['run_id']??0);$r=q('SELECT * FROM import_runs WHERE id=?',[$id])->fetch();if(!$r)response(['error'=>'missing']);
  if($op==='cursor'){$p=max(1,(int)($in['page']??1));$row=max(0,(int)($in['row']??0));q("UPDATE import_runs SET page_no=?,row_no=? WHERE id=? AND status='running'",[$p,$row,$id]);response(['ok'=>true]);}
