@@ -56,10 +56,12 @@ function importSyncOpeningLedger(int $pid):void{
 }
 function persistStructuredRecord(int $recordId,array $record):void{
  $profile=is_array($record['profile']??null)?$record['profile']:[];
+ $currentPid=(int)(q('SELECT pid FROM import_records WHERE id=?',[$recordId])->fetchColumn()?:0);
  q('REPLACE INTO import_patient_profiles(record_id,full_name,mobile,phone_home,national_id,father_name,marital_status,birth_jalali,referral_source,source_registered_jalali,clinic_registered_jalali,address,medical_conditions,occupation,education,height_cm) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[
   $recordId,mb_substr((string)($record['name']??''),0,255),mb_substr((string)($profile['mobile']??$record['mobile']??''),0,30),mb_substr((string)($profile['phone_home']??''),0,30),mb_substr((string)($profile['national_id']??$record['national_id']??''),0,20),mb_substr((string)($profile['father_name']??''),0,160),mb_substr((string)($profile['marital_status']??''),0,30),mb_substr((string)($profile['birth_jalali']??''),0,20),mb_substr((string)($profile['referral_source']??''),0,160),mb_substr((string)($profile['source_registered_jalali']??''),0,20),mb_substr((string)($profile['clinic_registered_jalali']??''),0,20),(string)($profile['address']??''),(string)($profile['medical_conditions']??''),mb_substr((string)($profile['occupation']??''),0,160),mb_substr((string)($profile['education']??''),0,160),isset($profile['height_cm'])&&is_numeric($profile['height_cm'])?(int)$profile['height_cm']:null
  ]);
  q('DELETE a FROM import_financial_allocations a JOIN import_financial_transactions t ON t.id=a.transaction_id WHERE t.record_id=?',[$recordId]);
+ q("DELETE FROM inventory_movements WHERE source_record_id=? AND movement_type='historical_usage'",[$recordId]);
  foreach(['import_patient_events','import_financial_lines','import_event_services','import_event_goods','import_event_payments','import_patient_form_fields','import_financial_transactions'] as $table)q("DELETE FROM $table WHERE record_id=?",[$recordId]);
  q('DELETE FROM import_financial_summary WHERE record_id=?',[$recordId]);
  $summary=is_array($record['history_summary']??null)?$record['history_summary']:[];
