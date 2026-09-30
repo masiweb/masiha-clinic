@@ -291,8 +291,8 @@ CREATE TABLE IF NOT EXISTS patient_account_ledger (
  pid BIGINT NOT NULL,
  entry_date DATE NOT NULL,
  entry_type VARCHAR(40) NOT NULL,
- debit_toman BIGINT UNSIGNED NOT NULL DEFAULT 0,
- credit_toman BIGINT UNSIGNED NOT NULL DEFAULT 0,
+ debit_toman BIGINT NOT NULL DEFAULT 0,
+ credit_toman BIGINT NOT NULL DEFAULT 0,
  reference VARCHAR(255) NOT NULL DEFAULT '',
  source_system VARCHAR(40) NOT NULL DEFAULT 'masiha',
  source_record_id BIGINT UNSIGNED NULL,
@@ -304,3 +304,5 @@ CREATE TABLE IF NOT EXISTS patient_account_ledger (
  UNIQUE(entry_key),
  INDEX(pid),INDEX(entry_date),INDEX(entry_type),INDEX(source_system)
 );
+
+ALTER TABLE patient_account_ledger MODIFY COLUMN debit_toman BIGINT NOT NULL DEFAULT 0, MODIFY COLUMN credit_toman BIGINT NOT NULL DEFAULT 0;
