@@ -154,6 +154,16 @@ attach_money پرداختی های مراجعه کننده: (مجموع پردا
  fields=sql(f"SELECT CONCAT_WS('|',phone_cell,phone_home,national_id,father_name,marital_status,referral_source,address,medical_conditions,DATE_FORMAT(DOB,'%Y-%m-%d'),DATE_FORMAT(source_registered_date,'%Y-%m-%d'),DATE_FORMAT(clinic_registered_date,'%Y-%m-%d')) FROM {db}.patients WHERE pid=7002")
  assert fields=='09123261029|09128001093|4711333509|امیر محمد|مجرد|مادر|فرمانیه لواسان شرقی نوریان پ 45|Ankle sprain|2004-09-24|2026-09-19|2026-09-19',fields
  print('PASS configurable case-number sequence, structured Boghrat profile mapping, visit/financial summary and automatic registration')
+ # Shared family mobile numbers must not merge different patient names.
+ sql(f"USE {db};INSERT INTO import_runs(account_key,status,hourly_limit,total_limit,storage_mb,created_by) VALUES('{'d'*64}','running',300,5,16,1)")
+ shared_run=int(sql(f'SELECT MAX(id) FROM {db}.import_runs'))
+ shared_a=record_from_dom(['1','نام اول','x','','09121111111','info'],'اطلاعات شخصی\nنام اول\nموبایل: 09121111111','سوابق ویزیت و پرداخت\nآزمایشی',[],1,0,'https://app.boghrat.com/clinic/secretary/reception/')
+ shared_b=record_from_dom(['2','نام دوم','x','','09121111111','info'],'اطلاعات شخصی\nنام دوم\nموبایل: 09121111111','سوابق ویزیت و پرداخت\nآزمایشی',[],1,1,'https://app.boghrat.com/clinic/secretary/reception/')
+ assert bridge('save',run_id=shared_run,record=shared_a,next_page=1,next_row=1)['ok']
+ assert bridge('save',run_id=shared_run,record=shared_b,next_page=1,next_row=2)['ok']
+ pids=sql(f"SELECT GROUP_CONCAT(pid ORDER BY pid) FROM {db}.import_records WHERE mobile='09121111111'")
+ assert len(set(pids.split(',')))==2,pids
+ print('PASS shared mobile does not merge different patient names')
  assert php("$x=importEncrypt('synthetic-test-secret');if(str_contains($x,'synthetic-test-secret')||importDecrypt($x)!=='synthetic-test-secret')exit(2);echo 'ok';")=='ok'
  denied=php("$_SESSION=['uid'=>0];importNeed();echo 'BAD';")
  assert 'BAD' not in denied
