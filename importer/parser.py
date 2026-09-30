@@ -113,8 +113,19 @@ def split_services(value):
     text = clean(value)
     if not text:
         return []
-    parts = [clean(x) for x in re.split(r"\s*[،,]\s*", text) if clean(x)]
-    return [{"name": x} for x in parts[:100]]
+    items = []
+    # Boghrat separates service items with the Persian comma. English commas
+    # are also thousands separators inside prices and must not split items.
+    for part in re.split(r"\s*،\s*", text):
+        part = clean(part)
+        if not part:
+            continue
+        match = re.match(r"^(.*?)(?:\s*\((-?\d[\d,]*)\))?$", part)
+        name = clean(match.group(1)) if match else part
+        amount = money_number(match.group(2)) if match and match.group(2) else None
+        if name:
+            items.append({"name": name, "amount_toman": amount})
+    return items[:100]
 
 
 def split_goods(value):
@@ -122,7 +133,7 @@ def split_goods(value):
     if not text:
         return []
     items = []
-    for part in re.split(r"\s*[،,]\s*", text):
+    for part in re.split(r"\s*،\s*", text):
         part = clean(part)
         if not part:
             continue
@@ -335,10 +346,59 @@ def extract_history_summary(history):
             if clipped not in financial_lines:
                 financial_lines.append(clipped)
 
+    transactions = []
+    for event_no, event in enumerate(events[:500]):
+        common = {
+            "event_no": event_no,
+            "date_jalali": event.get("date_jalali", ""),
+            "appointment_code": event.get("appointment_code", ""),
+        }
+        charge = event.get("service_cost_toman")
+        if charge is not None:
+            transactions.append({
+                **common,
+                "type": "service_charge",
+                "amount_toman": charge,
+                "method": "",
+                "description": "هزینه خدمات",
+                "is_snapshot": False,
+            })
+        for method in event.get("payment_methods") or []:
+            amount = method.get("amount_toman")
+            if amount is None:
+                continue
+            transactions.append({
+                **common,
+                "type": "payment",
+                "amount_toman": amount,
+                "method": clean(method.get("method", "")),
+                "description": "پرداخت مراجعه‌کننده",
+                "is_snapshot": False,
+            })
+        if event.get("debt"):
+            transactions.append({
+                **common,
+                "type": "debt_snapshot",
+                "amount_toman": event.get("debt_toman", 0 if clean(event.get("debt")) == "تسویه حساب" else None),
+                "method": "",
+                "description": clean(event.get("debt")),
+                "is_snapshot": True,
+            })
+        if event.get("credit_toman") is not None:
+            transactions.append({
+                **common,
+                "type": "credit_snapshot",
+                "amount_toman": event.get("credit_toman"),
+                "method": "",
+                "description": "بستانکاری",
+                "is_snapshot": True,
+            })
+
     return {
         "events": events[:500],
         "financial_lines": financial_lines[:500],
         "financial_summary": finance_summary,
+        "transactions": transactions[:2000],
     }
 
 
