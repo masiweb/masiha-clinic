@@ -13,17 +13,17 @@ function patientView():void{
  $eps=q('SELECT * FROM physio_episodes e WHERE pid=? AND '.formScope('e').' ORDER BY id DESC',[$pid])->fetchAll();
  $source=q('SELECT id,updated_at FROM import_records WHERE pid=? ORDER BY updated_at DESC LIMIT 1',[$pid])->fetch();
  $sourceId=$source?(int)$source['id']:0;
- $sourceProfile=$sourceId?q('SELECT * FROM import_patient_profiles WHERE record_id=?',[$sourceId])->fetch():false;
- $events=$sourceId?q('SELECT * FROM import_patient_events WHERE record_id=? ORDER BY event_no DESC',[$sourceId])->fetchAll():[];
- $services=$sourceId?q('SELECT event_no,service_name FROM import_event_services WHERE record_id=? ORDER BY event_no,item_no',[$sourceId])->fetchAll():[];
- $goods=$sourceId?q('SELECT event_no,goods_name,quantity FROM import_event_goods WHERE record_id=? ORDER BY event_no,item_no',[$sourceId])->fetchAll():[];
- $payments=$sourceId?q('SELECT event_no,amount_toman,method FROM import_event_payments WHERE record_id=? ORDER BY event_no,payment_no',[$sourceId])->fetchAll():[];
- $financial=$sourceId?q('SELECT * FROM import_financial_summary WHERE record_id=?',[$sourceId])->fetch():false;
- $formFields=$sourceId?q('SELECT form_no,form_name,field_name,field_value FROM import_patient_form_fields WHERE record_id=? ORDER BY form_no,field_no',[$sourceId])->fetchAll():[];
- $servicesBy=[];foreach($services as $x)$servicesBy[(int)$x['event_no']][]=$x;
- $goodsBy=[];foreach($goods as $x)$goodsBy[(int)$x['event_no']][]=$x;
- $paymentsBy=[];foreach($payments as $x)$paymentsBy[(int)$x['event_no']][]=$x;
- $formsBy=[];foreach($formFields as $x)$formsBy[(int)$x['form_no']]['name']=$x['form_name'];foreach($formFields as $x)$formsBy[(int)$x['form_no']]['fields'][]=$x;
+ $financeAllowed=user()['role']==='admin'||allowed('finance.debt')||allowed('finance.history');
+ $events=q('SELECT e.* FROM import_patient_events e JOIN import_records r ON r.id=e.record_id WHERE r.pid=? ORDER BY e.date_jalali DESC,e.time_text DESC,e.id DESC LIMIT 500',[$pid])->fetchAll();
+ $services=q('SELECT s.* FROM import_event_services s JOIN import_records r ON r.id=s.record_id WHERE r.pid=? ORDER BY s.record_id,s.event_no,s.item_no',[$pid])->fetchAll();
+ $goods=q('SELECT g.* FROM import_event_goods g JOIN import_records r ON r.id=g.record_id WHERE r.pid=? ORDER BY g.record_id,g.event_no,g.item_no',[$pid])->fetchAll();
+ $payments=$financeAllowed?q('SELECT x.* FROM import_event_payments x JOIN import_records r ON r.id=x.record_id WHERE r.pid=? ORDER BY x.record_id,x.event_no,x.payment_no',[$pid])->fetchAll():[];
+ $financial=$financeAllowed?q('SELECT f.* FROM import_financial_summary f JOIN import_records r ON r.id=f.record_id WHERE r.pid=? ORDER BY f.updated_at DESC LIMIT 1',[$pid])->fetch():false;
+ $formFields=q('SELECT f.* FROM import_patient_form_fields f JOIN import_records r ON r.id=f.record_id WHERE r.pid=? ORDER BY f.record_id,f.form_no,f.field_no',[$pid])->fetchAll();
+ $servicesBy=[];foreach($services as $x)$servicesBy[$x['record_id'].':'.$x['event_no']][]=$x;
+ $goodsBy=[];foreach($goods as $x)$goodsBy[$x['record_id'].':'.$x['event_no']][]=$x;
+ $paymentsBy=[];foreach($payments as $x)$paymentsBy[$x['record_id'].':'.$x['event_no']][]=$x;
+ $formsBy=[];foreach($formFields as $x){$k=$x['record_id'].':'.$x['form_no'];$formsBy[$k]['name']=$x['form_name'];$formsBy[$k]['fields'][]=$x;}
  layout('patients',patientName($p),'پرونده شماره '.fa($pid).' · '.($p['phone_cell']?fa($p['phone_cell']):'شماره همراه ثبت نشده'));?>
  <?php patientExtras($pid,$p);?>
  <div class="patient-overview panel">
@@ -67,7 +67,7 @@ function patientView():void{
  </section>
  <?php endif;?>
 
- <?php if($financial):?>
+ <?php if($financial&&$financeAllowed):?>
  <section class="panel form-panel">
   <div class="panel-header"><h2>خلاصه مالی واردشده از بقراط</h2><span class="muted">آرشیو ساختاریافته منبع؛ هنوز سند حسابداری داخلی نیست</span></div>
   <div class="stats-grid three">
@@ -84,25 +84,25 @@ function patientView():void{
  <?php if($events):?>
  <section class="panel form-panel">
   <div class="panel-header"><h2>سوابق ویزیت و مراجعه</h2><span class="count"><?=fa(count($events))?></span></div>
-  <div class="table-scroll"><table><thead><tr><th>تاریخ/ساعت</th><th>کد نوبت</th><th>درمانگر</th><th>نوع مراجعه</th><th>وضعیت</th><th>خدمات</th><th>کالا</th><th>مالی</th></tr></thead><tbody>
-  <?php foreach($events as $ev):$n=(int)$ev['event_no'];?>
+  <div class="table-scroll"><table><thead><tr><th>تاریخ/ساعت</th><th>کد نوبت</th><th>درمانگر</th><th>نوع مراجعه</th><th>وضعیت</th><th>خدمات</th><th>کالا</th><?php if($financeAllowed):?><th>مالی</th><?php endif;?></tr></thead><tbody>
+  <?php foreach($events as $ev):$key=$ev['record_id'].':'.$ev['event_no'];?>
    <tr>
     <td><?=e($ev['date_jalali']?:'—')?> <?=e($ev['time_text']?:'')?></td>
     <td><?=fa($ev['appointment_code']?:'—')?></td>
     <td><?=e($ev['practitioner']?:'—')?></td>
     <td><strong><?=e($ev['reason']?:'—')?></strong><br><small><?=e($ev['mode']?:'')?></small></td>
     <td><?=e($ev['status']?:'—')?></td>
-    <td><?php if(!empty($servicesBy[$n]))foreach($servicesBy[$n] as $x):?><div><?=e($x['service_name'])?></div><?php endforeach;else:?>—<?php endif;?></td>
-    <td><?php if(!empty($goodsBy[$n]))foreach($goodsBy[$n] as $x):?><div><?=fa(rtrim(rtrim(number_format((float)$x['quantity'],3,'.',''),'0'),'.'))?> × <?=e($x['goods_name'])?></div><?php endforeach;else:?>—<?php endif;?></td>
-    <td>
+    <td><?php if(!empty($servicesBy[$key]))foreach($servicesBy[$key] as $x):?><div><?=e($x['service_name'])?></div><?php endforeach;else:?>—<?php endif;?></td>
+    <td><?php if(!empty($goodsBy[$key]))foreach($goodsBy[$key] as $x):?><div><?=fa(rtrim(rtrim(number_format((float)$x['quantity'],3,'.',''),'0'),'.'))?> × <?=e($x['goods_name'])?></div><?php endforeach;else:?>—<?php endif;?></td>
+    <?php if($financeAllowed):?><td>
      <?php if($ev['service_cost_toman']!==null):?><div>هزینه خدمت: <?=fa(number_format((int)$ev['service_cost_toman']))?> ت</div><?php endif;?>
      <?php if($ev['payments_toman']!==null):?><div>پرداخت: <?=fa(number_format((int)$ev['payments_toman']))?> ت</div><?php endif;?>
      <?php if($ev['debt_toman']!==null):?><div>بدهی: <?=fa(number_format((int)$ev['debt_toman']))?> ت</div><?php endif;?>
      <?php if($ev['credit_toman']!==null):?><div>بستانکاری: <?=fa(number_format((int)$ev['credit_toman']))?> ت</div><?php endif;?>
-     <?php if(!empty($paymentsBy[$n]))foreach($paymentsBy[$n] as $x):?><small><?=e($x['method']?:'نامشخص')?>: <?=fa(number_format((int)$x['amount_toman']))?> ت</small><br><?php endforeach;?>
-    </td>
+     <?php if(!empty($paymentsBy[$key]))foreach($paymentsBy[$key] as $x):?><small><?=e($x['method']?:'نامشخص')?>: <?=fa(number_format((int)$x['amount_toman']))?> ت</small><br><?php endforeach;?>
+    </td><?php endif;?>
    </tr>
-   <?php if($ev['notes']):?><tr><td colspan="8"><strong>توضیحات:</strong> <?=e($ev['notes'])?></td></tr><?php endif;?>
+   <?php if($ev['notes']):?><tr><td colspan="<?=$financeAllowed?8:7?>"><strong>توضیحات:</strong> <?=e($ev['notes'])?></td></tr><?php endif;?>
   <?php endforeach;?>
   </tbody></table></div>
  </section>
