@@ -92,8 +92,8 @@ function patientView():void{
     <td><?=e($ev['practitioner']?:'—')?></td>
     <td><strong><?=e($ev['reason']?:'—')?></strong><br><small><?=e($ev['mode']?:'')?></small></td>
     <td><?=e($ev['status']?:'—')?></td>
-    <td><?php if(!empty($servicesBy[$key]))foreach($servicesBy[$key] as $x):?><div><?=e($x['service_name'])?></div><?php endforeach;else:?>—<?php endif;?></td>
-    <td><?php if(!empty($goodsBy[$key]))foreach($goodsBy[$key] as $x):?><div><?=fa(rtrim(rtrim(number_format((float)$x['quantity'],3,'.',''),'0'),'.'))?> × <?=e($x['goods_name'])?></div><?php endforeach;else:?>—<?php endif;?></td>
+    <td><?php if(!empty($servicesBy[$key])):foreach($servicesBy[$key] as $x):?><div><?=e($x['service_name'])?></div><?php endforeach;else:?>—<?php endif;?></td>
+    <td><?php if(!empty($goodsBy[$key])):foreach($goodsBy[$key] as $x):?><div><?=fa(rtrim(rtrim(number_format((float)$x['quantity'],3,'.',''),'0'),'.'))?> × <?=e($x['goods_name'])?></div><?php endforeach;else:?>—<?php endif;?></td>
     <?php if($financeAllowed):?><td>
      <?php if($ev['service_cost_toman']!==null):?><div>هزینه خدمت: <?=fa(number_format((int)$ev['service_cost_toman']))?> ت</div><?php endif;?>
      <?php if($ev['payments_toman']!==null):?><div>پرداخت: <?=fa(number_format((int)$ev['payments_toman']))?> ت</div><?php endif;?>
