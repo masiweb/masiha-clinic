@@ -149,7 +149,7 @@ def extract_form_fields(forms):
     out = []
     for form_name, content in (forms or {}).items():
         form_name = clean(form_name)[:160]
-        for line in str(content).splitlines():
+        for line in source_text(content).splitlines():
             line = clean(line)
             if ":" not in line:
                 continue
@@ -161,7 +161,7 @@ def extract_form_fields(forms):
 
 
 def extract_history_summary(history):
-    lines = [clean(line) for line in str(history).splitlines() if clean(line)]
+    lines = [clean(line) for line in source_text(history).splitlines() if clean(line)]
     events = []
     current = {}
     finance_summary = {}
@@ -269,7 +269,11 @@ def extract_history_summary(history):
             current["debt"] = clean(match.group(1))
             amount = money_number(match.group(1))
             if amount is not None:
-                current["debt_toman"] = amount
+                # Boghrat renders patient debt as a negative balance. Store the
+                # actual debt as a positive obligation and preserve the raw text.
+                current["debt_toman"] = abs(amount)
+            elif current["debt"] == "تسویه حساب":
+                current["debt_toman"] = 0
 
         match = re.search(r"بستانکاری:\s*([\d,]+)", line)
         if match:
@@ -300,13 +304,16 @@ def extract_history_summary(history):
             method_match = re.match(r"تومان\s*(.*)$", next_line)
             if method_match:
                 amount = money_number(line)
+                method = clean(method_match.group(1)) or "نامشخص"
                 if amount is not None:
-                    current.setdefault("payment_methods", []).append(
-                        {
-                            "amount_toman": amount,
-                            "method": clean(method_match.group(1)) or "نامشخص",
-                        }
-                    )
+                    if method == "تخفیف":
+                        current.setdefault("discounts", []).append(
+                            {"amount_toman": amount, "method": "تخفیف"}
+                        )
+                    else:
+                        current.setdefault("payment_methods", []).append(
+                            {"amount_toman": amount, "method": method}
+                        )
 
     flush()
 
@@ -346,6 +353,11 @@ def extract_history_summary(history):
             if clipped not in financial_lines:
                 financial_lines.append(clipped)
 
+    difference = finance_summary.get("difference_toman")
+    if difference is not None:
+        finance_summary["outstanding_toman"] = max(0, -difference)
+        finance_summary["credit_balance_toman"] = max(0, difference)
+
     transactions = []
     for event_no, event in enumerate(events[:500]):
         common = {
@@ -373,6 +385,18 @@ def extract_history_summary(history):
                 "amount_toman": amount,
                 "method": clean(method.get("method", "")),
                 "description": "پرداخت مراجعه‌کننده",
+                "is_snapshot": False,
+            })
+        for discount in event.get("discounts") or []:
+            amount = discount.get("amount_toman")
+            if amount is None:
+                continue
+            transactions.append({
+                **common,
+                "type": "discount",
+                "amount_toman": amount,
+                "method": "تخفیف",
+                "description": "تخفیف مراجعه",
                 "is_snapshot": False,
             })
         if event.get("debt"):
