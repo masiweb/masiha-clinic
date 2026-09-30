@@ -186,3 +186,13 @@ CREATE TABLE IF NOT EXISTS import_financial_transactions (
 
 ALTER TABLE patients DROP INDEX IF EXISTS phone_cell;
 CREATE INDEX IF NOT EXISTS idx_patients_phone_cell ON patients(phone_cell);
+
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS event_date DATE NULL AFTER date_jalali;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS registered_at DATETIME NULL AFTER registered_at_jalali;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS charge_total_toman BIGINT NULL AFTER service_cost_toman;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS goods_cost_toman BIGINT NULL AFTER charge_total_toman;
+
+ALTER TABLE import_financial_summary ADD COLUMN IF NOT EXISTS outstanding_toman BIGINT NULL AFTER difference_toman;
+ALTER TABLE import_financial_summary ADD COLUMN IF NOT EXISTS credit_balance_toman BIGINT NULL AFTER outstanding_toman;
+
+ALTER TABLE import_financial_transactions ADD COLUMN IF NOT EXISTS tx_date DATE NULL AFTER date_jalali;
