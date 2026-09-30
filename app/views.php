@@ -21,6 +21,8 @@ function patientView():void{
  $sourceTransactions=$financeAllowed?q('SELECT t.* FROM import_financial_transactions t JOIN import_records r ON r.id=t.record_id WHERE r.pid=? ORDER BY t.tx_date DESC,t.record_id DESC,t.event_no DESC,t.tx_no',[$pid])->fetchAll():[];
  $sourceAllocations=$financeAllowed?q('SELECT a.* FROM import_financial_allocations a JOIN import_financial_transactions t ON t.id=a.transaction_id JOIN import_records r ON r.id=t.record_id WHERE r.pid=? ORDER BY a.transaction_id,a.event_no',[$pid])->fetchAll():[];
  $financial=$financeAllowed?q('SELECT f.* FROM import_financial_summary f JOIN import_records r ON r.id=f.record_id WHERE r.pid=? ORDER BY f.updated_at DESC LIMIT 1',[$pid])->fetch():false;
+ $legacyLedger=$financeAllowed?q('SELECT * FROM patient_account_ledger WHERE pid=? AND voided=0 ORDER BY entry_date,id',[$pid])->fetchAll():[];
+ $legacyBalance=$financeAllowed?(int)q('SELECT COALESCE(SUM(debit_toman-credit_toman),0) FROM patient_account_ledger WHERE pid=? AND voided=0',[$pid])->fetchColumn():0;
  $formFields=q('SELECT f.* FROM import_patient_form_fields f JOIN import_records r ON r.id=f.record_id WHERE r.pid=? ORDER BY f.record_id,f.form_no,f.field_no',[$pid])->fetchAll();
  $servicesBy=[];foreach($services as $x)$servicesBy[$x['record_id'].':'.$x['event_no']][]=$x;
  $goodsBy=[];foreach($goods as $x)$goodsBy[$x['record_id'].':'.$x['event_no']][]=$x;
@@ -82,6 +84,19 @@ function patientView():void{
    <article class="stat-card"><span>مانده بدهی</span><strong><?=fa(number_format((int)($financial['outstanding_toman']??0)))?><small> تومان</small></strong></article>
    <article class="stat-card"><span>مانده بستانکاری</span><strong><?=fa(number_format((int)($financial['credit_balance_toman']??0)))?><small> تومان</small></strong></article>
   </div>
+ </section>
+ <?php endif;?>
+
+ <?php if($legacyLedger&&$financeAllowed):?>
+ <section class="panel form-panel">
+  <div class="panel-header"><h2>حساب افتتاحیه و مانده قبلی</h2><strong><?=fa(number_format(abs($legacyBalance)))?> تومان <?=$legacyBalance>0?'بدهکار':($legacyBalance<0?'بستانکار':'تسویه')?></strong></div>
+  <p class="hint">این دفتر برای مانده منتقل‌شده از بقراط و پرداخت‌های مربوط به همان مانده است و از دوره‌های درمان جدید جدا نگهداری می‌شود.</p>
+  <div class="table-scroll"><table><thead><tr><th>تاریخ</th><th>نوع</th><th>بدهکار</th><th>بستانکار</th><th>شرح</th></tr></thead><tbody>
+  <?php $ledgerLabels=['opening_balance'=>'افتتاحیه بقراط','payment'=>'پرداخت مانده قبلی','adjustment'=>'تعدیل'];foreach($legacyLedger as $l):?>
+   <tr><td><?=jd($l['entry_date'])?></td><td><?=e($ledgerLabels[$l['entry_type']]??$l['entry_type'])?></td><td><?=money($l['debit_toman'])?></td><td><?=money($l['credit_toman'])?></td><td><?=e($l['reference'])?></td></tr>
+  <?php endforeach;?>
+  </tbody></table></div>
+  <?php if($legacyBalance>0&&allowed('finance.pay')):?><p><a class="button secondary" href="/finance?legacy_patient=<?=$pid?>">ثبت پرداخت مانده قبلی</a></p><?php endif;?>
  </section>
  <?php endif;?>
 
