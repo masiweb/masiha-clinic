@@ -252,6 +252,77 @@ def extract_links(page):
             out.append(rec)
     return out[:300]
 
+def navigation_candidates(page):
+    selectors = (
+        'nav a:visible, nav button:visible, '
+        '[role="navigation"] a:visible, [role="navigation"] button:visible, '
+        'md-sidenav a:visible, md-sidenav button:visible, '
+        'aside a:visible, aside button:visible'
+    )
+    try:
+        items = page.locator(selectors).evaluate_all(
+            """els => els.slice(0,160).map((e,i) => ({
+              index:i,
+              text:(e.innerText || e.getAttribute('aria-label') || e.getAttribute('title') || '').replace(/\s+/g,' ').trim().slice(0,240),
+              href:e.href || e.getAttribute('href') || e.getAttribute('ng-href') || '',
+              disabled:!!e.disabled,
+              tag:e.tagName.toLowerCase()
+            }))"""
+        )
+    except Exception:
+        return []
+    out=[]
+    for item in items:
+        text=(item.get("text") or "").strip()
+        low=text.lower()
+        if not text or item.get("disabled"):
+            continue
+        if any(x in low for x in ("خروج","حذف","ابطال","غیرفعال","delete","remove","logout","sign out","revoke")):
+            continue
+        href=safe_route(item.get("href","")) if item.get("href") else None
+        out.append({"index":item["index"],"text":text[:240],"route":canonical_route(href) if href else None})
+    return out[:120]
+
+
+def discover_navigation_routes(page, base_url):
+    found=[]
+    candidates=navigation_candidates(page)
+    selector=(
+        'nav a:visible, nav button:visible, '
+        '[role="navigation"] a:visible, [role="navigation"] button:visible, '
+        'md-sidenav a:visible, md-sidenav button:visible, '
+        'aside a:visible, aside button:visible'
+    )
+    for item in candidates:
+        if item.get("route"):
+            found.append({"text":item["text"],"route":item["route"]})
+            continue
+        try:
+            page.goto(base_url,wait_until="domcontentloaded",timeout=45000)
+            page.wait_for_timeout(500)
+            expand_navigation(page)
+            loc=page.locator(selector)
+            if item["index"]>=loc.count():
+                continue
+            before=canonical_route(page.url)
+            loc.nth(item["index"]).click(timeout=2000)
+            page.wait_for_timeout(800)
+            if urlparse(page.url).hostname!=APP_HOST:
+                continue
+            after=safe_route(page.url)
+            if after and canonical_route(after)!=before:
+                found.append({"text":item["text"],"route":canonical_route(after)})
+        except AuditStop:
+            raise
+        except Exception:
+            continue
+    unique=[]
+    for item in found:
+        if item not in unique:
+            unique.append(item)
+    return unique[:120]
+
+
 
 def extract_page(page):
     body_text(page)
@@ -269,8 +340,10 @@ def extract_page(page):
         except Exception:
             pass
 
+    route=canonical_route(page.url)
+    nav_controls=navigation_candidates(page)
     return {
-        "route": canonical_route(page.url),
+        "route": route,
         "title": (page.title() or "")[:300],
         "headings": headings,
         "tabs": tabs,
@@ -278,6 +351,7 @@ def extract_page(page):
         "fields": extract_fields(page),
         "tables": tables,
         "links": links,
+        "navigation": nav_controls,
     }
 
 
@@ -381,7 +455,16 @@ def main():
                 pages.append(item)
                 print(f"AUDIT {len(pages):03d} {item['route']}", flush=True)
 
-                for link in item.get("links", []):
+                discovered=list(item.get("links", []))
+                # Angular menus may navigate from buttons instead of href links.
+                # Only controls inside navigation containers are clicked; forms and
+                # page action buttons are never submitted or activated here.
+                try:
+                    discovered += discover_navigation_routes(page, "https://" + APP_HOST + item["route"])
+                except AuditStop:
+                    raise
+
+                for link in discovered:
                     href = "https://" + APP_HOST + link["route"]
                     safe = safe_route(href)
                     if not safe:
