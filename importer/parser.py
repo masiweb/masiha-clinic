@@ -76,7 +76,7 @@ def extract_profile(personal):
         ),
         "national_id": digits(r"کد ملی:\s*([0-9۰-۹٠-٩]{10})"),
         "father_name": first(
-            r"نام پدر:\s*(.+?)(?=\s+وضعیت تاهل:|\s+وضعیت تأهل:|\s+تاریخ تولد:|\s+آدرس:|\s+بیماری(?:\s+های|‌های)\s+خاص:|\s+assignment\s+فرم|$)"
+            r"نام پدر:\s*(.+?)(?=\s+وضعیت تاهل:|\s+وضعیت تأهل:|\s+تاریخ تولد:|\s+شغل:|\s+تحصیلات:|\s+قد:|\s+آدرس:|\s+بیماری(?:\s+های|‌های)\s+خاص:|\s+assignment\s+فرم|$)"
         ),
         "marital_status": first(
             r"وضعیت (?:تاهل|تأهل):\s*(.+?)(?=\s+تاریخ تولد:|\s+آدرس:|\s+بیماری(?:\s+های|‌های)\s+خاص:|\s+assignment\s+فرم|$)"
@@ -85,8 +85,8 @@ def extract_profile(personal):
         "address": first(
             r"آدرس:\s*(.+?)(?=\s+بیماری های خاص:|\s+بیماری‌های خاص:|\s+assignment\s+فرم|$)"
         ),
-        "medical_conditions": first(
-            r"بیماری(?:\s+های|‌های)\s+خاص:\s*(.+?)(?=\s+-برچسب|\s+assignment\s+فرم|$)"
+        "medical_conditions": clean(
+            (re.search(r"بیماری(?:\s+های|‌های)\s+خاص:[ \t]*([^\n\r]*)", source_text(personal), re.I) or [None, ""])[1]
         ),
         "occupation": first(
             r"شغل:\s*(.+?)(?=\s+تحصیلات:|\s+قد:|\s+آدرس:|\s+بیماری(?:\s+های|‌های)\s+خاص:|$)"
