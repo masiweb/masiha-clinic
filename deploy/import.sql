@@ -70,3 +70,23 @@ CREATE TABLE IF NOT EXISTS import_financial_lines (
  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
  UNIQUE(record_id,line_no),INDEX(record_id),INDEX(line_hash)
 );
+
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS debt_text VARCHAR(255) NOT NULL DEFAULT '' AFTER status;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS debt_toman BIGINT NULL AFTER debt_text;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS credit_toman BIGINT NULL AFTER debt_toman;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS service_cost_toman BIGINT NULL AFTER credit_toman;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS payments_toman BIGINT NULL AFTER service_cost_toman;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS settled_toman BIGINT NULL AFTER payments_toman;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS payment_methods TEXT NOT NULL DEFAULT '' AFTER settled_toman;
+
+CREATE TABLE IF NOT EXISTS import_financial_summary (
+ record_id BIGINT UNSIGNED PRIMARY KEY,
+ service_revenue_toman BIGINT NULL,
+ goods_revenue_toman BIGINT NULL,
+ payments_toman BIGINT NULL,
+ refunds_toman BIGINT NULL,
+ discounts_toman BIGINT NULL,
+ difference_toman BIGINT NULL,
+ payload TEXT NOT NULL DEFAULT '',
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
