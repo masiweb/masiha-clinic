@@ -36,7 +36,8 @@ function financeV2($report=false):void{need($report?'reports':'finance');[$from,
   echo '<section class="panel form-panel"><div class="panel-header"><h2>سوابق مالی تاریخی بقراط</h2><span class="muted">مستقل از اسناد مالی داخلی مسیحا</span></div><p class="hint">فیلتر تاریخ روی تراکنش‌های منبع اعمال می‌شود؛ فیلتر درمانگر/کلینیک داخلی روی این داده تاریخی اعمال نمی‌شود.</p><div class="stats-grid three">';
   foreach(['جمع هزینه مراجعه در بازه'=>$src['charges'],'پرداخت واقعی در بازه'=>$src['payments'],'تخفیف در بازه'=>$src['discounts'],'بدهی فعلی منبع'=>$sourceDebt] as $k=>$v)echo '<article class="stat-card"><span>'.$k.'</span><strong>'.money($v).'</strong><small>تومان</small></article>';
   echo '</div>';
-  if($canHistory){$sourceRows=q("SELECT t.*,p.pid,p.fname,p.lname
+  if($canHistory){$sourceRows=q("SELECT t.*,p.pid,p.fname,p.lname,
+      (SELECT GROUP_CONCAT(CONCAT(a.appointment_code,'|',a.amount_toman) ORDER BY a.event_no SEPARATOR ',') FROM import_financial_allocations a WHERE a.transaction_id=t.id) allocations
       FROM import_financial_transactions t
       JOIN import_records r ON r.id=t.record_id
       JOIN patients p ON p.pid=r.pid
@@ -44,7 +45,7 @@ function financeV2($report=false):void{need($report?'reports':'finance');[$from,
       ORDER BY t.tx_date DESC,t.id DESC LIMIT 50",[$from,$to])->fetchAll();
     $labels=['service_charge'=>'جمع هزینه مراجعه','payment'=>'پرداخت','discount'=>'تخفیف'];
     echo '<div class="table-scroll"><table><thead><tr><th>تاریخ</th><th>بیمار</th><th>نوع</th><th>مبلغ</th><th>روش</th><th>کد نوبت</th></tr></thead><tbody>';
-    foreach($sourceRows as $r)echo '<tr><td>'.jd($r['tx_date']).'</td><td><a href="/patient?id='.(int)$r['pid'].'">'.e(patientName($r)).'</a></td><td>'.e($labels[$r['tx_type']]??$r['tx_type']).'</td><td>'.money($r['amount_toman']).'</td><td>'.e($r['method']?:'—').'</td><td>'.fa($r['appointment_code']?:'—').'</td></tr>';
+    foreach($sourceRows as $r){$appt=$r['appointment_code']?:'';if(!$appt&&!empty($r['allocations'])){$parts=[];foreach(explode(',',$r['allocations']) as $piece){[$code,$amount]=array_pad(explode('|',$piece,2),2,'');$parts[]=fa($code).' · '.money((int)$amount).' ت';}$appt=implode(' / ',$parts);}echo '<tr><td>'.jd($r['tx_date']).'</td><td><a href="/patient?id='.(int)$r['pid'].'">'.e(patientName($r)).'</a></td><td>'.e($labels[$r['tx_type']]??$r['tx_type']).'</td><td>'.money($r['amount_toman']).'</td><td>'.e($r['method']?:'—').'</td><td>'.($appt?:'—').'</td></tr>';}
     echo '</tbody></table></div>';
   }
   if($canDebt){$sourceDebts=q("SELECT p.pid,p.fname,p.lname,f.outstanding_toman
