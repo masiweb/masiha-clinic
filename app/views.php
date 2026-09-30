@@ -77,7 +77,8 @@ function patientView():void{
    <article class="stat-card"><span>پرداختی‌ها</span><strong><?=fa(number_format((int)($financial['payments_toman']??0)))?><small> تومان</small></strong></article>
    <article class="stat-card"><span>بازگشت وجه</span><strong><?=fa(number_format((int)($financial['refunds_toman']??0)))?><small> تومان</small></strong></article>
    <article class="stat-card"><span>تخفیف</span><strong><?=fa(number_format((int)($financial['discounts_toman']??0)))?><small> تومان</small></strong></article>
-   <article class="stat-card"><span>مابه‌التفاوت</span><strong><?=fa(number_format((int)($financial['difference_toman']??0)))?><small> تومان</small></strong></article>
+   <article class="stat-card"><span>مانده بدهی</span><strong><?=fa(number_format((int)($financial['outstanding_toman']??0)))?><small> تومان</small></strong></article>
+   <article class="stat-card"><span>مانده بستانکاری</span><strong><?=fa(number_format((int)($financial['credit_balance_toman']??0)))?><small> تومان</small></strong></article>
   </div>
  </section>
  <?php endif;?>
@@ -85,9 +86,9 @@ function patientView():void{
  <?php if($sourceTransactions&&$financeAllowed):?>
  <section class="panel form-panel">
   <div class="panel-header"><h2>گردش مالی تفکیک‌شده بقراط</h2><span class="count"><?=fa(count($sourceTransactions))?></span></div>
-  <p class="hint">«پرداخت» و «هزینه خدمت» حرکت مالی‌اند؛ «وضعیت بدهی/بستانکاری» snapshot منبع است و در جمع تراکنش‌ها دوباره محاسبه نمی‌شود.</p>
+  <p class="hint">«پرداخت»، «جمع هزینه مراجعه» و «تخفیف» حرکت مالی منبع‌اند؛ «وضعیت بدهی/بستانکاری» فقط snapshot بقراط است و دوباره در جمع گردش مالی محاسبه نمی‌شود.</p>
   <div class="table-scroll"><table><thead><tr><th>تاریخ</th><th>نوع</th><th>مبلغ (تومان)</th><th>روش</th><th>کد نوبت</th><th>توضیح</th></tr></thead><tbody>
-  <?php $txLabels=['service_charge'=>'هزینه خدمت','payment'=>'پرداخت','debt_snapshot'=>'وضعیت بدهی','credit_snapshot'=>'وضعیت بستانکاری'];foreach($sourceTransactions as $tx):?>
+  <?php $txLabels=['service_charge'=>'جمع هزینه مراجعه','payment'=>'پرداخت','discount'=>'تخفیف','debt_snapshot'=>'وضعیت بدهی','credit_snapshot'=>'وضعیت بستانکاری'];foreach($sourceTransactions as $tx):?>
    <tr>
     <td><?=e($tx['date_jalali']?:'—')?></td>
     <td><?=e($txLabels[$tx['tx_type']]??$tx['tx_type'])?><?=$tx['is_snapshot']?' <small>وضعیت</small>':''?></td>
@@ -107,18 +108,21 @@ function patientView():void{
   <div class="table-scroll"><table><thead><tr><th>تاریخ/ساعت</th><th>کد نوبت</th><th>درمانگر</th><th>نوع مراجعه</th><th>وضعیت</th><th>خدمات</th><th>کالا</th><?php if($financeAllowed):?><th>مالی</th><?php endif;?></tr></thead><tbody>
   <?php foreach($events as $ev):$key=$ev['record_id'].':'.$ev['event_no'];?>
    <tr>
-    <td><?=e($ev['date_jalali']?:'—')?> <?=e($ev['time_text']?:'')?></td>
+    <td><?=e($ev['date_jalali']?:'—')?> <?=e($ev['time_text']?:'')?><?php if($ev['registered_at_jalali']):?><br><small>ثبت نوبت: <?=e($ev['registered_at_jalali'])?><?=($ev['registration_method']?' · '.e($ev['registration_method']):'')?></small><?php endif;?></td>
     <td><?=fa($ev['appointment_code']?:'—')?></td>
     <td><?=e($ev['practitioner']?:'—')?></td>
     <td><strong><?=e($ev['reason']?:'—')?></strong><br><small><?=e($ev['mode']?:'')?></small></td>
     <td><?=e($ev['status']?:'—')?></td>
     <td><?php if(!empty($servicesBy[$key])):foreach($servicesBy[$key] as $x):?><div><?=e($x['service_name'])?><?php if($x['amount_toman']!==null):?> <small>· <?=fa(number_format((int)$x['amount_toman']))?> ت</small><?php endif;?></div><?php endforeach;else:?>—<?php endif;?></td>
-    <td><?php if(!empty($goodsBy[$key])):foreach($goodsBy[$key] as $x):?><div><?=fa(rtrim(rtrim(number_format((float)$x['quantity'],3,'.',''),'0'),'.'))?> × <?=e($x['goods_name'])?></div><?php endforeach;else:?>—<?php endif;?></td>
+    <td><?php if(!empty($goodsBy[$key])):foreach($goodsBy[$key] as $x):?><div><?=fa(rtrim(rtrim(number_format((float)$x['quantity'],3,'.',''),'0'),'.'))?> × <?=e($x['goods_name'])?><?php if($x['amount_toman']!==null):?> <small>· <?=fa(number_format((int)$x['amount_toman']))?> ت</small><?php endif;?></div><?php endforeach;else:?>—<?php endif;?></td>
     <?php if($financeAllowed):?><td>
-     <?php if($ev['service_cost_toman']!==null):?><div>هزینه خدمت: <?=fa(number_format((int)$ev['service_cost_toman']))?> ت</div><?php endif;?>
-     <?php if($ev['payments_toman']!==null):?><div>پرداخت: <?=fa(number_format((int)$ev['payments_toman']))?> ت</div><?php endif;?>
-     <?php if($ev['debt_toman']!==null):?><div>بدهی: <?=fa(number_format((int)$ev['debt_toman']))?> ت</div><?php endif;?>
-     <?php if($ev['credit_toman']!==null):?><div>بستانکاری: <?=fa(number_format((int)$ev['credit_toman']))?> ت</div><?php endif;?>
+     <?php if($ev['charge_total_toman']!==null):?><div>جمع هزینه مراجعه: <?=fa(number_format((int)$ev['charge_total_toman']))?> ت</div><?php endif;?>
+     <?php if($ev['service_items_total_toman']!==null):?><div>جمع خدمات: <?=fa(number_format((int)$ev['service_items_total_toman']))?> ت</div><?php endif;?>
+     <?php if($ev['goods_cost_toman']!==null):?><div>جمع کالا: <?=fa(number_format((int)$ev['goods_cost_toman']))?> ت</div><?php endif;?>
+     <?php if($ev['discounts_toman']):?><div>تخفیف: <?=fa(number_format((int)$ev['discounts_toman']))?> ت</div><?php endif;?>
+     <?php if($ev['payments_toman']!==null):?><div>مجموع پرداخت: <?=fa(number_format((int)$ev['payments_toman']))?> ت</div><?php endif;?>
+     <?php if($ev['debt_toman']!==null):?><div>مانده بدهی: <?=fa(number_format((int)$ev['debt_toman']))?> ت</div><?php endif;?>
+     <?php if($ev['credit_toman']!==null):?><div>مانده بستانکاری: <?=fa(number_format((int)$ev['credit_toman']))?> ت</div><?php endif;?>
      <?php if(!empty($paymentsBy[$key]))foreach($paymentsBy[$key] as $x):?><small><?=e($x['method']?:'نامشخص')?>: <?=fa(number_format((int)$x['amount_toman']))?> ت</small><br><?php endforeach;?>
     </td><?php endif;?>
    </tr>
