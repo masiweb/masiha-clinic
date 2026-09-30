@@ -2,7 +2,7 @@
 import os,sys,pathlib,subprocess,json,tempfile,secrets,shutil
 root=pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0,str(root/'importer'))
-from parser import record_from_dom,allowed_link
+from parser import record_from_dom,allowed_link,extract_history_summary
 suffix=secrets.token_hex(4);db='masiha_import_test_'+suffix
 sql=lambda s:subprocess.check_output(['mariadb','-N','-e',s],text=True).strip()
 work=pathlib.Path(tempfile.mkdtemp(prefix='masiha-import-test-'));cfg=work/'config.php';env=os.environ.copy();env['MASIHA_CONFIG']=str(cfg)
@@ -87,12 +87,41 @@ assignment فرم های اختصاصی مراجعه کننده
  assert r2['profile']['birth_jalali']=='1383/7/3'
  assert r2['profile']['address']=='فرمانیه لواسان شرقی نوریان پ 45'
  assert r2['profile']['medical_conditions']=='Ankle sprain'
+ history2='''سه شنبه - 1405/6/31
+ساعت 10:00
+کد نوبت: 47748304
+assignment_ind نیما البرزی
+local_hospital بابت: نرمال
+location_on به صورت: حضوری
+info وضعیت: غایب در مطب
+یکشنبه - 1405/6/29
+ساعت 10:00
+کد نوبت: 47696990
+assignment_ind نیما البرزی
+local_hospital بابت: ویزیت درمان
+location_on به صورت: حضوری
+info وضعیت: ویزیت شده
+announcement توضیحات: با هماهنگی دکتر ثبت شد
+healing خدمات ارائه شده: فیزیو یک (بدون ورزش)
+shopping_basket کالاهای ثبت شده: 1 ⨯ ملحفه، 1 ⨯ ساک دستی جدید
+نمایش بدهی لحظه ای
+مانده بدهی: 1,250,000 تومان'''
+ hs=extract_history_summary(history2)
+ assert len(hs['events'])==2
+ assert hs['events'][0]['appointment_code']=='47748304'
+ assert hs['events'][1]['appointment_code']=='47696990'
+ assert hs['events'][1]['services']=='فیزیو یک (بدون ورزش)'
+ assert 'ملحفه' in hs['events'][1]['goods']
+ assert any('مانده بدهی' in x for x in hs['financial_lines'])
+ r2['history']=history2
+ r2['history_summary']=hs
+ r2['forms']={'assignment فرم پذیرش':'فرم پذیرش آزمایشی'}
  saved=bridge('save',run_id=auto_run,record=r2,next_page=1,next_row=2)
  assert saved['ok'] and saved['registration']['status']=='created'
  assert sql(f'SELECT MAX(pid) FROM {db}.patients')=='7002'
  fields=sql(f"SELECT CONCAT_WS('|',phone_cell,phone_home,national_id,father_name,marital_status,referral_source,address,medical_conditions,DATE_FORMAT(DOB,'%Y-%m-%d'),DATE_FORMAT(source_registered_date,'%Y-%m-%d'),DATE_FORMAT(clinic_registered_date,'%Y-%m-%d')) FROM {db}.patients WHERE pid=7002")
  assert fields=='09123261029|09128001093|4711333509|امیر محمد|مجرد|مادر|فرمانیه لواسان شرقی نوریان پ 45|Ankle sprain|2004-09-24|2026-09-19|2026-09-19',fields
- print('PASS configurable case-number sequence, structured Boghrat profile mapping and automatic registration')
+ print('PASS configurable case-number sequence, structured Boghrat profile mapping, visit/financial summary and automatic registration')
  assert php("$x=importEncrypt('synthetic-test-secret');if(str_contains($x,'synthetic-test-secret')||importDecrypt($x)!=='synthetic-test-secret')exit(2);echo 'ok';")=='ok'
  denied=php("$_SESSION=['uid'=>0];importNeed();echo 'BAD';")
  assert 'BAD' not in denied
