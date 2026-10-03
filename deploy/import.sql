@@ -396,3 +396,26 @@ CREATE TABLE IF NOT EXISTS clinic_form_submission_values (
  PRIMARY KEY(submission_id,field_id),
  INDEX(field_id)
 );
+
+
+CREATE TABLE IF NOT EXISTS service_tariffs (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ service_id BIGINT UNSIGNED NOT NULL,
+ tariff_type VARCHAR(20) NOT NULL DEFAULT 'normal',
+ title VARCHAR(160) NOT NULL DEFAULT '',
+ contract_name VARCHAR(160) NOT NULL DEFAULT '',
+ price_toman BIGINT UNSIGNED NOT NULL DEFAULT 0,
+ effective_from DATE NOT NULL,
+ effective_to DATE NULL,
+ active TINYINT NOT NULL DEFAULT 1,
+ source_system VARCHAR(40) NOT NULL DEFAULT 'masiha',
+ created_by BIGINT NOT NULL DEFAULT 0,
+ deleted TINYINT NOT NULL DEFAULT 0,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ INDEX(service_id),INDEX(tariff_type),INDEX(effective_from),INDEX(effective_to),INDEX(active,deleted)
+);
+
+ALTER TABLE physio_sessions ADD COLUMN IF NOT EXISTS tariff_id BIGINT UNSIGNED NULL AFTER service_id;
+ALTER TABLE physio_sessions ADD COLUMN IF NOT EXISTS tariff_title_snapshot VARCHAR(160) NOT NULL DEFAULT '' AFTER tariff_id;
+ALTER TABLE physio_sessions ADD INDEX IF NOT EXISTS idx_physio_sessions_tariff(tariff_id);
