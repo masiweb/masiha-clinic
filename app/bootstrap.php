@@ -36,6 +36,19 @@ function flash($text):void{$_SESSION['flash']=$text;}
 function schedulingLock():void{if((int)q("SELECT GET_LOCK('masiha_schedule',5)")->fetchColumn()!==1)throw new DomainException('برنامه در حال به‌روزرسانی است؛ دوباره تلاش کنید.');}
 function schedulingUnlock():void{q("SELECT RELEASE_LOCK('masiha_schedule')");}
 function conflict($start,$end,$therapist,$room,$equipment,$pid,$except=0):bool{return (bool)q("SELECT s.id FROM physio_sessions s JOIN physio_episodes e ON e.id=s.episode_id WHERE s.status IN ('scheduled','done') AND s.starts_at<? AND s.ends_at>? AND s.id<>? AND (s.therapist_id=? OR (?<>'' AND s.room=?) OR (?<>'' AND s.equipment=?) OR e.pid=?) LIMIT 1",[$end,$start,$except,$therapist,$room,$room,$equipment,$equipment,$pid])->fetchColumn();}
+function clinicWeekday(string $date):int{$ts=strtotime($date);if($ts===false)throw new DomainException('تاریخ برنامه معتبر نیست.');return (((int)date('w',$ts))+1)%7;}
+function therapistAvailabilityIssue(string $start,string $end,int $therapist,int $clinic=0):?string{
+ if(strtotime($start)===false||strtotime($end)===false||$end<=$start)return 'بازه زمانی معتبر نیست.';
+ if(q("SELECT id FROM therapist_absences WHERE therapist_id=? AND active=1 AND starts_at<? AND ends_at>? LIMIT 1",[$therapist,$end,$start])->fetchColumn())return 'درمانگر در این بازه غیبت ثبت‌شده دارد.';
+ $date=substr($start,0,10);$active=(bool)q("SELECT id FROM therapist_schedules WHERE therapist_id=? AND active=1 AND (effective_from IS NULL OR effective_from<=?) AND (effective_to IS NULL OR effective_to>=?) LIMIT 1",[$therapist,$date,$date])->fetchColumn();
+ if(!$active)return null;
+ if(substr($start,0,10)!==substr($end,0,10))return 'نوبت باید داخل یک روز کاری درمانگر باشد.';
+ $weekday=clinicWeekday($date);$from=substr($start,11,8);$to=substr($end,11,8);
+ $args=[$therapist,$weekday,$date,$date,$from,$to];$clinicSql='';
+ if($clinic>0){$clinicSql=' AND (clinic_id IS NULL OR clinic_id=?)';$args[]=$clinic;}
+ if(!q("SELECT id FROM therapist_schedules WHERE therapist_id=? AND weekday=? AND active=1 AND (effective_from IS NULL OR effective_from<=?) AND (effective_to IS NULL OR effective_to>=?) AND start_time<=? AND end_time>=?$clinicSql LIMIT 1",$args)->fetchColumn())return 'زمان انتخابی خارج از برنامه حضور درمانگر است.';
+ return null;
+}
 function uploadDocument($pid):void{global $config;$f=$_FILES['file']??null;if(!$f||$f['error']!==UPLOAD_ERR_OK||$f['size']>10*1024*1024||!is_uploaded_file($f['tmp_name']))throw new DomainException('فایل سالم تا ۱۰ مگابایت انتخاب کنید.');$mime=(new finfo(FILEINFO_MIME_TYPE))->file($f['tmp_name']);if(!in_array($mime,['application/pdf','image/jpeg','image/png'],true))throw new DomainException('فقط فایل PDF، JPG یا PNG پذیرفته می‌شود.');if((int)q('SELECT COALESCE(SUM(bytes),0) FROM physio_patient_documents WHERE pid=?',[$pid])->fetchColumn()+$f['size']>100*1024*1024)throw new DomainException('فضای مدارک این پرونده پر شده است.');$name=bin2hex(random_bytes(24));$target=$config['storage'].'/documents/'.$name;if(!move_uploaded_file($f['tmp_name'],$target))throw new RuntimeException('upload');chmod($target,0600);try{q('INSERT INTO physio_patient_documents(pid,title,storage_name,mime,bytes) VALUES(?,?,?,?,?)',[$pid,val('title',150,true),$name,$mime,$f['size']]);audit('document_uploaded',(int)q('SELECT LAST_INSERT_ID()')->fetchColumn());}catch(Throwable $ex){unlink($target);throw $ex;}}
 
 function validateResources($room,$equipment):void{if(!q("SELECT id FROM resources WHERE name=? AND kind='room' AND active=1",[$room])->fetchColumn())throw new DomainException('اتاق فعال انتخاب کنید.');if($equipment!==''&&!q("SELECT id FROM resources WHERE name=? AND kind='equipment' AND active=1",[$equipment])->fetchColumn())throw new DomainException('تجهیز فعال انتخاب کنید.');}
