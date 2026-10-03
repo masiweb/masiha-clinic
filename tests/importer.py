@@ -162,7 +162,8 @@ attach_money پرداختی های مراجعه کننده: (مجموع پردا
  assert sql(f'SELECT SUM(COALESCE(amount_toman,0)) FROM {db}.import_event_services WHERE record_id={rid2}')=='7000000'
  assert sql(f'SELECT COUNT(*) FROM {db}.import_financial_transactions WHERE record_id={rid2} AND tx_type="payment"')=='2'
  assert sql(f'SELECT SUM(amount_toman) FROM {db}.import_financial_transactions WHERE record_id={rid2} AND tx_type="payment"')=='7050000'
- assert sql(f'SELECT COUNT(*) FROM {db}.import_source_practitioners')=='0'
+ assert sql(f'SELECT COUNT(*) FROM {db}.import_source_practitioners')=='1'
+ assert sql(f"SELECT COUNT(*) FROM {db}.staff WHERE role='therapist' AND active=0")=='1'
  assert sql(f'SELECT COUNT(*) FROM {db}.import_event_services WHERE record_id={rid2} AND service_id IS NOT NULL')=='2'
  assert sql(f'SELECT COUNT(*) FROM {db}.import_event_goods WHERE record_id={rid2} AND inventory_item_id IS NOT NULL')=='1'
  fields=sql(f"SELECT CONCAT_WS('|',phone_cell,phone_home,national_id,father_name,marital_status,referral_source,address,medical_conditions,DATE_FORMAT(DOB,'%Y-%m-%d'),DATE_FORMAT(source_registered_date,'%Y-%m-%d'),DATE_FORMAT(clinic_registered_date,'%Y-%m-%d')) FROM {db}.patients WHERE pid=7002")
