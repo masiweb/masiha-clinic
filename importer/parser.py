@@ -145,19 +145,89 @@ def split_goods(value):
     return items[:100]
 
 
+def normalize_form_name(value):
+    name=clean(value)
+    for prefix in ("assignment ", "adjust ", "more_horiz "):
+        if name.startswith(prefix):
+            name=name[len(prefix):].strip()
+    return name[:160] or "فرم"
+
+
+def normalize_form_answer(value):
+    value=clean(value)
+    value=re.sub(r"\s*\(\s*-\s*\)\s*$","",value).strip()
+    return "" if value in ("-","--","—","(-)") else value[:2000]
+
+
 def extract_form_fields(forms):
-    out = []
-    for form_name, content in (forms or {}).items():
-        form_name = clean(form_name)[:160]
-        for line in source_text(content).splitlines():
-            line = clean(line)
-            if ":" not in line:
+    out=[]
+    noise_prefixes=(
+        "اطلاعات مراجعه کننده","close","person اطلاعات شخصی",
+        "history سوابق ویزیت و پرداخت","assignment فرم","more_horiz",
+        "print","فقط سوالات دارای جواب نمایش داده شود","adjust فرم",
+    )
+    for raw_name,content in (forms or {}).items():
+        form_name=normalize_form_name(raw_name)
+        lines=[clean(x) for x in source_text(content).splitlines() if clean(x)]
+        submitted=""
+        for line in lines:
+            m=re.search(r"\(\s*ثبت:\s*(1[2345]\d{2}/\d{1,2}/\d{1,2})\s*\)",line)
+            if m:
+                submitted=m.group(1)
+                break
+        if submitted:
+            out.append({"form_name":form_name,"field_name":"تاریخ ثبت فرم","field_value":submitted,"field_type":"date","is_meta":True})
+
+        start_at=0
+        for idx,line in enumerate(lines):
+            if line.startswith("adjust فرم"):
+                start_at=idx+1
+                break
+        lines=lines[start_at:]
+        i=0
+        order=0
+        while i<len(lines):
+            line=lines[i]
+            if not line or line=="(-)" or any(line.startswith(p) for p in noise_prefixes) or re.fullmatch(r"\(\s*ثبت:.*\)",line):
+                i+=1
                 continue
-            field, value = line.split(":", 1)
-            field, value = clean(field)[:160], clean(value)[:2000]
-            if field and value and field not in ("اطلاعات مراجعه کننده",):
-                out.append({"form_name": form_name, "field_name": field, "field_value": value})
-    return out[:1000]
+
+            label=value=""
+            consumed=1
+
+            # Question mark is the strongest boundary for Persian questionnaire labels.
+            if "؟" in line:
+                head,tail=line.split("؟",1)
+                label=clean(head)+" ؟"
+                value=normalize_form_answer(tail)
+                if not value and i+1<len(lines):
+                    nxt=lines[i+1]
+                    if nxt!="(-)" and not any(nxt.startswith(p) for p in noise_prefixes) and "؟" not in nxt:
+                        value=normalize_form_answer(nxt)
+                        consumed=2
+            elif ":" in line:
+                head,tail=line.split(":",1)
+                label=clean(head)
+                value=normalize_form_answer(tail)
+                if not value and i+1<len(lines):
+                    nxt=lines[i+1]
+                    if nxt!="(-)" and not any(nxt.startswith(p) for p in noise_prefixes) and "؟" not in nxt:
+                        value=normalize_form_answer(nxt)
+                        consumed=2
+
+            if label and label not in ("ثبت","اطلاعات مراجعه کننده"):
+                field_type="date" if "تاریخ" in label else "text"
+                out.append({
+                    "form_name":form_name,
+                    "field_name":label[:160],
+                    "field_value":value,
+                    "field_type":field_type,
+                    "is_meta":False,
+                    "sort_order":order,
+                })
+                order+=1
+            i+=consumed
+    return out[:2000]
 
 
 def extract_history_summary(history):
