@@ -306,3 +306,38 @@ CREATE TABLE IF NOT EXISTS patient_account_ledger (
 );
 
 ALTER TABLE patient_account_ledger MODIFY COLUMN debit_toman BIGINT NOT NULL DEFAULT 0, MODIFY COLUMN credit_toman BIGINT NOT NULL DEFAULT 0;
+
+
+CREATE TABLE IF NOT EXISTS import_source_practitioners (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ source_name VARCHAR(255) NOT NULL,
+ normalized_key CHAR(64) NOT NULL,
+ first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ UNIQUE(source_name),
+ INDEX(normalized_key)
+);
+
+CREATE TABLE IF NOT EXISTS import_source_practitioner_map (
+ source_practitioner_id BIGINT UNSIGNED PRIMARY KEY,
+ staff_id BIGINT UNSIGNED NOT NULL,
+ mapping_mode VARCHAR(20) NOT NULL DEFAULT 'auto',
+ mapped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ INDEX(staff_id)
+);
+
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS source_practitioner_id BIGINT UNSIGNED NULL AFTER practitioner;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS therapist_id BIGINT UNSIGNED NULL AFTER source_practitioner_id;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS status_code VARCHAR(40) NOT NULL DEFAULT 'unknown' AFTER status;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS mode_code VARCHAR(40) NOT NULL DEFAULT 'unknown' AFTER mode;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS registration_code VARCHAR(40) NOT NULL DEFAULT 'unknown' AFTER registration_method;
+ALTER TABLE import_patient_events ADD COLUMN IF NOT EXISTS reason_code VARCHAR(40) NOT NULL DEFAULT 'other' AFTER reason;
+ALTER TABLE import_patient_events ADD INDEX IF NOT EXISTS idx_import_patient_events_therapist(therapist_id);
+ALTER TABLE import_patient_events ADD INDEX IF NOT EXISTS idx_import_patient_events_status_code(status_code);
+ALTER TABLE import_patient_events ADD INDEX IF NOT EXISTS idx_import_patient_events_reason_code(reason_code);
+
+ALTER TABLE import_event_services ADD COLUMN IF NOT EXISTS service_id BIGINT UNSIGNED NULL AFTER source_service_id;
+ALTER TABLE import_event_services ADD INDEX IF NOT EXISTS idx_import_event_services_service(service_id);
+
+ALTER TABLE import_event_goods ADD COLUMN IF NOT EXISTS inventory_item_id BIGINT UNSIGNED NULL AFTER source_goods_id;
+ALTER TABLE import_event_goods ADD INDEX IF NOT EXISTS idx_import_event_goods_inventory_item(inventory_item_id);
