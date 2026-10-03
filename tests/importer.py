@@ -162,6 +162,9 @@ attach_money پرداختی های مراجعه کننده: (مجموع پردا
  assert sql(f'SELECT SUM(COALESCE(amount_toman,0)) FROM {db}.import_event_services WHERE record_id={rid2}')=='7000000'
  assert sql(f'SELECT COUNT(*) FROM {db}.import_financial_transactions WHERE record_id={rid2} AND tx_type="payment"')=='2'
  assert sql(f'SELECT SUM(amount_toman) FROM {db}.import_financial_transactions WHERE record_id={rid2} AND tx_type="payment"')=='7050000'
+ assert sql(f'SELECT COUNT(*) FROM {db}.import_source_practitioners')=='0'
+ assert sql(f'SELECT COUNT(*) FROM {db}.import_event_services WHERE record_id={rid2} AND service_id IS NOT NULL')=='2'
+ assert sql(f'SELECT COUNT(*) FROM {db}.import_event_goods WHERE record_id={rid2} AND inventory_item_id IS NOT NULL')=='1'
  fields=sql(f"SELECT CONCAT_WS('|',phone_cell,phone_home,national_id,father_name,marital_status,referral_source,address,medical_conditions,DATE_FORMAT(DOB,'%Y-%m-%d'),DATE_FORMAT(source_registered_date,'%Y-%m-%d'),DATE_FORMAT(clinic_registered_date,'%Y-%m-%d')) FROM {db}.patients WHERE pid=7002")
  assert fields=='09123261029|09128001093|4711333509|امیر محمد|مجرد|مادر|فرمانیه لواسان شرقی نوریان پ 45|Ankle sprain|2004-09-24|2026-09-19|2026-09-19',fields
  print('PASS configurable case-number sequence, structured Boghrat profile mapping, visit/financial summary and automatic registration')
@@ -180,7 +183,8 @@ attach_money پرداختی های مراجعه کننده: (مجموع پردا
  assert 'BAD' not in denied
  print('PASS encrypted credential roundtrip and administrative access guard')
  sql(f"USE {db};INSERT INTO staff(username,name,password_hash,role) VALUES('qa_admin','مدیر آزمایشی','invalid','admin')")
- html=php("require '"+str(root/'app/ui.php')+"';require '"+str(root/'app/admin-views.php')+"';$_SESSION=['uid'=>1,'csrf'=>str_repeat('a',64)];importsView();")
+ admin_id=sql(f"SELECT id FROM {db}.staff WHERE username='qa_admin'")
+ html=php("require '"+str(root/'app/ui.php')+"';require '"+str(root/'app/admin-views.php')+"';$_SESSION=['uid'=>"+admin_id+",'csrf'=>str_repeat('a',64)];importsView();")
  assert 'تعداد استخراج در هر ساعت' in html and 'فاصله بین واکشی‌ها' in html and 'تعداد کل استخراج' in html and 'لینک ورود به بقراط' in html
  assert 'شماره پرونده بعدی' in html and 'ثبت خودکار رکوردهای واکشی‌شده' in html
  assert 'synthetic-test-secret' not in html
