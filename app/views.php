@@ -23,12 +23,18 @@ function patientView():void{
  $financial=$financeAllowed?q('SELECT f.* FROM import_financial_summary f JOIN import_records r ON r.id=f.record_id WHERE r.pid=? ORDER BY f.updated_at DESC LIMIT 1',[$pid])->fetch():false;
  $legacyLedger=$financeAllowed?q('SELECT * FROM patient_account_ledger WHERE pid=? AND voided=0 ORDER BY entry_date,id',[$pid])->fetchAll():[];
  $legacyBalance=$financeAllowed?(int)q('SELECT COALESCE(SUM(debit_toman-credit_toman),0) FROM patient_account_ledger WHERE pid=? AND voided=0',[$pid])->fetchColumn():0;
- $formFields=q('SELECT f.* FROM import_patient_form_fields f JOIN import_records r ON r.id=f.record_id WHERE r.pid=? ORDER BY f.record_id,f.form_no,f.field_no',[$pid])->fetchAll();
+ $formRows=q("SELECT s.id submission_id,s.source_submitted_jalali,s.source_submitted_date,t.title,f.label,f.field_type,f.sort_order,v.value_text
+   FROM clinic_form_submissions s
+   JOIN clinic_form_templates t ON t.id=s.template_id
+   LEFT JOIN clinic_form_submission_values v ON v.submission_id=s.id
+   LEFT JOIN clinic_form_template_fields f ON f.id=v.field_id
+   WHERE s.pid=? AND s.source_system='boghrat'
+   ORDER BY COALESCE(s.source_submitted_date,'1000-01-01') DESC,s.id DESC,f.sort_order,f.id",[$pid])->fetchAll();
  $servicesBy=[];foreach($services as $x)$servicesBy[$x['record_id'].':'.$x['event_no']][]=$x;
  $goodsBy=[];foreach($goods as $x)$goodsBy[$x['record_id'].':'.$x['event_no']][]=$x;
  $paymentsBy=[];foreach($payments as $x)$paymentsBy[$x['record_id'].':'.$x['event_no']][]=$x;
  $allocationsBy=[];foreach($sourceAllocations as $x)$allocationsBy[(int)$x['transaction_id']][]=$x;
- $formsBy=[];foreach($formFields as $x){$k=$x['record_id'].':'.$x['form_no'];$formsBy[$k]['name']=$x['form_name'];$formsBy[$k]['fields'][]=$x;}
+ $formsBy=[];foreach($formRows as $x){$k=(int)$x['submission_id'];$formsBy[$k]['name']=$x['title'];$formsBy[$k]['submitted_jalali']=$x['source_submitted_jalali'];if($x['label']!==null)$formsBy[$k]['fields'][]=['field_name'=>$x['label'],'field_value'=>$x['value_text'],'field_type'=>$x['field_type']];}
  layout('patients',patientName($p),'پرونده شماره '.fa($pid).' · '.($p['phone_cell']?fa($p['phone_cell']):'شماره همراه ثبت نشده'));?>
  <?php patientExtras($pid,$p);?>
  <div class="patient-overview panel">
@@ -151,7 +157,7 @@ function patientView():void{
 
  <?php if($formsBy):?>
  <section class="panel form-panel"><div class="panel-header"><h2>فرم‌های پذیرش و اختصاصی</h2><span class="count"><?=fa(count($formsBy))?></span></div>
- <?php foreach($formsBy as $form):?><details><summary><?=e($form['name']?:'فرم')?></summary><dl class="detail-list"><?php foreach(($form['fields']??[]) as $field):?><dt><?=e($field['field_name'])?></dt><dd><?=e($field['field_value'])?></dd><?php endforeach;?></dl></details><?php endforeach;?>
+ <?php foreach($formsBy as $form):?><details><summary><?=e($form['name']?:'فرم')?><?php if(!empty($form['submitted_jalali'])):?> · <?=fa($form['submitted_jalali'])?><?php endif;?></summary><dl class="detail-list"><?php foreach(($form['fields']??[]) as $field):?><dt><?=e($field['field_name'])?></dt><dd><?=e($field['field_value']!==''?$field['field_value']:'ثبت نشده')?></dd><?php endforeach;?></dl></details><?php endforeach;?>
  </section>
  <?php endif;?>
 
