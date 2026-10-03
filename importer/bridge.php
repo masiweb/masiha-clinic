@@ -40,6 +40,26 @@ function importInventoryItem(int $sourceId,string $name,?int $total,?float $quan
  q("INSERT INTO inventory_items(name,unit,sale_price_toman,active,source_good_id) VALUES(?,'عدد',?,1,?) ON DUPLICATE KEY UPDATE source_good_id=COALESCE(source_good_id,VALUES(source_good_id))",[$name,max(0,$price),$sourceId]);
  return (int)q('SELECT id FROM inventory_items WHERE source_good_id=? OR name=? ORDER BY source_good_id=? DESC,id LIMIT 1',[$sourceId,$name,$sourceId])->fetchColumn();
 }
+function importPractitionerMapping(string $name):array{
+ $name=mb_substr(trim($name),0,255);if($name==='')return [0,0];
+ $sourceId=importCatalogId('import_source_practitioners',$name);
+ $staffId=(int)q('SELECT staff_id FROM import_source_practitioner_map WHERE source_practitioner_id=?',[$sourceId])->fetchColumn();
+ if($staffId)return [$sourceId,$staffId];
+ $staffId=(int)q("SELECT id FROM staff WHERE name=? AND role='therapist' AND deleted=0 ORDER BY active DESC,id LIMIT 1",[$name])->fetchColumn();
+ if(!$staffId){
+  $username='boghrat_'.substr(importSourceKey($name),0,16);
+  $password=password_hash(bin2hex(random_bytes(32)),PASSWORD_DEFAULT);
+  q("INSERT INTO staff(username,name,password_hash,role,active,deleted) VALUES(?,?,?,'therapist',0,0)",[$username,$name,$password]);
+  $staffId=(int)$GLOBALS['db']->lastInsertId();
+  q('INSERT IGNORE INTO staff_permissions(staff_id,permissions) VALUES(?,?)',[$staffId,json_encode(defaultsFor(''),JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)]);
+ }
+ q("INSERT INTO import_source_practitioner_map(source_practitioner_id,staff_id,mapping_mode) VALUES(?,?,'auto') ON DUPLICATE KEY UPDATE staff_id=VALUES(staff_id)",[$sourceId,$staffId]);
+ return [$sourceId,$staffId];
+}
+function importStatusCode(string $value):string{return match(trim($value)){'ویزیت شده'=>'done','غایب در مطب'=>'absent','کنسل شده'=>'cancelled',default=>'unknown'};}
+function importModeCode(string $value):string{return match(trim($value)){'حضوری'=>'in_person','آنلاین'=>'online','تلفنی'=>'phone','تصویری'=>'video',default=>'unknown'};}
+function importRegistrationCode(string $value):string{return match(trim($value)){'توسط مطب'=>'clinic','توسط بیمار'=>'patient','آنلاین'=>'online',default=>'unknown'};}
+function importReasonCode(string $value):string{return match(trim($value)){'ویزیت'=>'visit','حضوری'=>'in_person','نرمال'=>'normal','ویزیت درمان'=>'treatment_visit','بیمار جدید'=>'new_patient','تمرین پلاس'=>'exercise_plus','ورزش درمانی'=>'exercise_therapy',default=>'other'};}
 function importSyncOpeningLedger(int $pid):void{
  if(q("SELECT id FROM patient_account_ledger WHERE pid=? AND voided=0 AND entry_type<>'opening_balance' LIMIT 1",[$pid])->fetchColumn())return;
  $row=q("SELECT r.id,r.updated_at,f.outstanding_toman,f.credit_balance_toman
