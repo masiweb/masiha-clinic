@@ -202,7 +202,7 @@ def extract_form_fields(forms):
                 value=normalize_form_answer(tail)
                 if not value and i+1<len(lines):
                     nxt=lines[i+1]
-                    if nxt!="(-)" and not any(nxt.startswith(p) for p in noise_prefixes) and "؟" not in nxt:
+                    if nxt!="(-)" and not any(nxt.startswith(p) for p in noise_prefixes) and "؟" not in nxt and ":" not in nxt:
                         value=normalize_form_answer(nxt)
                         consumed=2
             elif ":" in line:
