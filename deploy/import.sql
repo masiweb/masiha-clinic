@@ -341,3 +341,58 @@ ALTER TABLE import_event_services ADD INDEX IF NOT EXISTS idx_import_event_servi
 
 ALTER TABLE import_event_goods ADD COLUMN IF NOT EXISTS inventory_item_id BIGINT UNSIGNED NULL AFTER source_goods_id;
 ALTER TABLE import_event_goods ADD INDEX IF NOT EXISTS idx_import_event_goods_inventory_item(inventory_item_id);
+
+
+ALTER TABLE import_patient_form_fields ADD COLUMN IF NOT EXISTS field_type VARCHAR(30) NOT NULL DEFAULT 'text' AFTER field_value;
+ALTER TABLE import_patient_form_fields ADD COLUMN IF NOT EXISTS is_meta TINYINT NOT NULL DEFAULT 0 AFTER field_type;
+ALTER TABLE import_patient_form_fields ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 0 AFTER is_meta;
+
+CREATE TABLE IF NOT EXISTS clinic_form_templates (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ title VARCHAR(160) NOT NULL,
+ kind VARCHAR(20) NOT NULL DEFAULT 'general',
+ source_system VARCHAR(40) NOT NULL DEFAULT 'masiha',
+ source_name VARCHAR(160) NOT NULL DEFAULT '',
+ active TINYINT NOT NULL DEFAULT 1,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ UNIQUE(source_system,source_name)
+);
+
+CREATE TABLE IF NOT EXISTS clinic_form_template_fields (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ template_id BIGINT UNSIGNED NOT NULL,
+ field_key CHAR(64) NOT NULL,
+ label VARCHAR(160) NOT NULL,
+ field_type VARCHAR(30) NOT NULL DEFAULT 'text',
+ sort_order INT NOT NULL DEFAULT 0,
+ required TINYINT NOT NULL DEFAULT 0,
+ source_field_name VARCHAR(160) NOT NULL DEFAULT '',
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ UNIQUE(template_id,field_key),
+ INDEX(template_id),INDEX(sort_order)
+);
+
+CREATE TABLE IF NOT EXISTS clinic_form_submissions (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ template_id BIGINT UNSIGNED NOT NULL,
+ pid BIGINT NOT NULL,
+ source_system VARCHAR(40) NOT NULL DEFAULT 'masiha',
+ source_record_id BIGINT UNSIGNED NULL,
+ source_submitted_jalali VARCHAR(20) NOT NULL DEFAULT '',
+ source_submitted_date DATE NULL,
+ created_by BIGINT NOT NULL DEFAULT 0,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ UNIQUE(source_system,source_record_id,template_id),
+ INDEX(pid),INDEX(template_id),INDEX(source_submitted_date)
+);
+
+CREATE TABLE IF NOT EXISTS clinic_form_submission_values (
+ submission_id BIGINT UNSIGNED NOT NULL,
+ field_id BIGINT UNSIGNED NOT NULL,
+ value_text TEXT NOT NULL DEFAULT '',
+ PRIMARY KEY(submission_id,field_id),
+ INDEX(field_id)
+);
