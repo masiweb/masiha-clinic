@@ -27,7 +27,7 @@ jobs:
 
       - name: Python syntax
         run: |
-          python3 -m py_compile importer/*.py tests/importer.py
+          python3 -m py_compile importer/*.py deploy/*.py tests/*.py
 
       - name: Shell syntax
         run: |
@@ -38,3 +38,4 @@ jobs:
           sudo -E python3 tests/importer.py
           sudo -E python3 tests/workflow.py
           sudo -E python3 tests/deploy-upgrade.py
+          python3 tests/server-transfer.py
