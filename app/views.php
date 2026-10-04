@@ -225,19 +225,17 @@ function availabilityView():void{
  <section class="panel">
   <div class="panel-header"><h2>برنامه‌های حضور فعال</h2></div>
   <?php $rows=q("SELECT s.*,u.name therapist_name,c.name clinic_name FROM therapist_schedules s JOIN staff u ON u.id=s.therapist_id LEFT JOIN clinics c ON c.id=s.clinic_id WHERE s.active=1 ORDER BY u.name,s.weekday,s.start_time")->fetchAll();
-  if(!$rows)emptyState('برنامه حضوری تعریف نشده','تا زمانی که برنامه تعریف نشده، محدودیت ساعت حضور برای درمانگر اعمال نمی‌شود.');
-  else:?><div class="table-scroll"><table><thead><tr><th>درمانگر</th><th>روز</th><th>ساعت</th><th>کلینیک</th><th>اعتبار</th><th></th></tr></thead><tbody>
+  if(!$rows){emptyState('برنامه حضوری تعریف نشده','تا زمانی که برنامه تعریف نشده، محدودیت ساعت حضور برای درمانگر اعمال نمی‌شود.');}else{?><div class="table-scroll"><table><thead><tr><th>درمانگر</th><th>روز</th><th>ساعت</th><th>کلینیک</th><th>اعتبار</th><th></th></tr></thead><tbody>
   <?php foreach($rows as $r):?><tr><td><?=e($r['therapist_name'])?></td><td><?=e($week[(int)$r['weekday']]??'—')?></td><td><?=fa(substr($r['start_time'],0,5))?> تا <?=fa(substr($r['end_time'],0,5))?></td><td><?=e($r['clinic_name']?:'همه کلینیک‌ها')?></td><td><?=($r['effective_from']?jd($r['effective_from']):'بدون شروع')?> تا <?=($r['effective_to']?jd($r['effective_to']):'بدون پایان')?></td><td><form method="post"><?php csrf();?><input type="hidden" name="action" value="work_schedule_delete"><input type="hidden" name="id" value="<?=$r['id']?>"><button class="button secondary">غیرفعال‌سازی</button></form></td></tr><?php endforeach;?>
-  </tbody></table></div><?php endif;?>
+  </tbody></table></div><?php }?>
  </section>
 
  <section class="panel">
   <div class="panel-header"><h2>غیبت‌های فعال</h2></div>
   <?php $abs=q("SELECT a.*,u.name therapist_name FROM therapist_absences a JOIN staff u ON u.id=a.therapist_id WHERE a.active=1 AND a.ends_at>NOW() ORDER BY a.starts_at LIMIT 100")->fetchAll();
-  if(!$abs)emptyState('غیبت فعالی ثبت نشده','مرخصی یا بازه عدم حضور درمانگر را از فرم بالا ثبت کنید.');
-  else:?><div class="table-scroll"><table><thead><tr><th>درمانگر</th><th>از</th><th>تا</th><th>دلیل</th><th></th></tr></thead><tbody>
+  if(!$abs){emptyState('غیبت فعالی ثبت نشده','مرخصی یا بازه عدم حضور درمانگر را از فرم بالا ثبت کنید.');}else{?><div class="table-scroll"><table><thead><tr><th>درمانگر</th><th>از</th><th>تا</th><th>دلیل</th><th></th></tr></thead><tbody>
   <?php foreach($abs as $r):?><tr><td><?=e($r['therapist_name'])?></td><td><?=jd($r['starts_at'],'yyyy/MM/dd HH:mm')?></td><td><?=jd($r['ends_at'],'yyyy/MM/dd HH:mm')?></td><td><?=e($r['reason']?:'—')?></td><td><form method="post"><?php csrf();?><input type="hidden" name="action" value="absence_delete"><input type="hidden" name="id" value="<?=$r['id']?>"><button class="button secondary">لغو غیبت</button></form></td></tr><?php endforeach;?>
-  </tbody></table></div><?php endif;?>
+  </tbody></table></div><?php }?>
  </section>
 
  <section class="panel form-panel">
