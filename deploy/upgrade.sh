@@ -6,6 +6,7 @@ ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 /usr/local/sbin/masiha-backup
 mariadb masiha_clinic < "$ROOT/deploy/admin-v2.sql"
 mariadb masiha_clinic < "$ROOT/deploy/import.sql"
+mariadb masiha_clinic < "$ROOT/deploy/workflow.sql"
 install -d -m 755 /var/www/masiha-clinic/importer
 for dir in app public deploy importer; do cp -a "$ROOT/$dir/." "/var/www/masiha-clinic/$dir/"; done
 find /var/www/masiha-clinic/app /var/www/masiha-clinic/public -type d -exec chmod 755 {} +

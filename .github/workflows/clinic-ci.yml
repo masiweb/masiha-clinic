@@ -36,3 +36,4 @@ jobs:
       - name: Isolated importer and clinic integration tests
         run: |
           sudo -E python3 tests/importer.py
+          sudo -E python3 tests/workflow.py

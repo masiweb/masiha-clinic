@@ -19,11 +19,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if((int)q("SELECT COUNT(*) FROM physio_sessions WHERE episode_id=? AND status IN ('scheduled','done')",[$eid])->fetchColumn()>=(int)$ep['planned_sessions'])throw new DomainException('همه جلسات این دوره رزرو یا انجام شده‌اند.');
     if($issue=therapistAvailabilityIssue($slot['starts_at'],$slot['ends_at'],(int)$slot['therapist_id']))throw new DomainException($issue);
     if(conflict($slot['starts_at'],$slot['ends_at'],$slot['therapist_id'],$slot['room'],$slot['equipment'],$pid))throw new DomainException('این زمان دیگر آزاد نیست. زمان دیگری انتخاب کنید.');
-    q("INSERT INTO physio_sessions(episode_id,therapist_id,starts_at,ends_at,room,equipment,treatment,notes,created_by) VALUES(?,?,?,?,?,?,'جلسه فیزیوتراپی','',?)",[$eid,$slot['therapist_id'],$slot['starts_at'],$slot['ends_at'],$slot['room'],$slot['equipment'],-$pid]);$sessionId=(int)$db->lastInsertId();audit('patient_booked',$sessionId);$db->commit();
+    q("INSERT INTO physio_sessions(episode_id,therapist_id,starts_at,ends_at,room,equipment,treatment,notes,created_by) VALUES(?,?,?,?,?,?,'جلسه فیزیوتراپی','',?)",[$eid,$slot['therapist_id'],$slot['starts_at'],$slot['ends_at'],$slot['room'],$slot['equipment'],-$pid]);$sessionId=(int)$db->lastInsertId();workflowBooked($sessionId,'patient');audit('patient_booked',$sessionId);$db->commit();
    }catch(Throwable $ex){if($db->inTransaction())$db->rollBack();throw $ex;}finally{schedulingUnlock();}if(!empty($sessionId))MasihaSms::safely(fn()=>MasihaSms::queueAppointment($sessionId,-$pid));flash('نوبت شما ثبت شد.');go('/patient/booking');
   }
   if($action==='upload'){uploadDocument($pid);flash('مدرک شما ثبت شد.');go('/patient/documents');}
-  elseif($action==='cancel'){$id=num('session_id',1);$s=q("SELECT s.id FROM physio_sessions s JOIN physio_episodes ep ON ep.id=s.episode_id WHERE s.id=? AND ep.pid=? AND s.status='scheduled' AND s.starts_at>NOW()",[$id,$pid])->fetchColumn();if(!$s)throw new DomainException('این نوبت قابل لغو نیست.');q("UPDATE physio_sessions SET status='cancelled',turn_state='done',turn_updated_at=NOW() WHERE id=?",[$id]);MasihaSms::safely(fn()=>MasihaSms::cancelSession($id));audit('patient_cancelled',$id);flash('نوبت لغو شد.');go('/patient/booking');}
+  elseif($action==='cancel'){$id=num('session_id',1);workflowTransition($id,'cancelled',[],null,null,true);MasihaSms::safely(fn()=>MasihaSms::cancelSession($id));flash('نوبت لغو شد.');go('/patient/booking');}
  }
  }catch(Throwable $ex){if($db->inTransaction())$db->rollBack();$error=$ex instanceof DomainException?$ex->getMessage():'درخواست انجام نشد. دوباره تلاش کنید یا با پذیرش تماس بگیرید.';}
 }

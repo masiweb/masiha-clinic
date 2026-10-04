@@ -23,7 +23,7 @@ function go(string $path):never{header('Location: '.$path, true,303);exit;}
 function csrf():void{echo '<input type="hidden" name="csrf" value="'.e($_SESSION['csrf']).'">';}
 function checkcsrf():void{if(!is_string($_POST['csrf']??null)||!hash_equals($_SESSION['csrf'],$_POST['csrf'])){http_response_code(403);exit('درخواست معتبر نیست. صفحه را تازه کنید.');}}
 function user():?array{static $u=false;if($u===false)$u=!empty($_SESSION['uid'])?(q('SELECT id,username,name,role,active FROM staff WHERE id=? AND active=1',[$_SESSION['uid']])->fetch()?:null):null;return $u;}
-require_once __DIR__.'/permissions.php';
+require_once __DIR__.'/permissions.php';require_once __DIR__.'/workflow.php';
 function need(string $section):void{if(!user())go('/login');if(!can($section)){http_response_code(403);exit('به این بخش دسترسی ندارید.');}}
 function audit($action,$id=0):void{q('INSERT INTO audit(actor,action,entity) VALUES(?,?,?)',[(int)($_SESSION['uid']??-($_SESSION['pid']??0)),$action,$id]);}
 function val($key,$max=255,$required=false):string{if(isset($_POST[$key])&&!is_scalar($_POST[$key]))throw new DomainException('ورودی معتبر نیست.');$v=trim((string)($_POST[$key]??''));if(mb_strlen($v)>$max||($required&&$v===''))throw new DomainException('فیلدهای ضروری را کامل و در محدوده مجاز وارد کنید.');return $v;}

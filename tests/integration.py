@@ -74,7 +74,7 @@ finally:
    f=pathlib.Path('/var/lib/masiha-clinic/documents')/name
    if f.is_file():f.unlink()
   sql(f'DELETE FROM physio_patient_documents WHERE pid={pid}')
- if eid:sql(f'DELETE FROM physio_payments WHERE episode_id={eid};DELETE FROM physio_sessions WHERE episode_id={eid};DELETE FROM physio_episodes WHERE id={eid}')
+ if eid:sql(f'DELETE FROM physio_payments WHERE episode_id={eid};DELETE v FROM visit_events v JOIN physio_sessions s ON s.id=v.session_id WHERE s.episode_id={eid};DELETE v FROM visit_workflows v JOIN physio_sessions s ON s.id=v.session_id WHERE s.episode_id={eid};DELETE FROM physio_sessions WHERE episode_id={eid};DELETE FROM physio_episodes WHERE id={eid}')
  if pid:sql(f"DELETE FROM patients WHERE pid={pid} AND fname='{marker}'")
  if uid:sql(f"DELETE FROM staff WHERE id={uid} AND username='{marker}'")
  print('Synthetic records removed')
