@@ -62,6 +62,9 @@ final class MasihaSms {
      VALUES(?,?,?,?,?,'queued',?,?,?)",[$pid,$sessionId?:null,$event,$ctx['_mobile'],$message,$scheduledAt,$dedupe,$actor]);
   return q('SELECT ROW_COUNT()')->fetchColumn()>0;
  }
+ public static function safely(callable $fn):void{
+  try{$fn();}catch(Throwable $e){error_log('MasihaSms '.get_class($e).' '.$e->getMessage());}
+ }
  public static function queueAppointment(int $sessionId,int $actor=0):void{
   $pid=(int)q('SELECT e.pid FROM physio_sessions s JOIN physio_episodes e ON e.id=s.episode_id WHERE s.id=?',[$sessionId])->fetchColumn();
   if(!$pid)return;
