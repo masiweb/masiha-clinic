@@ -60,3 +60,59 @@ CREATE TABLE IF NOT EXISTS therapist_absences (
 ALTER TABLE physio_sessions ADD COLUMN IF NOT EXISTS turn_state VARCHAR(20) NOT NULL DEFAULT 'none' AFTER status;
 ALTER TABLE physio_sessions ADD COLUMN IF NOT EXISTS turn_updated_at DATETIME NULL AFTER turn_state;
 ALTER TABLE physio_sessions ADD INDEX IF NOT EXISTS idx_physio_sessions_turn_state(turn_state);
+
+
+CREATE TABLE IF NOT EXISTS sms_templates (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ event_key VARCHAR(50) NOT NULL,
+ title VARCHAR(160) NOT NULL,
+ enabled TINYINT NOT NULL DEFAULT 0,
+ message_template TEXT NOT NULL,
+ send_offset_minutes INT NOT NULL DEFAULT 0,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ UNIQUE(event_key)
+);
+
+INSERT INTO sms_templates(event_key,title,enabled,message_template,send_offset_minutes)
+VALUES
+ ('welcome','خوش‌آمدگویی',0,'{patient_name} عزیز، پرونده شما در {clinic_name} ثبت شد.',0),
+ ('appointment_created','ثبت نوبت',0,'{patient_name} عزیز، نوبت شما در {clinic_name} برای {date} ساعت {time} با {therapist} ثبت شد.',0),
+ ('appointment_reminder','یادآوری نوبت',0,'یادآوری {clinic_name}: نوبت شما {date} ساعت {time} با {therapist} است.',1440),
+ ('absence','عدم مراجعه',0,'{patient_name} عزیز، عدم مراجعه شما برای نوبت {date} ساعت {time} در {clinic_name} ثبت شد.',0),
+ ('birthday','تبریک تولد',0,'{patient_name} عزیز، تولدتان مبارک. با آرزوی سلامتی از طرف {clinic_name}.',0)
+ON DUPLICATE KEY UPDATE title=VALUES(title);
+
+CREATE TABLE IF NOT EXISTS sms_outbox (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ pid BIGINT NULL,
+ session_id BIGINT UNSIGNED NULL,
+ event_key VARCHAR(50) NOT NULL,
+ mobile VARCHAR(20) NOT NULL,
+ message TEXT NOT NULL,
+ status VARCHAR(20) NOT NULL DEFAULT 'queued',
+ scheduled_at DATETIME NOT NULL,
+ sent_at DATETIME NULL,
+ attempts INT UNSIGNED NOT NULL DEFAULT 0,
+ provider_message_id VARCHAR(120) NOT NULL DEFAULT '',
+ last_error VARCHAR(500) NOT NULL DEFAULT '',
+ dedupe_key CHAR(64) NOT NULL,
+ created_by BIGINT NOT NULL DEFAULT 0,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ UNIQUE(dedupe_key),
+ INDEX(status,scheduled_at),
+ INDEX(pid),
+ INDEX(session_id),
+ INDEX(event_key)
+);
+
+CREATE TABLE IF NOT EXISTS sms_campaigns (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ title VARCHAR(160) NOT NULL,
+ message TEXT NOT NULL,
+ audience VARCHAR(40) NOT NULL DEFAULT 'manual',
+ queued_count INT UNSIGNED NOT NULL DEFAULT 0,
+ created_by BIGINT NOT NULL DEFAULT 0,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
