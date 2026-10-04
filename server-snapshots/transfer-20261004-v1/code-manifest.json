@@ -1,0 +1,244 @@
+{
+  "files": [
+    {
+      "path": "app/Jalali.php",
+      "size": 2910,
+      "sha256": "02babe6f223c0c7ad2dd06f19d12b337a614a0bb1ab3870aa01ec009e676415d"
+    },
+    {
+      "path": "app/Otp.php",
+      "size": 5003,
+      "sha256": "3d8c18a94b377e6a17d107bcb686f4d8a8dc26d9f9ce113a27388f767f87a29d"
+    },
+    {
+      "path": "app/actions.php",
+      "size": 16454,
+      "sha256": "d5b84513254450706427b6f21039064b85b676cfab1bce31a19094ff9e78ca4b"
+    },
+    {
+      "path": "app/admin-actions.php",
+      "size": 24186,
+      "sha256": "9a4037b673e48bb9e62af4fac9b9ea59cbe11bc7140be597579c2e99f39f804a"
+    },
+    {
+      "path": "app/admin-api.php",
+      "size": 3774,
+      "sha256": "6f2caf3f1dab9f583fe0e60634888aff87700b625f2d50ca17d3d93f864c8571"
+    },
+    {
+      "path": "app/admin-views.php",
+      "size": 61704,
+      "sha256": "e62a08e322c234d2a5edbdd84dfa9ec4717d7d5ea4ad8d9f87b91ae6624726b2"
+    },
+    {
+      "path": "app/bootstrap.php",
+      "size": 7547,
+      "sha256": "de96160df8b5c91f3e346065626568168502a3bf80847c2ee08150ded6d18f1c"
+    },
+    {
+      "path": "app/import.php",
+      "size": 30602,
+      "sha256": "4f77e656f2faafa274a84268a92caffe5d168258744501e1b4597accc5702c2e"
+    },
+    {
+      "path": "app/permissions.php",
+      "size": 6496,
+      "sha256": "f6c1da61da19a88f69eaad04cd869a01343be329978d4dd0985a0732c6f96c4a"
+    },
+    {
+      "path": "app/portal.php",
+      "size": 11029,
+      "sha256": "bbe22d718603949eb85de99106cd6c0994cb17357630c1137779a9875e65de7f"
+    },
+    {
+      "path": "app/ui.php",
+      "size": 10944,
+      "sha256": "efa7cffb82898066e0e47bdb4c06291057d008887412a509bf639227d4c16e98"
+    },
+    {
+      "path": "app/views.php",
+      "size": 48697,
+      "sha256": "02cf7af34734d0b661c55a1c24fe6391d204763c448e4af6ac8811a6c6d04d3f"
+    },
+    {
+      "path": "deploy/admin-v2.sql",
+      "size": 4009,
+      "sha256": "6aa833f110f97da219ecde23396de264a65c43f57734e6ef1f91c33251420ba5"
+    },
+    {
+      "path": "deploy/backfill-boghrat-structured.py",
+      "size": 1614,
+      "sha256": "977a8c4d1361bd9bb0ee58ee6cad4dae395b436a96ed9fd1699c75c0aeaacbde"
+    },
+    {
+      "path": "deploy/backup.sh",
+      "size": 662,
+      "sha256": "f744893e8ff4056c8f321beb963cf46b6a1d307f17058898fd2d533819ab9d87"
+    },
+    {
+      "path": "deploy/boghrat-discovery.sh",
+      "size": 2829,
+      "sha256": "2535b6994d71ca056d0fbea1dd26154391133de33f89885f7aa5b3d19f18c57f"
+    },
+    {
+      "path": "deploy/check-boghrat-network.sh",
+      "size": 1131,
+      "sha256": "8ef7089fea5c652580f7e9174008f1966f146e0a3848406501f382bbeb64da7e"
+    },
+    {
+      "path": "deploy/enable-domain.sh",
+      "size": 1202,
+      "sha256": "206b2f659e2a4ad515d355f16cf050a1524ea89f1ab8e56fe223e8cb64681594"
+    },
+    {
+      "path": "deploy/import.sql",
+      "size": 20873,
+      "sha256": "dba51864719845bf59c67ae0fa3d331aca2d7f5f77c9d54a394118518763ddc5"
+    },
+    {
+      "path": "deploy/init.py",
+      "size": 2342,
+      "sha256": "d52f802b83c994c99c315dd418928ee270687d0a212705560cb5ae212f4e353f"
+    },
+    {
+      "path": "deploy/install-importer.sh",
+      "size": 2758,
+      "sha256": "9b60619471d3da80172b4228568089934d286617059153f75d86929a01cda3b0"
+    },
+    {
+      "path": "deploy/otp.sql",
+      "size": 487,
+      "sha256": "0b8d5b2e0a78a685bf0e2d5d1cc2909a1a7c1194612ccdf008a33c1d1ae77cc7"
+    },
+    {
+      "path": "deploy/portal.sql",
+      "size": 809,
+      "sha256": "646725ae0292aa3c0518c749700a9bf06f302d26632bbb29f035462c294165b5"
+    },
+    {
+      "path": "deploy/promote-boghrat-operational.php",
+      "size": 4836,
+      "sha256": "6cdbb7bbe8b58bb6c5cfe4770eecb075e1f0be38faa506faf4c67adbc5cdb7c4"
+    },
+    {
+      "path": "deploy/reconcile-boghrat-identities.php",
+      "size": 3125,
+      "sha256": "a78ef16203b9f72262c3818c6af8989e173c8ec37f110205a6315f6e8695e9f9"
+    },
+    {
+      "path": "deploy/restore.sh",
+      "size": 1251,
+      "sha256": "e5798715b1021e8030e197e8f34a827aebebd2f2ecfb580033791a0e10809ead"
+    },
+    {
+      "path": "deploy/schema.sql",
+      "size": 2085,
+      "sha256": "59d49e9b5aa413532f44a1b71e67d71b5bea55a7ab75a80b9f7674ba60203cb9"
+    },
+    {
+      "path": "deploy/seed-service-tariffs.php",
+      "size": 1127,
+      "sha256": "c87b01e2046656c19bc19972b671b83fbb428c6e7d3a4ee2c63efab78bfc5026"
+    },
+    {
+      "path": "deploy/seed.php",
+      "size": 702,
+      "sha256": "8e7232eb777744abad26d0b4168ee23b8f02edaba22dff1dbb6ffbe719859812"
+    },
+    {
+      "path": "deploy/start-boghrat-100.php",
+      "size": 1208,
+      "sha256": "708fb06b16b435c2431bdc5f682adec33854451c5d06296e169cdecf7a9f4579"
+    },
+    {
+      "path": "deploy/therapy.sql",
+      "size": 2188,
+      "sha256": "5e97efb76b86f8016e93fc6f7edd0dfd0641a6099d18790be868b0ae7739b978"
+    },
+    {
+      "path": "deploy/upgrade.sh",
+      "size": 829,
+      "sha256": "6beb5aff4e1e5f364929d1c0435b4c7f64065cb3a822bb7d0b7ebf87bf5a9164"
+    },
+    {
+      "path": "importer/audit.py",
+      "size": 18840,
+      "sha256": "1f2a1071492e80daa4278a5af72994f51d5b39e470944db89a8ab76a238bec7c"
+    },
+    {
+      "path": "importer/audit_summary.py",
+      "size": 2993,
+      "sha256": "02a0916cf0ac1b6b9e522b10b8824937f45a54bee1f4bfbf63fa2781127e366a"
+    },
+    {
+      "path": "importer/bridge.php",
+      "size": 28016,
+      "sha256": "127c64edf2a73b33bdd8b5f6d3be5ad08854ed703effa4a10d8d081710ccefce"
+    },
+    {
+      "path": "importer/parser.py",
+      "size": 23889,
+      "sha256": "270e3a8b50de607de8672b274316cb8272a2034ce413ca16fa45035837950014"
+    },
+    {
+      "path": "importer/requirements.txt",
+      "size": 19,
+      "sha256": "b52b8d63608db4d9c6926f0bded19680398b125233aca36e0e8a041948035744"
+    },
+    {
+      "path": "importer/worker.py",
+      "size": 16597,
+      "sha256": "3441a7ef9ed1fa4a9cf21bbb0e8753ac540488975efd4f1ab2784cd23a05e3fc"
+    },
+    {
+      "path": "public/assets/admin.css",
+      "size": 3367,
+      "sha256": "d75a048d59cc22f2dd34ee3ac3ee6481fa857f43cf10e0ad521f7e65a4b78134"
+    },
+    {
+      "path": "public/assets/admin.js",
+      "size": 4397,
+      "sha256": "63d316de80124e76b6f6819f454b212c46046774f2d04f8905b7dd84f65f25fc"
+    },
+    {
+      "path": "public/assets/app.css",
+      "size": 27067,
+      "sha256": "ecdf173c0a92226967179a0231c5181ff8fd3d5b5fb348b93b4f0224c531c74a"
+    },
+    {
+      "path": "public/assets/app.js",
+      "size": 1049,
+      "sha256": "41b2243b7be091ef8c796c22bd9e911ce8c5667d35e0e0a2c3f6dc0250291a9b"
+    },
+    {
+      "path": "public/assets/fonts/OFL.txt",
+      "size": 4391,
+      "sha256": "17e355067c8284f47743a1ee3b1ef7ff684ff0601eda357f9353b10b3016ab31"
+    },
+    {
+      "path": "public/assets/fonts/Vazirmatn-Bold.woff2",
+      "size": 51020,
+      "sha256": "836fae7d42d83faa249bc00e0099592be98a1fa260d22d82f269b6091e585627"
+    },
+    {
+      "path": "public/assets/fonts/Vazirmatn-Regular.woff2",
+      "size": 50684,
+      "sha256": "e382101336c6eb32cfb31381c027d02d2e0354bad08f6a395d4088beb3db3d91"
+    },
+    {
+      "path": "public/assets/persian-date.js",
+      "size": 7426,
+      "sha256": "0aec4c596d3470f044a180501bccefba1cbd098af94ba0dc264ca3cf7a1d763b"
+    },
+    {
+      "path": "public/index.php",
+      "size": 3523,
+      "sha256": "0ea9550c7c661e0e2ec69b7c4fac7788142635d0fbf76f82d4f198420d0b0902"
+    },
+    {
+      "path": "setup.sh",
+      "size": 4386,
+      "sha256": "683c9577322b117e0a83ca20a45b5631b15ffaa7d9f867cf026e45743a6af434"
+    }
+  ]
+}
