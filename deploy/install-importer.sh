@@ -3,6 +3,7 @@ set -Eeuo pipefail
 umask 027
 
 [[ $EUID = 0 ]] || { echo 'Run with sudo/root'; exit 1; }
+[[ $# = 0 || ($# = 1 && $1 = --no-start) ]] || { echo 'Unknown argument'; exit 1; }
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 [[ -f /etc/masiha-clinic/config.php ]] || {
@@ -77,7 +78,11 @@ WantedBy=timers.target
 UNIT
 
 systemctl daemon-reload
-systemctl enable --now masiha-importer.timer
+if [[ ${1:-} = --no-start ]]; then
+  systemctl disable --now masiha-importer.timer
+else
+  systemctl enable --now masiha-importer.timer
+fi
 install -m 644 /dev/null /opt/masiha-importer/ready
 
 echo 'Importer installed. Configure Boghrat credentials in the admin UI before starting an import.'

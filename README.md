@@ -116,3 +116,7 @@ php tests/otp.php
     sudo bash /var/www/masiha-clinic/deploy/enable-domain.sh clinic.example.com
 
 اسکریپت دامنه، Nginx و Certbot را تنظیم می‌کند و Secure cookie را دوباره فعال می‌کند.
+
+## انتقال از سرور قبلی
+
+برای انتقال نسخه نصب‌شده، دیتابیس و مدارک به Ubuntu 24.04 تازه، [راهنمای انتقال](docs/UBUNTU-MIGRATION.md) را بخوانید. ابزارها روی شاخه `transfer/ubuntu-20261004` قرار دارند؛ دریافت و تأیید بکاپ سرور قبلی مرحله‌ای جدا از آماده‌بودن این شاخه است.

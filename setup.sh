@@ -12,6 +12,11 @@ source /etc/os-release
 
 TARGET=${1:-}
 MODE=${2:-}
+MIGRATION=${3:-}
+[[ -z $MIGRATION || $MIGRATION = --migration ]] || { echo 'Third argument must be --migration'; exit 1; }
+if [[ $MIGRATION = --migration && -e /etc/masiha-clinic/install.json ]]; then
+  echo 'Migration setup requires a fresh destination'; exit 1
+fi
 
 usage() {
   cat <<USAGE
@@ -19,6 +24,7 @@ Usage:
   sudo bash setup.sh clinic.example.com
   sudo bash setup.sh clinic.example.com --skip-ssl
   sudo bash setup.sh 203.0.113.10 --ip-only
+  sudo bash setup.sh 203.0.113.10 --ip-only --migration
 USAGE
   exit 1
 }
@@ -108,7 +114,11 @@ nginx -t
 systemctl reload php8.3-fpm nginx
 
 echo '[6/9] Installing Boghrat importer and Chromium...'
-bash "$ROOT/deploy/install-importer.sh"
+if [[ $MIGRATION = --migration ]]; then
+  bash "$ROOT/deploy/install-importer.sh" --no-start
+else
+  bash "$ROOT/deploy/install-importer.sh"
+fi
 
 echo '[7/9] Installing backup job...'
 install -m 700 "$ROOT/deploy/backup.sh" /usr/local/sbin/masiha-backup
@@ -132,7 +142,12 @@ echo
 systemctl is-active mariadb
 systemctl is-active php8.3-fpm
 systemctl is-active nginx
-systemctl is-active masiha-importer.timer
+if [[ $MIGRATION = --migration ]]; then
+  install -m 600 /dev/null /var/lib/masiha-migration-pending
+  echo 'Migration destination ready; importer remains disabled until cutover.'
+else
+  systemctl is-active masiha-importer.timer
+fi
 
 echo
 echo 'Boghrat outbound-network preflight:'
