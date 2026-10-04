@@ -36,7 +36,7 @@ function handlePost():never{
   need('appointments');$ep=episode(num('episode_id',1));if($ep['status']!=='active')throw new DomainException('دوره درمان فعال نیست.');$tid=num('therapist_id',1);if(!q("SELECT id FROM staff WHERE id=? AND active=1 AND role IN ('admin','therapist')",[$tid])->fetchColumn())throw new DomainException('درمانگر فعال انتخاب کنید.');
   $date=datevalue('date',true);$time=val('time',5,true);if(!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D',$time))throw new DomainException('ساعت معتبر وارد کنید.');$start=$date.' '.$time.':00';$end=date('Y-m-d H:i:s',strtotime($start)+num('duration',5,480)*60);
   $room=val('room',100,true);$equipment=val('equipment',100);
-  validateResources($room,$equipment);schedulingLock();try{$db->beginTransaction();if(conflict($start,$end,$tid,$room,$equipment,$ep['pid']))throw new DomainException('این زمان با نوبت بیمار، درمانگر، اتاق یا تجهیزات تداخل دارد.');
+  validateResources($room,$equipment);if($issue=therapistAvailabilityIssue($start,$end,$tid))throw new DomainException($issue);schedulingLock();try{$db->beginTransaction();if(conflict($start,$end,$tid,$room,$equipment,$ep['pid']))throw new DomainException('این زمان با نوبت بیمار، درمانگر، اتاق یا تجهیزات تداخل دارد.');
    $count=(int)q("SELECT COUNT(*) FROM physio_sessions WHERE episode_id=? AND status IN ('scheduled','done')",[$ep['id']])->fetchColumn();if($count>=(int)$ep['planned_sessions'])throw new DomainException('ظرفیت جلسات این دوره تکمیل است.');
    q('INSERT INTO physio_sessions(episode_id,therapist_id,starts_at,ends_at,room,equipment,treatment,notes,created_by) VALUES(?,?,?,?,?,?,?,?,?)',[$ep['id'],$tid,$start,$end,$room,$equipment,val('treatment',2000),'',user()['id']]);audit('appointment_created',(int)$db->lastInsertId());$db->commit();
   }catch(Throwable $ex){if($db->inTransaction())$db->rollBack();throw $ex;}finally{schedulingUnlock();}
@@ -44,7 +44,7 @@ function handlePost():never{
  }
  if($action==='slot'){
   need('appointments');$tid=num('therapist_id',1);if(!q("SELECT id FROM staff WHERE active=1 AND id=? AND role IN ('admin','therapist')",[$tid])->fetchColumn())throw new DomainException('درمانگر معتبر انتخاب کنید.');$date=datevalue('date',true);$time=val('time',5,true);if(!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D',$time))throw new DomainException('ساعت معتبر وارد کنید.');$start=$date.' '.$time.':00';$end=date('Y-m-d H:i:s',strtotime($start)+num('duration',5,480)*60);if($start<=date('Y-m-d H:i:s'))throw new DomainException('زمان آزاد باید در آینده باشد.');$room=val('room',100,true);$equipment=val('equipment',100);
-  validateResources($room,$equipment);schedulingLock();try{
+  validateResources($room,$equipment);if($issue=therapistAvailabilityIssue($start,$end,$tid))throw new DomainException($issue);schedulingLock();try{
    if(conflict($start,$end,$tid,$room,$equipment,0)||q("SELECT id FROM physio_slots WHERE enabled=1 AND starts_at<? AND ends_at>? AND (therapist_id=? OR room=? OR (?<>'' AND equipment=?)) LIMIT 1",[$end,$start,$tid,$room,$equipment,$equipment])->fetchColumn())throw new DomainException('این بازه با نوبت یا زمان آزاد دیگری تداخل دارد.');
    q('INSERT INTO physio_slots(therapist_id,starts_at,ends_at,room,equipment,created_by) VALUES(?,?,?,?,?,?)',[$tid,$start,$end,$room,$equipment,user()['id']]);audit('slot_published',(int)$db->lastInsertId());
   }finally{schedulingUnlock();}flash('زمان آزاد برای بیماران منتشر شد.');go('/availability');
