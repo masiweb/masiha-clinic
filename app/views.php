@@ -182,4 +182,71 @@ function settingsView():void{need('settings');global $config;$smsFile=$config['s
 
 function resourcesView():void{need('resources');layout('resources','خدمات و منابع','اتاق‌ها، تجهیزات و تعرفه خدمات کلینیک را مدیریت کنید.');?><div class="dashboard-grid"><section class="panel form-panel"><?php sectiontitle('اتاق‌ها و تجهیزات');foreach(q('SELECT * FROM resources ORDER BY kind,id')->fetchAll() as $r):?><div class="resource-row"><span class="soft-icon"><?=icon('box')?></span><div><strong><?=e($r['name'])?></strong><small><?=$r['kind']==='room'?'اتاق درمان':'تجهیزات'?> · <?=$r['active']?'فعال':'غیرفعال'?></small></div><form method="post"><?php csrf();?><input type="hidden" name="action" value="toggle_resource"><input type="hidden" name="kind" value="resource"><input type="hidden" name="id" value="<?=$r['id']?>"><button class="button secondary small"><?=$r['active']?'غیرفعال':'فعال'?></button></form></div><?php endforeach;formstart('resource');?><div class="form-grid"><?php field('name','نام مورد جدید','','text','نام یکتا و مشخص، مانند اتاق یک یا دستگاه الکتروتراپی یک.',true);selectfield('kind','نوع',['room'=>'اتاق درمان','equipment'=>'تجهیزات'],'room','برای اتاق و دستگاه، دسته درست را انتخاب کنید.',true);?></div><?php formend('افزودن منبع','/resources');?></section><section class="panel form-panel"><?php sectiontitle('فهرست خدمات و تعرفه‌ها');foreach(q('SELECT * FROM services ORDER BY id')->fetchAll() as $r):?><div class="resource-row"><span class="soft-icon"><?=icon('heart')?></span><div><strong><?=e($r['name'])?></strong><small><?=money($r['price'])?> تومان · <?=fa($r['duration'])?> دقیقه · <?=$r['active']?'فعال':'غیرفعال'?></small></div><form method="post"><?php csrf();?><input type="hidden" name="action" value="toggle_resource"><input type="hidden" name="kind" value="service"><input type="hidden" name="id" value="<?=$r['id']?>"><button class="button secondary small"><?=$r['active']?'غیرفعال':'فعال'?></button></form></div><?php endforeach;formstart('service');?><div class="form-grid"><?php field('name','نام خدمت','','text','نام خدمت کلینیک، مانند تمرین‌درمانی.',true);field('price','تعرفه (تومان)',0,'number','تعرفه مرجع این خدمت؛ مبلغ هر دوره جداگانه ثبت می‌شود.',true,false,'min="0"');field('duration','مدت پیشنهادی (دقیقه)',30,'number','مدت مرجع برای برنامه‌ریزی خدمت.',true,false,'min="5" max="480"');?></div><?php formend('افزودن خدمت','/resources');?></section></div><?php endLayout();}
 function loginView():void{head('ورود کارکنان');global $config,$error;?><main class="login-layout"><section class="login-story"><a class="login-brand" href="/login"><?php if(is_file($config['storage'].'/logo.png')):?><img src="/logo" alt="لوگوی کلینیک"><?php endif;?><?=e(setting('name','مدیریت کلینیک مسیحا'))?></a><span class="eyebrow">فضای کاری تیم درمان</span><h1>با نظم بیشتر،<br>به بهبودی نزدیک‌تر.</h1><p>از اولین مراجعه تا آخرین جلسه درمان،<br>همه‌چیز در یک فضای ساده و یکپارچه.</p><div class="login-illustration"><div class="heart-tile"><?=icon('heart')?></div><span class="floating-tag tag-one"><?=icon('calendar')?> نوبت‌دهی منظم</span><span class="floating-tag tag-two"><?=icon('check')?> پیگیری مسیر درمان</span></div><small>مراقبت بهتر، از هماهنگی بهتر شروع می‌شود.</small></section><section class="login-form-wrap"><div class="login-card"><span class="soft-icon"><?=icon('sun')?></span><h2>خوش آمدید</h2><p class="muted">برای ورود به پنل کلینیک، مشخصات حساب خود را وارد کنید.</p><?php if($error??''):?><div class="notice error" role="alert"><?=e($error)?></div><?php endif;formstart('login');field('username','نام کاربری','','text','نام کاربری حساب کارکنان که مدیر کلینیک تعیین کرده است.',true,false,'autocomplete="username"');field('password','رمز ورود','','password','رمز حساب کارکنان؛ آن را در اختیار دیگران قرار ندهید.',true,false,'autocomplete="current-password"');?><button class="button primary full login-submit" type="submit">ورود به پنل <?=icon('arrow')?></button></form><div class="login-patient">بیمار کلینیک هستید؟ <a href="/patient/login">ورود به پرونده من</a></div></div></section></main></body></html><?php }
-function availabilityView():void{need('appointments');$rooms=[''=>'انتخاب اتاق'];$eq=[''=>'بدون تجهیز اختصاصی'];foreach(q('SELECT * FROM resources WHERE active=1')->fetchAll() as $r){if($r['kind']==='room')$rooms[$r['name']]=$r['name'];else $eq[$r['name']]=$r['name'];}layout('appointments','زمان‌های آزاد برای بیماران','بیماران فقط زمان‌هایی را می‌بینند که پذیرش در این بخش آزاد کرده است.');?><section class="panel form-panel"><?php sectiontitle('انتشار زمان جدید');formstart('slot');?><div class="form-grid three"><?php selectfield('therapist_id','درمانگر',therapists(),'','درمانگر ارائه‌دهنده خدمت.',true);field('date','روز مراجعه',date('Y-m-d'),'date','روز شمسی نوبت قابل رزرو.',true);field('time','ساعت شروع','09:00','time','ساعت شروع با قالب ۲۴ ساعته.',true);field('duration','مدت جلسه (دقیقه)',30,'number','مدت زمانی که بیمار رزرو می‌کند.',true,false,'min="5" max="480"');selectfield('room','اتاق',$rooms,'','اتاقی که باید در این زمان آزاد باشد.',true);selectfield('equipment','تجهیزات',$eq,'','تجهیز اختصاصی برای جلسه؛ اختیاری است.');?></div><?php formend('انتشار زمان آزاد','/appointments');?></section><section class="panel"><div class="panel-header"><h2>زمان‌های منتشرشده آینده</h2></div><?php $rows=q('SELECT x.*,u.name FROM physio_slots x JOIN staff u ON u.id=x.therapist_id WHERE x.enabled=1 AND x.starts_at>NOW() ORDER BY x.starts_at LIMIT 100')->fetchAll();if(!$rows)emptyState('زمان آزادی منتشر نشده','برای فعال شدن رزرو بیمار، زمان‌های قابل ارائه کلینیک را مشخص کنید.');?><?php foreach($rows as $r):?><div class="resource-row" style="padding:18px 24px"><span class="soft-icon"><?=icon('calendar')?></span><div><strong><?=jd($r['starts_at'],'EEEE d MMMM، HH:mm')?></strong><small><?=e($r['name'])?> · <?=e($r['room'])?></small></div><form method="post"><?php csrf();?><input type="hidden" name="action" value="disable_slot"><input type="hidden" name="id" value="<?=$r['id']?>"><button class="button secondary">توقف نمایش</button></form></div><?php endforeach;?></section><?php endLayout();}
+function availabilityView():void{
+ need('appointments');
+ $rooms=[''=>'انتخاب اتاق'];$eq=[''=>'بدون تجهیز اختصاصی'];foreach(q('SELECT * FROM resources WHERE active=1')->fetchAll() as $r){if($r['kind']==='room')$rooms[$r['name']]=$r['name'];else $eq[$r['name']]=$r['name'];}
+ $staff=therapists();$clinics=['0'=>'همه کلینیک‌ها'];foreach(q('SELECT id,name FROM clinics WHERE active=1 ORDER BY name')->fetchAll() as $r)$clinics[$r['id']]=$r['name'];
+ $week=[0=>'شنبه',1=>'یکشنبه',2=>'دوشنبه',3=>'سه‌شنبه',4=>'چهارشنبه',5=>'پنجشنبه',6=>'جمعه'];
+ layout('appointments','برنامه حضور و زمان‌های آزاد','برنامه هفتگی درمانگران، روزهای غیبت و زمان‌های قابل رزرو بیمار را یکجا مدیریت کنید.');?>
+
+ <div class="dashboard-grid">
+  <section class="panel form-panel">
+   <?php sectiontitle('برنامه هفتگی حضور','اگر برای درمانگر هیچ برنامه‌ای تعریف نشده باشد رفتار قبلی سیستم حفظ می‌شود؛ با تعریف اولین برنامه، رزرو فقط داخل ساعت‌های حضور مجاز است.');formstart('work_schedule_save');?>
+   <div class="form-grid three">
+    <?php selectfield('therapist_id','درمانگر',$staff,'','درمانگر فعال.',true);?>
+    <?php selectfield('weekday','روز هفته',$week,0,'روز تکرارشونده برنامه.',true);?>
+    <?php field('start_time','شروع','09:00','time','ساعت شروع.',true);?>
+    <?php field('end_time','پایان','17:00','time','ساعت پایان.',true);?>
+    <?php selectfield('clinic_id','کلینیک',$clinics,0,'برنامه می‌تواند عمومی یا مخصوص یک کلینیک باشد.');?>
+    <?php field('effective_from','شروع اعتبار','','date','اختیاری؛ خالی یعنی از ابتدا.');?>
+    <?php field('effective_to','پایان اعتبار','','date','اختیاری؛ خالی یعنی بدون پایان.');?>
+   </div>
+   <?php formend('ثبت بازه حضور','/availability');?>
+  </section>
+
+  <section class="panel form-panel">
+   <?php sectiontitle('روز یا بازه غیبت','غیبت روی رزرو پذیرش، انتشار زمان آزاد و رزرو بیمار اعمال می‌شود.');formstart('absence_save');?>
+   <div class="form-grid">
+    <?php selectfield('therapist_id','درمانگر',$staff,'','درمانگر غایب.',true);?>
+    <?php field('absence_from','از','','datetime-local','شروع غیبت.',true);?>
+    <?php field('absence_to','تا','','datetime-local','پایان غیبت.',true);?>
+    <?php field('reason','دلیل','','text','مثلاً مرخصی، مأموریت یا عدم حضور.');?>
+   </div>
+   <?php formend('ثبت غیبت','/availability');?>
+  </section>
+ </div>
+
+ <section class="panel form-panel">
+  <?php sectiontitle('کپی برنامه حضور','تمام بازه‌های فعال یک درمانگر را برای درمانگر دیگری کپی کنید؛ موارد تکراری دوباره ساخته نمی‌شوند.');formstart('work_schedule_copy');?>
+  <div class="form-grid"><?php selectfield('source_therapist_id','از درمانگر',$staff,'','برنامه مبدا.',true);selectfield('target_therapist_id','به درمانگر',$staff,'','درمانگر مقصد.',true);?></div>
+  <?php formend('کپی برنامه','/availability');?>
+ </section>
+
+ <section class="panel">
+  <div class="panel-header"><h2>برنامه‌های حضور فعال</h2></div>
+  <?php $rows=q("SELECT s.*,u.name therapist_name,c.name clinic_name FROM therapist_schedules s JOIN staff u ON u.id=s.therapist_id LEFT JOIN clinics c ON c.id=s.clinic_id WHERE s.active=1 ORDER BY u.name,s.weekday,s.start_time")->fetchAll();
+  if(!$rows)emptyState('برنامه حضوری تعریف نشده','تا زمانی که برنامه تعریف نشده، محدودیت ساعت حضور برای درمانگر اعمال نمی‌شود.');
+  else:?><div class="table-scroll"><table><thead><tr><th>درمانگر</th><th>روز</th><th>ساعت</th><th>کلینیک</th><th>اعتبار</th><th></th></tr></thead><tbody>
+  <?php foreach($rows as $r):?><tr><td><?=e($r['therapist_name'])?></td><td><?=e($week[(int)$r['weekday']]??'—')?></td><td><?=fa(substr($r['start_time'],0,5))?> تا <?=fa(substr($r['end_time'],0,5))?></td><td><?=e($r['clinic_name']?:'همه کلینیک‌ها')?></td><td><?=($r['effective_from']?jd($r['effective_from']):'بدون شروع')?> تا <?=($r['effective_to']?jd($r['effective_to']):'بدون پایان')?></td><td><form method="post"><?php csrf();?><input type="hidden" name="action" value="work_schedule_delete"><input type="hidden" name="id" value="<?=$r['id']?>"><button class="button secondary">غیرفعال‌سازی</button></form></td></tr><?php endforeach;?>
+  </tbody></table></div><?php endif;?>
+ </section>
+
+ <section class="panel">
+  <div class="panel-header"><h2>غیبت‌های فعال</h2></div>
+  <?php $abs=q("SELECT a.*,u.name therapist_name FROM therapist_absences a JOIN staff u ON u.id=a.therapist_id WHERE a.active=1 AND a.ends_at>NOW() ORDER BY a.starts_at LIMIT 100")->fetchAll();
+  if(!$abs)emptyState('غیبت فعالی ثبت نشده','مرخصی یا بازه عدم حضور درمانگر را از فرم بالا ثبت کنید.');
+  else:?><div class="table-scroll"><table><thead><tr><th>درمانگر</th><th>از</th><th>تا</th><th>دلیل</th><th></th></tr></thead><tbody>
+  <?php foreach($abs as $r):?><tr><td><?=e($r['therapist_name'])?></td><td><?=jd($r['starts_at'],'yyyy/MM/dd HH:mm')?></td><td><?=jd($r['ends_at'],'yyyy/MM/dd HH:mm')?></td><td><?=e($r['reason']?:'—')?></td><td><form method="post"><?php csrf();?><input type="hidden" name="action" value="absence_delete"><input type="hidden" name="id" value="<?=$r['id']?>"><button class="button secondary">لغو غیبت</button></form></td></tr><?php endforeach;?>
+  </tbody></table></div><?php endif;?>
+ </section>
+
+ <section class="panel form-panel">
+  <?php sectiontitle('انتشار زمان آزاد برای رزرو بیمار','زمان آزاد باید داخل برنامه حضور درمانگر باشد و با هیچ غیبت، نوبت یا زمان آزاد دیگری هم‌پوشانی نداشته باشد.');formstart('slot');?>
+  <div class="form-grid three"><?php selectfield('therapist_id','درمانگر',$staff,'','درمانگر ارائه‌دهنده خدمت.',true);field('date','روز مراجعه',date('Y-m-d'),'date','روز نوبت قابل رزرو.',true);field('time','ساعت شروع','09:00','time','ساعت شروع با قالب ۲۴ ساعته.',true);field('duration','مدت جلسه (دقیقه)',30,'number','مدت زمانی که بیمار رزرو می‌کند.',true,false,'min="5" max="480"');selectfield('room','اتاق',$rooms,'','اتاقی که باید در این زمان آزاد باشد.',true);selectfield('equipment','تجهیزات',$eq,'','تجهیز اختصاصی برای جلسه؛ اختیاری است.');?></div>
+  <?php formend('انتشار زمان آزاد','/availability');?>
+ </section>
+
+ <section class="panel"><div class="panel-header"><h2>زمان‌های منتشرشده آینده</h2></div><?php $slots=q('SELECT x.*,u.name FROM physio_slots x JOIN staff u ON u.id=x.therapist_id WHERE x.enabled=1 AND x.starts_at>NOW() ORDER BY x.starts_at LIMIT 100')->fetchAll();if(!$slots)emptyState('زمان آزادی منتشر نشده','برای فعال شدن رزرو بیمار، زمان‌های قابل ارائه کلینیک را مشخص کنید.');?><?php foreach($slots as $r):$issue=therapistAvailabilityIssue($r['starts_at'],$r['ends_at'],(int)$r['therapist_id']);?><div class="resource-row" style="padding:18px 24px"><span class="soft-icon"><?=icon('calendar')?></span><div><strong><?=jd($r['starts_at'],'EEEE d MMMM، HH:mm')?></strong><small><?=e($r['name'])?> · <?=e($r['room'])?><?=$issue?' · نامعتبر: '.e($issue):''?></small></div><form method="post"><?php csrf();?><input type="hidden" name="action" value="disable_slot"><input type="hidden" name="id" value="<?=$r['id']?>"><button class="button secondary">توقف نمایش</button></form></div><?php endforeach;?></section>
+ <?php endLayout();
+}
+
