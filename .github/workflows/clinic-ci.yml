@@ -1,0 +1,38 @@
+name: Clinic CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mariadb-server php-cli php-mysql php-intl php-mbstring php-curl php-gd
+          sudo systemctl start mariadb
+
+      - name: PHP syntax
+        run: |
+          find app public deploy importer -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Python syntax
+        run: |
+          python3 -m py_compile importer/*.py tests/importer.py
+
+      - name: Shell syntax
+        run: |
+          find deploy -maxdepth 1 -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+
+      - name: Isolated importer and clinic integration tests
+        run: |
+          sudo -E python3 tests/importer.py
