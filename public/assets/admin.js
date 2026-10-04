@@ -8,3 +8,10 @@ document.querySelectorAll('[data-live-search]').forEach(box=>{const input=box.qu
 document.querySelector('#therapist_id')?.addEventListener('change',bookingOptions);document.querySelector('#service_id')?.addEventListener('change',e=>{const d=e.target.selectedOptions[0]?.dataset.duration;if(d)document.querySelector('#duration').value=d;refreshBookingTariffs();});document.querySelector('#date')?.addEventListener('change',refreshBookingTariffs);bookingOptions();
 function packageTotal(){let total=0;document.querySelectorAll('[data-package-price]').forEach(el=>total+=(+el.value||0)*(+el.dataset.packagePrice));const target=document.querySelector('[data-package-total]');if(target)target.textContent='جمع خدمات: '+total.toLocaleString('fa-IR')+' تومان';const auto=document.querySelector('[name=auto_price]'),price=document.querySelector('[name=price]');if(auto&&price){price.readOnly=auto.checked;if(auto.checked)price.value=total;}}
 document.querySelectorAll('[data-package-price],[name=auto_price]').forEach(el=>el.addEventListener('input',packageTotal));packageTotal();
+
+
+const turnBoard=document.querySelector('[data-turn-board-auto]');
+if(turnBoard){
+  const seconds=Math.max(5,Math.min(120,Number(turnBoard.dataset.turnBoardAuto)||20));
+  window.setTimeout(()=>window.location.reload(),seconds*1000);
+}
