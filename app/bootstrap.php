@@ -11,7 +11,7 @@ if(PHP_SAPI!=='cli'){
  if(isset($_SESSION['last_seen'])&&time()-$_SESSION['last_seen']>3600){$_SESSION=[];session_regenerate_id(true);}$_SESSION['last_seen']=time();
  $_SESSION['csrf']??=bin2hex(random_bytes(32));
 }
-require_once __DIR__.'/Jalali.php';require_once __DIR__.'/Otp.php';
+require_once __DIR__.'/Jalali.php';require_once __DIR__.'/Otp.php';require_once __DIR__.'/Sms.php';
 function q(string $s,array $a=[]):PDOStatement{global $db;$st=$db->prepare($s);$st->execute($a);return $st;}
 function e($v):string{return htmlspecialchars((string)$v,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');}
 function fa($v):string{return strtr((string)$v,['0'=>'۰','1'=>'۱','2'=>'۲','3'=>'۳','4'=>'۴','5'=>'۵','6'=>'۶','7'=>'۷','8'=>'۸','9'=>'۹']);}
