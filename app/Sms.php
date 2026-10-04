@@ -97,8 +97,12 @@ final class MasihaSms {
   $ok=(int)($j['return']['status']??0)===200;$mid=(string)($j['entries'][0]['messageid']??'');
   return [$ok,$mid,$ok?'':mb_substr((string)($j['return']['message']??'ارسال ناموفق بود.'),0,450)];
  }
+ public static function cancelSession(int $sessionId):void{
+  q("UPDATE sms_outbox SET status='cancelled',last_error='لغو خودکار به‌دلیل لغو نوبت' WHERE session_id=? AND status IN ('queued','failed')",[$sessionId]);
+ }
  public static function process(int $limit=20):array{
   if(!self::enabled())return ['disabled'=>true,'sent'=>0,'failed'=>0];
+  q("UPDATE sms_outbox SET status=IF(attempts>=3,'failed','queued'),last_error='بازیابی خودکار پس از توقف worker' WHERE status='sending' AND updated_at<DATE_SUB(NOW(),INTERVAL 15 MINUTE)");
   $sent=$failed=0;$limit=max(1,min(100,$limit));
   for($i=0;$i<$limit;$i++){
    global $db;$db->beginTransaction();
