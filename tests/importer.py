@@ -205,6 +205,19 @@ attach_money پرداختی های مراجعه کننده: (مجموع پردا
  absent=php(f"$x=therapistAvailabilityIssue('{schedule_date} 09:45:00','{schedule_date} 10:00:00',{schedule_tid});echo $x===null?'BAD':$x;")
  assert 'غیبت ثبت‌شده' in absent,absent
  print('PASS therapist recurring schedule and absence enforcement')
+ # SMS automations are disabled by default and queue deterministically without network calls.
+ sql(f"USE {db};UPDATE sms_templates SET enabled=1 WHERE event_key='welcome'")
+ disabled_sms=php("setsetting('sms_notifications','0');echo MasihaSms::queue('welcome',7002,0,'2099-01-01 10:00:00',1)?'BAD':'OFF';")
+ assert disabled_sms=='OFF',disabled_sms
+ assert sql(f"SELECT COUNT(*) FROM {db}.sms_outbox")=='0'
+ queued_sms=php("setsetting('sms_notifications','1');echo MasihaSms::queue('welcome',7002,0,'2099-01-01 10:00:00',1,'qa')?'QUEUED':'BAD';")
+ assert queued_sms=='QUEUED',queued_sms
+ assert sql(f"SELECT COUNT(*) FROM {db}.sms_outbox WHERE status='queued'")=='1'
+ duplicate_sms=php("echo MasihaSms::queue('welcome',7002,0,'2099-01-01 10:00:00',1,'qa')?'BAD':'DEDUPED';")
+ assert duplicate_sms=='DEDUPED',duplicate_sms
+ assert sql(f"SELECT COUNT(*) FROM {db}.sms_outbox")=='1'
+ php("setsetting('sms_notifications','0');")
+ print('PASS SMS disabled-by-default queue and deduplication')
  # Capability audit route policy is deliberately narrow: same-origin, safe query keys, no destructive paths.
  import importlib.util
  spec=importlib.util.spec_from_file_location('boghrat_audit',root/'importer'/'audit.py')
