@@ -37,3 +37,4 @@ jobs:
         run: |
           sudo -E python3 tests/importer.py
           sudo -E python3 tests/workflow.py
+          sudo -E python3 tests/deploy-upgrade.py

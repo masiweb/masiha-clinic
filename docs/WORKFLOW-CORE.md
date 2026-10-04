@@ -69,6 +69,7 @@ Run on a disposable test environment with PHP 8.3 and MariaDB:
 ```bash
 python3 tests/workflow.py
 python3 tests/importer.py
+python3 tests/deploy-upgrade.py
 find app public deploy importer -type f -name '*.php' -print0 | xargs -0 -n1 php -l
 ```
 
@@ -81,6 +82,11 @@ verify the existing full backup and code snapshot, make a fresh backup,
 and record counts for patients, imports, native sessions, finance and inventory.
 Use a checkout pinned to the tested commit and the existing `deploy/upgrade.sh`.
 This applies the additive migration before copying the coherent release.
+The upgrade requires a clean, separate Git checkout. It pauses only active timers,
+refuses an active worker, takes the full backup and a code snapshot, and keeps PHP
+stopped while applying migrations and copying files. It restores previous activity
+states on success/failure, never enables a disabled timer, and restores old code if
+copying fails. A failed additive migration is not automatically undone in the DB.
 Check health, rendered pages, hashes of all deployed tracked files and the same
 data counts after deployment. Resume only timers that were already active.
 Do not restore a pre-upgrade DB after new clinic activity without reconciling it.
