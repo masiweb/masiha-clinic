@@ -55,3 +55,8 @@ CREATE TABLE IF NOT EXISTS therapist_absences (
  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
  INDEX(therapist_id),INDEX(starts_at),INDEX(ends_at),INDEX(active)
 );
+
+
+ALTER TABLE physio_sessions ADD COLUMN IF NOT EXISTS turn_state VARCHAR(20) NOT NULL DEFAULT 'none' AFTER status;
+ALTER TABLE physio_sessions ADD COLUMN IF NOT EXISTS turn_updated_at DATETIME NULL AFTER turn_state;
+ALTER TABLE physio_sessions ADD INDEX IF NOT EXISTS idx_physio_sessions_turn_state(turn_state);
