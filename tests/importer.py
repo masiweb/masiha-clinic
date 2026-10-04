@@ -190,6 +190,21 @@ attach_money پرداختی های مراجعه کننده: (مجموع پردا
  assert 'شماره پرونده بعدی' in html and 'ثبت خودکار رکوردهای واکشی‌شده' in html
  assert 'synthetic-test-secret' not in html
  print('PASS Persian import settings render without revealing stored credentials')
+ # Therapist schedules are enforced only after a schedule is defined.
+ import datetime
+ sql(f"USE {db};INSERT INTO staff(username,name,password_hash,role,active) VALUES('schedule_doc','درمانگر برنامه','invalid','therapist',1)")
+ schedule_tid=sql(f"SELECT id FROM {db}.staff WHERE username='schedule_doc'")
+ schedule_date='2099-01-03'
+ weekday=(datetime.date.fromisoformat(schedule_date).weekday()+2)%7
+ sql(f"USE {db};INSERT INTO therapist_schedules(therapist_id,weekday,start_time,end_time,effective_from,effective_to,active,created_by) VALUES({schedule_tid},{weekday},'09:00:00','12:00:00','2099-01-01',NULL,1,1)")
+ inside=php(f"$x=therapistAvailabilityIssue('{schedule_date} 09:30:00','{schedule_date} 10:00:00',{schedule_tid});echo $x===null?'OK':$x;")
+ outside=php(f"$x=therapistAvailabilityIssue('{schedule_date} 13:00:00','{schedule_date} 13:30:00',{schedule_tid});echo $x===null?'BAD':$x;")
+ assert inside=='OK',inside
+ assert 'خارج از برنامه حضور' in outside,outside
+ sql(f"USE {db};INSERT INTO therapist_absences(therapist_id,starts_at,ends_at,reason,active,created_by) VALUES({schedule_tid},'{schedule_date} 09:40:00','{schedule_date} 10:10:00','test',1,1)")
+ absent=php(f"$x=therapistAvailabilityIssue('{schedule_date} 09:45:00','{schedule_date} 10:00:00',{schedule_tid});echo $x===null?'BAD':$x;")
+ assert 'غیبت ثبت‌شده' in absent,absent
+ print('PASS therapist recurring schedule and absence enforcement')
  # Capability audit route policy is deliberately narrow: same-origin, safe query keys, no destructive paths.
  import importlib.util
  spec=importlib.util.spec_from_file_location('boghrat_audit',root/'importer'/'audit.py')
