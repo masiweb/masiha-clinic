@@ -10,5 +10,6 @@ install -d -m 755 /var/www/masiha-clinic/importer
 for dir in app public deploy importer; do cp -a "$ROOT/$dir/." "/var/www/masiha-clinic/$dir/"; done
 find /var/www/masiha-clinic/app /var/www/masiha-clinic/public -type d -exec chmod 755 {} +
 find /var/www/masiha-clinic/app /var/www/masiha-clinic/public -type f -exec chmod 644 {} +
+bash "$ROOT/deploy/install-sms-worker.sh"
 systemctl reload php8.3-fpm
 printf 'Masiha Clinic upgraded to 1.2.0. Existing accounts and passwords preserved.\n'
