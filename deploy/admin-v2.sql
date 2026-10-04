@@ -62,6 +62,10 @@ ALTER TABLE physio_sessions ADD COLUMN IF NOT EXISTS turn_updated_at DATETIME NU
 ALTER TABLE physio_sessions ADD INDEX IF NOT EXISTS idx_physio_sessions_turn_state(turn_state);
 
 
+INSERT INTO settings(`key`,value)
+SELECT 'sms_notifications','0'
+WHERE NOT EXISTS(SELECT 1 FROM settings WHERE `key`='sms_notifications');
+
 CREATE TABLE IF NOT EXISTS sms_templates (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
  event_key VARCHAR(50) NOT NULL,
