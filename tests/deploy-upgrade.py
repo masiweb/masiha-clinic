@@ -30,10 +30,12 @@ data=json.loads(state.read_text())
 failure=os.environ.get('TEST_FAILURE','')
 if tool=='systemctl':
  action=args[0];unit=args[-1]
+ if action=='show':
+  value=data.get(unit,False);print(value if isinstance(value,str) else ('active' if value else 'inactive'));sys.exit(0)
  if action=='is-active':sys.exit(0 if data.get(unit,False) else 3)
  if action in ['start','stop']:
   data[unit]=action=='start'
-  if failure=='race' and action=='stop' and unit=='masiha-importer.timer':data['masiha-importer.service']=True
+  if failure.startswith('race') and action=='stop' and unit=='masiha-importer.timer':data['masiha-importer.service']='activating' if failure=='race-activating' else True
   state.write_text(json.dumps(data));sys.exit(0)
  raise SystemExit('Unexpected service mutation')
 if tool=='mariadb':
@@ -74,3 +76,7 @@ case('migration failure retains old code and service states',failure='migration'
 case('partial copy rolls code back before restoring services',failure='copy')
 case('active worker refuses deployment before mutation',worker=True)
 case('worker starting during timer pause refuses deployment',failure='race')
+
+for state in ['activating','deactivating','reloading']:
+    case(state+' worker refuses deployment before mutation',worker=state)
+case('oneshot starting during timer pause refuses deployment',failure='race-activating')

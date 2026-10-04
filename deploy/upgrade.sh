@@ -11,8 +11,16 @@ git -C "$ROOT" rev-parse --verify HEAD >/dev/null
 [[ -z $(git -C "$ROOT" status --porcelain) ]] || { echo 'Commit or remove local checkout changes before deploying'; exit 1; }
 for dir in app public deploy importer; do [[ -d $TARGET/$dir ]] || { echo "Missing deployed directory: $dir"; exit 1; }; done
 find "$ROOT/app" "$ROOT/public" "$ROOT/deploy" "$ROOT/importer" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+worker_busy(){
+ local state
+ state=$(systemctl show --property=ActiveState --value "$1") || return 0
+ case "$state" in
+  inactive|failed) return 1 ;;
+  *) return 0 ;;
+ esac
+}
 for service in masiha-importer.service masiha-sms-worker.service; do
- if systemctl is-active --quiet "$service"; then
+ if worker_busy "$service"; then
   echo "Wait for active worker to finish before deployment: $service"; exit 1
  fi
 done
@@ -47,7 +55,7 @@ trap restore_state EXIT
 for timer in "${TIMERS[@]}"; do systemctl stop "$timer"; done
 # Recheck after pausing timers: a tick could have started a worker during preflight.
 for service in masiha-importer.service masiha-sms-worker.service; do
- if systemctl is-active --quiet "$service"; then echo "Worker started during preflight: $service"; exit 1; fi
+ if worker_busy "$service"; then echo "Worker started during preflight: $service"; exit 1; fi
 done
 "$BACKUP_COMMAND"
 systemctl stop php8.3-fpm
