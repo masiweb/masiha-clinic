@@ -4,7 +4,7 @@ function permissionGroups():array{return [
  'حساب‌های کارکنان'=>['staff.create'=>'ساخت کاربر / درمانگر','staff.edit'=>'ویرایش کاربر / درمانگر','staff.delete'=>'حذف کاربر / درمانگر'],
  'مراجعین'=>['patients.create'=>'ساخت پرونده','patients.edit'=>'ویرایش پرونده','patients.delete'=>'حذف و بایگانی پرونده'],
  'لیبل‌ها'=>['labels.create'=>'ساخت لیبل','labels.edit'=>'ویرایش لیبل','labels.delete'=>'حذف لیبل'],
- 'مدیریت'=>['appointments'=>'نوبت‌دهی','services'=>'مدیریت خدمات و پکیج‌ها','inventory'=>'مدیریت انبار و کالا','sms'=>'مدیریت پیامک','settings'=>'تنظیمات کلینیک']
+ 'مدیریت'=>['appointments'=>'نوبت‌دهی','appointments.reverse'=>'اصلاح مرحله مراجعه با ثبت دلیل','services'=>'مدیریت خدمات و پکیج‌ها','inventory'=>'مدیریت انبار و کالا','sms'=>'مدیریت پیامک','settings'=>'تنظیمات کلینیک']
 ];}
 function defaultsFor($role):array{$p=['profile'=>'none','contact'=>'none','forms.visit'=>'none','forms.general'=>'none'];foreach(permissionGroups() as $g)foreach($g as $k=>$v)$p[$k]=false;
  if($role==='reception'){$p=array_replace($p,['profile'=>'all','contact'=>'all','forms.visit'=>'none','forms.general'=>'own']);foreach(['appointments','patients.create','patients.edit','finance.debt','finance.history','finance.pay','sms'] as $k)$p[$k]=true;}

@@ -1,5 +1,6 @@
 <?php
 require __DIR__.'/../app/bootstrap.php';require __DIR__.'/../app/ui.php';require __DIR__.'/../app/actions.php';require __DIR__.'/../app/views.php';require __DIR__.'/../app/admin-actions.php';require __DIR__.'/../app/admin-views.php';require __DIR__.'/../app/admin-api.php';require __DIR__.'/../app/import.php';
+require __DIR__.'/../app/appointment-views.php';
 $path=parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH);$error='';adminApi($path);
 if($path==='/logo'){$f=$config['storage'].'/logo.png';if(is_file($f)){header('Content-Type: image/png');readfile($f);}else{header('Content-Type: image/svg+xml');echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>';}exit;}
 if(str_starts_with($path,'/patient/')){require __DIR__.'/../app/portal.php';exit;}
@@ -12,7 +13,7 @@ if($path==='/document'){
 }
 function renderPage(string $path):void {
  if($path!=='/login'&&!user())go('/login');if(user())guardPage($path);
- match($path){'/','/index.php'=> (function(){need('dashboard');dashboardV2();})(),'/login'=>loginView(),'/patients'=>patientsView(),'/patients/new','/patients/edit'=>patientForm(),'/patient'=>patientView(),'/episodes'=>episodesView(),'/episodes/new'=>episodeForm(),'/episode'=>episodeView(),'/appointments'=>appointmentsView(),'/availability'=>availabilityView(),'/turn-board'=>turnBoardView(),'/appointment/new'=>bookingView(),'/session'=>sessionView(),'/finance'=>financeV2(),'/reports'=>financeV2(true),'/settings'=>settingsView(),'/staff'=>adminStaff(),'/resources'=>resourcesView(),'/services'=>servicesView(),'/inventory'=>inventoryView(),'/sms'=>smsView(),'/labels'=>labelsView(),'/forms'=>formsView(),'/appearance'=>appearanceView(),'/imports'=>importsView(),default=>(function(){http_response_code(404);echo 'این صفحه پیدا نشد. <a href="/">بازگشت به سامانه</a>';})()};
+ match($path){'/','/index.php'=> (function(){need('dashboard');dashboardV2();})(),'/login'=>loginView(),'/patients'=>patientsView(),'/patients/new','/patients/edit'=>patientForm(),'/patient'=>patientView(),'/episodes'=>episodesView(),'/episodes/new'=>episodeForm(),'/episode'=>episodeView(),'/appointments'=>appointmentDashboard(),'/appointment/catalogs'=>appointmentCatalogView(),'/appointment/details'=>appointmentDetailsView(),'/availability'=>availabilityView(),'/turn-board'=>turnBoardView(),'/appointment/new'=>bookingView(),'/visit'=>visitTimelineView(),'/session'=>sessionView(),'/finance'=>financeV2(),'/reports'=>financeV2(true),'/settings'=>settingsView(),'/staff'=>adminStaff(),'/resources'=>resourcesView(),'/services'=>servicesView(),'/inventory'=>inventoryView(),'/sms'=>smsView(),'/labels'=>labelsView(),'/forms'=>formsView(),'/appearance'=>appearanceView(),'/imports'=>importsView(),default=>(function(){http_response_code(404);echo 'این صفحه پیدا نشد. <a href="/">بازگشت به سامانه</a>';})()};
 }
 try {if($_SERVER['REQUEST_METHOD']==='POST')handlePost();}
 catch(Throwable $ex){

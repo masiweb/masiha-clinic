@@ -297,3 +297,41 @@ function availabilityView():void{
  <?php endLayout();
 }
 
+
+function visitTimelineView():void{
+ need('appointments');$id=(int)($_GET['id']??0);
+ try{$timeline=workflowTimeline($id);}catch(DomainException $ex){http_response_code(403);echo e($ex->getMessage());return;}
+ $s=q('SELECT s.*,p.fname,p.lname,p.pid FROM physio_sessions s JOIN physio_episodes ep ON ep.id=s.episode_id JOIN patients p ON p.pid=ep.pid WHERE s.id=?',[$id])->fetch();
+ $w=$timeline['workflow'];$labels=workflowLabels();
+ layout('appointments','گردش مراجعه',patientName($s).' · '.jd($s['starts_at'],'yyyy/MM/dd HH:mm'));
+ echo '<div class="actions"><a class="button secondary" href="/patient?id='.(int)$s['pid'].'">پرونده مراجعه‌کننده</a><a class="button secondary" href="/appointments">نوبت‌ها</a></div>';
+ echo '<section class="panel form-panel"><h2>مرحله فعلی: '.e($labels[$w['state']]).'</h2><dl>';
+ foreach(['arrived_at'=>'ورود','called_at'=>'ارجاع','treatment_started_at'=>'شروع درمان','treatment_finished_at'=>'پایان درمان','departed_at'=>'خروج'] as $key=>$title)echo '<dt>'.e($title).'</dt><dd>'.e(isset($w[$key])?jd($w[$key],'yyyy/MM/dd HH:mm:ss'):'ثبت نشده').'</dd>';
+ foreach(['waiting_seconds'=>'مدت انتظار','treatment_seconds'=>'مدت درمان'] as $key=>$title)echo '<dt>'.e($title).'</dt><dd>'.($timeline[$key]===null?'زمان کافی ثبت نشده':fa($timeline[$key]).' ثانیه').'</dd>';
+ echo '</dl>';
+ if(array_diff(workflowNextStates()[$w['state']],['visited'])){
+  formstart('visit_state');hidden('session_id',$id);hidden('workflow_version',$w['version']);hidden('return_visit',1);hidden('clinic_id',0);
+  $next=array_values(array_diff(workflowNextStates()[$w['state']],['visited']));selectfield('state','مرحله بعد',array_intersect_key($labels,array_flip($next)),$next[0]??'');field('reason','توضیح تغییر','','text');formend('ثبت مرحله','/appointments');
+ }
+ if((int)$s['therapist_id']===(int)user()['id']&&can('episodes'))echo '<a class="button primary" href="/session?id='.$id.'">ثبت یا اصلاح نتیجه جلسه</a>';
+ if(allowed('appointments.reverse')){
+  echo '<details><summary>اصلاح آخرین مرحله با حفظ سابقه</summary><p>اصلاح فقط برای آخرین تغییر پذیرش، پیش از ثبت نتیجه درمان، انجام می‌شود.</p>';
+  formstart('visit_reverse');hidden('session_id',$id);hidden('workflow_version',$w['version']);field('reason','دلیل اصلاح','','textarea','دلیل در تاریخچه نگهداری می‌شود.',true);formend('بازگشت به مرحله قبل','/visit?id='.$id);echo '</details>';
+ }
+ echo '</section><section class="panel form-panel"><h2>تاریخچه مراجعه</h2><ol>';
+ $types=['legacy_snapshot'=>'وضعیت منتقل‌شده از قبل','appointment_created'=>'ثبت نوبت','state_changed'=>'تغییر مرحله','session_result'=>'ثبت / اصلاح نتیجه درمان','stage_corrected'=>'اصلاح مرحله','appointment_updated'=>'اصلاح مشخصات مراجعه'];
+ foreach($timeline['events'] as $event){
+  echo '<li><strong>'.e($types[$event['event_type']]??$event['event_type']).'</strong> · '.e($event['actor_name']).' · '.jd($event['occurred_at'],'yyyy/MM/dd HH:mm:ss');
+  echo '<p>'.e($labels[$event['from_state']]??'شروع').' ← '.e($labels[$event['to_state']]??$event['to_state']).'</p>';
+  if(!empty($event['details']['reason']))echo '<p>'.nl2br(e($event['details']['reason'])).'</p>';
+  foreach(['before_appointment'=>'مشخصات پیش از تغییر','after_appointment'=>'مشخصات ثبت‌شده'] as $key=>$title)if(isset($event['details'][$key])){echo '<details><summary>'.e($title).'</summary><dl>';foreach(['room'=>'اتاق','visit_type_id'=>'شناسه نوع ویزیت','package_id'=>'شناسه پکیج'] as $field=>$caption)echo '<dt>'.e($caption).'</dt><dd>'.e($event['details'][$key][$field]??'—').'</dd>';echo '</dl></details>';}
+  if($event['event_type']==='legacy_snapshot')echo '<p class="muted">زمان واقعی ورود و خروج در سابقه قبلی ثبت نشده است.</p>';
+  foreach(['before_result'=>'نتیجه پیش از اصلاح','after_result'=>'نتیجه ثبت‌شده'] as $key=>$title)if(isset($event['details'][$key])){
+   echo '<details><summary>'.e($title).'</summary><dl>';
+   foreach(['pain_before'=>'درد قبل','pain_after'=>'درد بعد','rom'=>'دامنه حرکت','notes'=>'شرح نتیجه'] as $field=>$caption)echo '<dt>'.e($caption).'</dt><dd>'.nl2br(e($event['details'][$key][$field]??'—')).'</dd>';
+   echo '</dl></details>';
+  }
+  echo '</li>';
+ }
+ echo '</ol></section>';endLayout();
+}

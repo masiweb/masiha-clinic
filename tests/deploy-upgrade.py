@@ -12,7 +12,7 @@ def case(name, php_active=True, importer_timer=True, sms_timer=False, failure=''
             (source / item / 'marker.php').write_text('<?php // new')
             (target / item / 'marker.php').write_text('<?php // old')
         shutil.copyfile(root / 'deploy/upgrade.sh', source / 'deploy/upgrade.sh')
-        for item in ['admin-v2.sql', 'import.sql', 'workflow.sql']:
+        for item in ['admin-v2.sql', 'import.sql', 'workflow.sql', 'appointments.sql']:
             (source / 'deploy' / item).write_text('-- isolated migration')
         for args in [['init','-q'], ['add','.'], ['-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','Synthetic source']]:
             subprocess.run(['git','-C',str(source),*args], check=True)

@@ -3,6 +3,15 @@ declare(strict_types=1);
 
 function workflowLabels():array{return ['scheduled'=>'نوبت ثبت‌شده','referred'=>'ارجاعی','waiting'=>'منتظر','in_service'=>'در حال ویزیت','visited'=>'ویزیت‌شده','discharged'=>'ترخیصی','absent'=>'غایب','cancelled'=>'کنسلی'];}
 
+
+function workflowNextStates():array{return [
+ 'scheduled'=>['referred','waiting','visited','absent','cancelled'],
+ 'referred'=>['waiting','in_service','visited','cancelled','absent'],
+ 'waiting'=>['referred','in_service','visited','cancelled'],
+ 'in_service'=>['visited'], 'visited'=>['discharged'],
+ 'discharged'=>[], 'absent'=>[], 'cancelled'=>[]
+];}
+
 function workflowInitialState(array $s):string{
  return match($s['status']){'cancelled'=>'cancelled','absent'=>'absent','done'=>'visited',default=>match($s['turn_state']??'none'){'waiting'=>'waiting','called'=>'referred','in_service'=>'in_service',default=>'scheduled'}};
 }
@@ -15,7 +24,7 @@ function workflowEnsure(array $s,string $source='legacy'):void{
  $state=workflowInitialState($s);
  q('INSERT INTO visit_workflows(session_id,state) VALUES(?,?)',[$s['id'],$state]);
  $actor=$source==='legacy'?0:(int)($_SESSION['uid']??-($_SESSION['pid']??0));
- q('INSERT INTO visit_events(session_id,version,event_type,to_state,actor_id,source,details) VALUES(?,0,?,?,?,?,?)',[$s['id'],$source==='legacy'?'legacy_snapshot':'appointment_created',$state,$actor,$source,json_encode(['timestamps_known'=>false],JSON_THROW_ON_ERROR)]);
+ q('INSERT INTO visit_events(session_id,version,event_type,to_state,actor_id,source,details) VALUES(?,0,?,?,?,?,?)',[$s['id'],$source==='legacy'?'legacy_snapshot':'appointment_created',$state,$actor,$source,json_encode(['timestamps_known'=>false,'actor_name'=>$source==='legacy'?'سیستم / سابقه قبلی':($source==='patient'?'بیمار':(user()['name']??'سیستم')),'appointment'=>array_intersect_key($s,array_flip(['starts_at','ends_at','therapist_id','room','clinic_id','service_id']))],JSON_THROW_ON_ERROR)]);
 }
 
 function workflowBooked(int $id,string $source='staff'):void{
@@ -56,13 +65,7 @@ function workflowTransition(int $id,string $target,array $details=[],?int $expec
   $from=$w['state'];
   // A clinical correction after checkout must not reopen a completed visit.
   if($result!==null&&$from==='discharged')$target='discharged';
-  $next=[
-   'scheduled'=>['referred','waiting','visited','absent','cancelled'],
-   'referred'=>['waiting','in_service','visited','cancelled','absent'],
-   'waiting'=>['referred','in_service','visited','cancelled'],
-   'in_service'=>['visited'], 'visited'=>['discharged'],
-   'discharged'=>[], 'absent'=>[], 'cancelled'=>[]
-  ];
+  $next=workflowNextStates();
   if($from===$target&&$result===null){if($owns)$db->commit();return $w;}
   if($from!==$target&&!in_array($target,$next[$from]??[],true))throw new DomainException('این تغییر با مرحله فعلی مراجعه سازگار نیست.');
   if($result!==null){
@@ -80,6 +83,9 @@ function workflowTransition(int $id,string $target,array $details=[],?int $expec
   // Sending a patient directly into treatment is also an observed arrival.
   if($target==='in_service')$extra.=',arrived_at=COALESCE(arrived_at,NOW())';
   q("UPDATE visit_workflows SET state=?,version=version+1,updated_at=NOW()$extra WHERE session_id=?",[$target,$id]);
+  $details['before_workflow']=workflowSnapshot($w);
+  $details['after_workflow']=workflowSnapshot(q('SELECT * FROM visit_workflows WHERE session_id=?',[$id])->fetch());
+  $details['actor_name']=$patient?'بیمار':user()['name'];
   $actor=(int)($_SESSION['uid']??-($_SESSION['pid']??0));
   q('INSERT INTO visit_events(session_id,version,event_type,from_state,to_state,actor_id,source,details) VALUES(?,?,?,?,?,?,?,?)',[$id,(int)$w['version']+1,$result!==null?'session_result':'state_changed',$from,$target,$actor,$patient?'patient':'staff',json_encode($details,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)]);
   audit($result!==null?'session_result':'visit_state_changed',$id);
@@ -91,12 +97,48 @@ function workflowTransition(int $id,string $target,array $details=[],?int $expec
 function workflowTimeline(int $id):array{
  $s=q('SELECT s.*,e.pid FROM physio_sessions s JOIN physio_episodes e ON e.id=s.episode_id WHERE s.id=?',[$id])->fetch();
  if(!$s||!user()||!patientAllowed($s['pid'])||(!allowed('appointments')&&!can('episodes')))throw new DomainException('به این نوبت دسترسی ندارید.');
- $events=q('SELECT id,version,event_type,from_state,to_state,actor_id,source,occurred_at,details FROM visit_events WHERE session_id=? ORDER BY version,id',[$id])->fetchAll();
+ $events=q('SELECT v.id,v.version,v.event_type,v.from_state,v.to_state,v.actor_id,v.source,v.occurred_at,v.details,u.name current_actor_name FROM visit_events v LEFT JOIN staff u ON u.id=v.actor_id WHERE v.session_id=? ORDER BY v.version,v.id',[$id])->fetchAll();
  // Clinical notes are visible only under the existing visit-form scope.
  $clinical=scope('forms.visit')==='all'||(scope('forms.visit')==='own'&&((int)$s['created_by']===(int)user()['id']||(int)$s['therapist_id']===(int)user()['id']));
- foreach($events as &$event){$event['details']=json_decode($event['details'],true);if(!$clinical){unset($event['details']['before_result'],$event['details']['after_result']);}}unset($event);
+ foreach($events as &$event){$event['details']=json_decode($event['details'],true);$event['actor_name']=$event['details']['actor_name']??($event['source']==='patient'?'بیمار':($event['current_actor_name']??'سیستم / سابقه قبلی'));unset($event['current_actor_name']);if(!$clinical){unset($event['details']['before_result'],$event['details']['after_result'],$event['details']['before_diagnoses'],$event['details']['after_diagnoses']);}}unset($event);
  $w=q('SELECT * FROM visit_workflows WHERE session_id=?',[$id])->fetch()?:['session_id'=>$id,'state'=>workflowInitialState($s),'version'=>0];
  $wait=isset($w['arrived_at'],$w['treatment_started_at'])?max(0,strtotime($w['treatment_started_at'])-strtotime($w['arrived_at'])):null;
  $treatment=isset($w['treatment_started_at'],$w['treatment_finished_at'])?max(0,strtotime($w['treatment_finished_at'])-strtotime($w['treatment_started_at'])):null;
  return ['workflow'=>$w,'events'=>$events,'waiting_seconds'=>$wait,'treatment_seconds'=>$treatment];
+}
+
+/** Whitelist: never copy clinical values into administrative state snapshots. */
+function workflowSnapshot(array $w):array{
+ return array_intersect_key($w,array_flip(['state','arrived_at','called_at','treatment_started_at','treatment_finished_at','departed_at']));
+}
+
+/** Correct only the latest administrative transition; keep its original event intact. */
+function workflowReverse(int $id,int $expected,string $reason):array{
+ global $db;
+ if(!allowed('appointments.reverse'))throw new DomainException('اجازه اصلاح مرحله مراجعه را ندارید.');
+ $reason=trim($reason);
+ if($reason===''||mb_strlen($reason)>1000)throw new DomainException('دلیل اصلاح مرحله را وارد کنید (حداکثر ۱۰۰۰ نویسه).');
+ $owns=!$db->inTransaction();if($owns)$db->beginTransaction();
+ try{
+  $s=q('SELECT * FROM physio_sessions WHERE id=? FOR UPDATE',[$id])->fetch();
+  if(!$s)throw new DomainException('نوبت پیدا نشد.');
+  workflowAccess($s);
+  $w=q('SELECT * FROM visit_workflows WHERE session_id=? FOR UPDATE',[$id])->fetch();
+  if(!$w||$expected!==(int)$w['version'])throw new DomainException('وضعیت نوبت تغییر کرده است؛ صفحه را تازه کنید.');
+  $event=q('SELECT * FROM visit_events WHERE session_id=? AND version=?',[$id,$expected])->fetch();
+  $details=$event?json_decode($event['details'],true):[];
+  $before=$details['before_workflow']??null;
+  $states=['scheduled','waiting','referred','in_service'];
+  if(!$event||$event['event_type']!=='state_changed'||!is_array($before)||!in_array($w['state'],$states,true)||!in_array($before['state']??'',$states,true)||$w['treatment_finished_at']!==null)
+   throw new DomainException('فقط آخرین تغییر مرحله پیش از ثبت نتیجه قابل اصلاح است؛ سابقه درمان حذف نمی‌شود.');
+  if(array_keys(workflowSnapshot($w))!==array_keys($before))throw new DomainException('سابقه کامل این تغییر موجود نیست.');
+  $turn=match($before['state']){'waiting'=>'waiting','referred'=>'called','in_service'=>'in_service',default=>'none'};
+  q("UPDATE physio_sessions SET status='scheduled',turn_state=?,turn_updated_at=NOW() WHERE id=?",[$turn,$id]);
+  q('UPDATE visit_workflows SET state=?,arrived_at=?,called_at=?,treatment_started_at=?,treatment_finished_at=?,departed_at=?,version=version+1,updated_at=NOW() WHERE session_id=?',[...array_values($before),$id]);
+  $new=q('SELECT * FROM visit_workflows WHERE session_id=?',[$id])->fetch();
+  $audit=['reason'=>$reason,'reverses_event_id'=>(int)$event['id'],'before_workflow'=>workflowSnapshot($w),'after_workflow'=>workflowSnapshot($new),'actor_name'=>user()['name']];
+  q("INSERT INTO visit_events(session_id,version,event_type,from_state,to_state,actor_id,source,details) VALUES(?,?,'stage_corrected',?,?,?,'staff',?)",[$id,$expected+1,$w['state'],$new['state'],user()['id'],json_encode($audit,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)]);
+  audit('visit_stage_corrected',$id);
+  if($owns)$db->commit();return $new;
+ }catch(Throwable $ex){if($owns&&$db->inTransaction())$db->rollBack();throw $ex;}
 }

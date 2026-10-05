@@ -1,5 +1,6 @@
 """Workflow regression tests against a disposable MariaDB, never the clinic DB."""
 import json, os, pathlib, re, secrets, shutil, socket, subprocess, tempfile, time
+import sys
 import http.cookiejar, types, urllib.error, urllib.parse, urllib.request
 
 class Client:
@@ -61,6 +62,7 @@ try:
               (703,801,102,'2099-01-03 09:00:00','2099-01-03 09:30:00','test','','',103,'scheduled','none');
         INSERT INTO physio_payments(episode_id,amount_toman,created_by) VALUES(801,500,103);
         """)
+    subprocess.run(['mariadb',database],input=(root/'deploy/appointments.sql').read_text(),text=True,check=True)
     before = sql(f'SELECT id,status,starts_at,ends_at,notes FROM {database}.physio_sessions ORDER BY id')
     migrate(); migrate()
     assert before == sql(f'SELECT id,status,starts_at,ends_at,notes FROM {database}.physio_sessions ORDER BY id')
@@ -116,14 +118,58 @@ try:
     assert sql(f'SELECT COUNT(*) FROM {database}.visit_workflows WHERE session_id=704') == '0'
     print('PASS booking and failed-event transactions roll back without partial workflow')
 
+    # An administrative correction appends an event and restores only observed state stamps.
+    sql(f"INSERT INTO {database}.physio_sessions(id,episode_id,therapist_id,starts_at,ends_at,room,treatment,notes,created_by) VALUES(705,801,102,'2099-01-05 09:00','2099-01-05 09:30','test','','',103)")
+    php(103, "workflowTransition(705,'waiting',[],0);workflowTransition(705,'referred',[],1);workflowTransition(705,'in_service',[],2);")
+    denied(103, "workflowReverse(705,3,'correction')")
+    denied(101, "workflowReverse(705,3,'')")
+    denied(101, "workflowReverse(705,2,'stale')")
+    result=json.loads(php(101, "echo json_encode(workflowReverse(705,3,'incorrect click'));"))
+    assert result['state']=='referred' and result['version']==4 and result['treatment_started_at'] is None
+    assert result['arrived_at'] is not None
+    denied(101, "workflowReverse(705,4,'cannot erase another event')")
+    timeline=json.loads(php(101, "echo json_encode(workflowTimeline(705));"))
+    assert timeline['events'][-1]['event_type']=='stage_corrected'
+    assert timeline['events'][-1]['details']['reason']=='incorrect click'
+    assert timeline['events'][-1]['details']['before_workflow']['treatment_started_at'] is not None
+    assert timeline['events'][-1]['details']['after_workflow']['treatment_started_at'] is None
+    assert timeline['events'][-1]['actor_name']=='Admin'
+    denied(101, "workflowReverse(701,6,'cannot reopen completed visit')")
+    assert sql(f"SELECT COUNT(*) FROM {database}.visit_events WHERE session_id=705")=='5'
+    print('PASS authorized correction requires reason/version, retains original event, restores timestamps, protects completed treatment')
+
+    # Appointment metadata is atomic and uses the same versioned audit as workflow changes.
+    sql(f"USE {database}; INSERT INTO visit_types(id,name) VALUES(1,'Consultation'); INSERT INTO diagnoses(id,name) VALUES(1,'PRIVATE_DIAGNOSIS'); INSERT INTO labels(id,name) VALUES(1,'Label'); INSERT INTO resources(name,kind) VALUES('New room','room'); INSERT INTO packages(id,name) VALUES(1,'Package');")
+    denied(103, "appointmentMetadata(705,4,['visit_type_id'=>1,'room'=>'New room','diagnoses'=>[1]])")
+    assert sql(f"SELECT room FROM {database}.physio_sessions WHERE id=705")=='test'
+    denied(103, "appointmentMetadata(705,4,['visit_type_id'=>1,'room'=>'New room','package_id'=>1])")
+    php(103, "appointmentMetadata(705,4,['visit_type_id'=>1,'room'=>'New room','labels'=>[1]]);")
+    denied(103, "appointmentMetadata(705,4,['visit_type_id'=>1,'room'=>'New room'])")
+    php(102, "appointmentMetadata(705,5,['visit_type_id'=>1,'room'=>'New room','diagnoses'=>[1]]);")
+    php(101, "appointmentMetadata(705,6,['visit_type_id'=>1,'room'=>'New room','package_id'=>1]);")
+    timeline=json.loads(php(103, "echo json_encode(workflowTimeline(705));"))
+    assert all('after_diagnoses' not in x['details'] for x in timeline['events'])
+    assert sql(f"SELECT visit_type_id,room,package_id FROM {database}.physio_sessions WHERE id=705")=='1\tNew room\t1'
+    assert sql(f"SELECT COUNT(*) FROM {database}.session_diagnoses WHERE session_id=705")=='1'
+    result=json.loads(php(101,"echo json_encode(appointmentResults(appointmentFilters(['from'=>'2099-01-01','to'=>'2099-01-31','visit_type'=>'1','label'=>'1','diagnosis'=>'1','package'=>'1'])));"))
+    assert result['count']==1 and result['rows'][0]['id']==705
+    denied(103,"appointmentFilters(['diagnosis'=>'1'])")
+    denied(104,"appointmentFilters(['financial'=>'debt'])")
+    denied(103,"appointmentMetadata(701,6,['visit_type_id'=>1,'room'=>'New room'])")
+    sql(f"USE {database}; INSERT INTO import_records(id,account_key,source_key,run_id,source_page,source_row,payload,payload_hash,bytes,pid) VALUES(1,'audit_fixture','legacy_fixture',0,1,1,'{{}}','hash',2,901); INSERT INTO import_patient_events(record_id,event_no,event_date,status_code,payload) VALUES(1,1,'2098-01-01','done','{{}}');")
+    result=json.loads(php(101,"echo json_encode(appointmentResults(appointmentFilters(['from'=>'2099-01-01','to'=>'2099-01-01','patient_type'=>'returning'])));"))
+    assert result['count']==1, 'imported completed visits must prevent new-patient misclassification'
+    print('PASS appointment metadata rollback, stale version, diagnosis/package permissions, combined filters and private timeline')
+
     # Real staff HTTP paths use CSRF, form versions and assigned-clinician scope.
     php(101, "$hash=password_hash('SyntheticWorkflowPassword123',PASSWORD_DEFAULT);q('UPDATE staff SET password_hash=?',[$hash]);")
     with socket.socket() as probe:
         probe.bind(('127.0.0.1', 0))
         port = probe.getsockname()[1]
     base = f'http://127.0.0.1:{port}'
+    server_log = (work / 'server.log').open('w')
     server = subprocess.Popen(['php', '-S', f'127.0.0.1:{port}', '-t', str(root / 'public'), str(root / 'public/index.php')],
-                              env={**env, 'MASIHA_COOKIE_SECURE': '0'}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                              env={**env, 'MASIHA_COOKIE_SECURE': '0'}, stdout=subprocess.DEVNULL, stderr=server_log)
     def token(client, path):
         page = client.get(base + path, timeout=5)
         assert page.status_code == 200, (path, page.status_code)
@@ -143,6 +189,12 @@ try:
                 time.sleep(.1)
         assert Client().get(base + '/api/visit-timeline?session_id=701', timeout=5).status_code == 401
         reception = login('wf_reception')
+        page = reception.get(base + '/visit?id=701')
+        assert page.status_code == 200 and 'correction' not in page.text and 'گردش مراجعه' in page.text
+        page = reception.get(base + '/appointments?from=2099-01-01&to=2099-01-31')
+        assert page.status_code==200 and 'PRIVATE_DIAGNOSIS' not in page.text
+        assert reception.get(base + '/appointment/details?id=705').status_code==200
+        assert reception.get(base + '/appointment/catalogs').status_code==403
         csrf = token(reception, '/appointments')
         data = {'csrf': csrf, 'action': 'visit_state', 'session_id': 704, 'state': 'waiting', 'workflow_version': 0, 'clinic_id': 0}
         response = reception.post(base + '/appointments', data={**data, 'csrf': 'invalid'}, timeout=5)
@@ -153,6 +205,10 @@ try:
         assert 'صفحه را تازه کنید' in response.text
         timeline = reception.get(base + '/api/visit-timeline?session_id=701', timeout=5).json()
         assert 'after_result' not in timeline['events'][-1]['details']
+        booking_csrf=token(reception,'/appointment/new')
+        response=reception.post(base+'/appointment/new',data={'csrf':booking_csrf,'action':'book_v2','pid':901,'therapist_id':102,'visit_type_id':1,'date':'2099-02-01','time':'10:00','duration':30,'clinic_id':1,'label_id':0,'service_id':0,'tariff_id':0,'episode_id':0,'room':'','equipment':'','notes':''})
+        assert response.status_code==200 and '/appointments?date=2099-02-01' in response.url
+        assert sql(f"SELECT visit_type_id FROM {database}.physio_sessions WHERE starts_at='2099-02-01 10:00:00'")=='1'
         clinician = login('wf_therapist')
         csrf = token(clinician, '/session?id=704')
         response = clinician.post(base + '/session?id=704', data={'csrf': csrf, 'action': 'session', 'session_id': 704, 'status': 'done',
@@ -161,9 +217,12 @@ try:
         assert sql(f"SELECT status FROM {database}.physio_sessions WHERE id=704") == 'done'
         other = login('wf_other')
         assert other.get(base + '/api/visit-timeline?session_id=701', timeout=5).status_code == 403
+        assert other.get(base + '/visit?id=701').status_code == 403
         print('PASS HTTP authentication, CSRF, stale forms, timeline privacy and assigned-clinician result path')
     finally:
-        server.terminate();server.wait(timeout=5)
+        server.terminate();server.wait(timeout=5);server_log.close()
+        if sys.exc_info()[0]:
+            print((work / 'server.log').read_text()[-3000:])
 finally:
     sql('DROP DATABASE IF EXISTS ' + database)
     shutil.rmtree(work)
