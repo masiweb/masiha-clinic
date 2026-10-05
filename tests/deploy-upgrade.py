@@ -12,7 +12,7 @@ def case(name, php_active=True, importer_timer=True, sms_timer=False, failure=''
             (source / item / 'marker.php').write_text('<?php // new')
             (target / item / 'marker.php').write_text('<?php // old')
         shutil.copyfile(root / 'deploy/upgrade.sh', source / 'deploy/upgrade.sh')
-        for item in ['admin-v2.sql', 'import.sql', 'workflow.sql', 'appointments.sql', 'history-reconciliation.sql', 'billing.sql']:
+        for item in ['admin-v2.sql', 'import.sql', 'workflow.sql', 'appointments.sql', 'history-reconciliation.sql', 'billing.sql', 'operations.sql']:
             (source / 'deploy' / item).write_text('-- isolated migration')
         for args in [['init','-q'], ['add','.'], ['-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','Synthetic source']]:
             subprocess.run(['git','-C',str(source),*args], check=True)
@@ -64,6 +64,10 @@ if tool=='cp':
             assert final[unit] == initial[unit], (name,unit,initial,final)
         assert not any(a[0]=='systemctl' and a[1] in ['enable','disable','restart'] for a in actions),name
         if worker:assert not any(a[0]=='backup' or (a[0]=='systemctl' and a[1]=='stop') for a in actions)
+        if not failure and not worker:
+            backup_index=next(i for i,a in enumerate(actions) if a[0]=='backup')
+            assert any(a==['systemctl','stop','php8.3-fpm'] for a in actions[:backup_index])
+            assert json.loads((target/'deploy/release.json').read_text())['commit']
         print('PASS',name)
 
 if os.geteuid() != 0:

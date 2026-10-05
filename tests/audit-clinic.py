@@ -15,7 +15,7 @@ try:
     report=audit()
     assert 'patients' in report['missing_required_tables']
     assert report['integrity_violations']['negative_known_stock'] is None
-    for name in ['schema','therapy','portal','admin-v2','import','workflow']:
+    for name in ['schema','therapy','portal','admin-v2','import','workflow','appointments','history-reconciliation','billing','operations']:
         subprocess.run(['mariadb',db],input=(root/'deploy'/f'{name}.sql').read_text(),text=True,check=True)
     sql(f"""USE {db};
     INSERT INTO patients(pid,fname,lname,phone_cell,address,notes) VALUES(1,'PRIVATE_PATIENT','SECRET_NAME','09123456789','','');

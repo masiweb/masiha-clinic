@@ -2,3 +2,5 @@
 .search-form{flex-wrap:wrap;max-width:100%}.search-form .field{min-width:150px;flex:1}.search-form>input{min-width:180px}.panel-header>.live-search{flex-basis:100%}.panel-header:has(>.live-search){flex-wrap:wrap}.workspace-nav a:hover{color:var(--teal);text-decoration:underline}.actions{flex-wrap:wrap}.resource-row{gap:16px}
 
 .import-text{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f8f7;border:1px solid #dce8e5;padding:18px;border-radius:12px;max-height:600px;overflow:auto;direction:rtl;text-align:right}
+
+@media print{.sidebar,.topbar,.workspace-nav,.page-heading>a,form,.actions,button,.footer{display:none!important}.workspace,.main{margin:0!important;padding:0!important;width:100%!important}.panel,.table-scroll{overflow:visible!important;box-shadow:none!important}body{background:#fff!important;color:#000!important}}

@@ -44,7 +44,7 @@ function workflowEnsure(array $s,string $source='legacy'):void{
 function workflowBooked(int $id,string $source='staff'):void{
  $s=q('SELECT * FROM physio_sessions WHERE id=? FOR UPDATE',[$id])->fetch();
  if(!$s)throw new DomainException('نوبت پیدا نشد.');
- workflowEnsure($s,$source);
+ packageCheckBooking((int)$s['episode_id']);workflowEnsure($s,$source);
 }
 
 function workflowAccess(array $s,bool $clinical=false,bool $patient=false):void{

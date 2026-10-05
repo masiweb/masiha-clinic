@@ -36,7 +36,7 @@ function patientView():void{
  $allocationsBy=[];foreach($sourceAllocations as $x)$allocationsBy[(int)$x['transaction_id']][]=$x;
  $formsBy=[];foreach($formRows as $x){$k=(int)$x['submission_id'];$formsBy[$k]['name']=$x['title'];$formsBy[$k]['submitted_jalali']=$x['source_submitted_jalali'];if($x['label']!==null)$formsBy[$k]['fields'][]=['field_name'=>$x['label'],'field_value'=>$x['value_text'],'field_type'=>$x['field_type']];}
  layout('patients',patientName($p),'پرونده شماره '.fa($pid).' · '.($p['phone_cell']?fa($p['phone_cell']):'شماره همراه ثبت نشده'));?>
- <?php patientExtras($pid,$p);if(allowed('appointments')||can('episodes'))echo '<a class="button secondary" href="/visit-history?pid='.$pid.'">تطبیق جلسات انجام‌شده</a>';?>
+ <?php if(scope('forms.visit')!=='none')echo '<a class="button secondary" href="/progress?pid='.$pid.'">گزارش پیشرفت درمان</a>';patientExtras($pid,$p);if(allowed('appointments')||can('episodes'))echo '<a class="button secondary" href="/visit-history?pid='.$pid.'">تطبیق جلسات انجام‌شده</a>';?>
  <div class="patient-overview panel">
   <div class="person"><span class="large-avatar"><?=e(mb_substr($p['fname'],0,1))?></span><div><h2><?=e(patientName($p))?></h2><p class="muted">شماره پرونده: <?=fa($pid)?> · کد ملی: <?=fa($p['national_id']?:'—')?> · تولد: <?=jd($p['DOB'])?></p></div></div>
   <div class="actions"><?php if(allowed('patients.edit')&&$contactAllowed):?><a class="button secondary" href="/patients/edit?id=<?=$pid?>">ویرایش مشخصات</a><?php endif;?><?php if(can('episodes')):?><a class="button primary" href="/episodes/new?pid=<?=$pid?>"><?=icon('plus')?> دوره درمان جدید</a><?php endif;?></div>
@@ -167,7 +167,7 @@ function patientView():void{
  </div>
 
  <section class="panel"><div class="panel-header"><h2>نوبت‌ها و جلسات مسیحا</h2><a class="text-link" href="/appointment/new?pid=<?=$pid?>">ثبت نوبت <?=icon('plus')?></a></div><?php sessionTable(sessions('p.pid=?',[$pid]),false);?></section>
- <section class="panel" id="documents"><div class="panel-header"><h2>مدارک بیمار</h2><span class="muted">PDF، JPG یا PNG · تا ۱۰ مگابایت</span></div><div class="panel-body"><?php $docs=q('SELECT * FROM physio_patient_documents WHERE pid=? ORDER BY id DESC',[$pid])->fetchAll();foreach($docs as $doc):?><a class="document-row" href="/document?id=<?=$doc['id']?>"><?=icon('file')?><strong><?=e($doc['title'])?></strong><span><?=jd($doc['created_at'])?></span><small>دریافت فایل</small></a><?php endforeach;if(allowed('patients.edit')){formstart('document',true);?><input type="hidden" name="pid" value="<?=$pid?>"><div class="form-grid"><?php field('title','عنوان مدرک','','text','نامی کوتاه مانند «گزارش تصویربرداری زانو».',true);field('file','انتخاب فایل','','file','مدارک تنها در همین پرونده قابل دسترسی هستند.',true,false,'accept="application/pdf,image/jpeg,image/png"');?></div><?php formend('بارگذاری مدرک','/patients');}?></div></section>
+ <section class="panel" id="documents"><div class="panel-header"><h2>مدارک بیمار</h2><span class="muted">PDF، JPG یا PNG · تا ۱۰ مگابایت</span></div><div class="panel-body"><?php $docs=q('SELECT d.*,t.name type_name FROM physio_patient_documents d LEFT JOIN document_types t ON t.id=d.document_type_id WHERE d.pid=? ORDER BY d.id DESC',[$pid])->fetchAll();foreach($docs as $doc):?><a class="document-row" href="/document?id=<?=$doc['id']?>"><?=icon('file')?><strong><?=e($doc['title'])?></strong><small><?=e($doc['type_name']??'بدون دسته')?></small><span><?=jd($doc['created_at'])?></span><small>دریافت فایل</small></a><?php if(allowed('patients.edit'))echo '<a href="/document-classify?id='.(int)$doc['id'].'">دسته‌بندی</a>';endforeach;if(allowed('patients.edit')){formstart('document',true);?><input type="hidden" name="pid" value="<?=$pid?>"><div class="form-grid"><?php selectfield('document_type_id','نوع مدرک',['0'=>'بدون دسته']+options('document_types','active=1'),0);if(allowed('settings'))echo '<a href="/document-types">مدیریت انواع مدرک</a>';field('title','عنوان مدرک','','text','نامی کوتاه مانند «گزارش تصویربرداری زانو».',true);field('file','انتخاب فایل','','file','مدارک تنها در همین پرونده قابل دسترسی هستند.',true,false,'accept="application/pdf,image/jpeg,image/png"');?></div><?php formend('بارگذاری مدرک','/patients');}?></div></section>
  <?php endLayout();
 }
 
@@ -304,6 +304,7 @@ function visitTimelineView():void{
  $s=q('SELECT s.*,p.fname,p.lname,p.pid FROM physio_sessions s JOIN physio_episodes ep ON ep.id=s.episode_id JOIN patients p ON p.pid=ep.pid WHERE s.id=?',[$id])->fetch();
  $w=$timeline['workflow'];$labels=workflowLabels();
  layout('appointments','گردش مراجعه',patientName($s).' · '.jd($s['starts_at'],'yyyy/MM/dd HH:mm'));
+ echo '<button class="button secondary" type="button" onclick="window.print()">چاپ مراجعه</button>';
  episodeCompletionNotice((int)$s['episode_id']);
  if(allowed('finance.debt')||allowed('finance.history')||allowed('finance.edit'))echo '<a class="button secondary" href="/billing?episode='.(int)$s['episode_id'].'">صورتحساب دوره</a>';
  echo '<div class="actions"><a class="button secondary" href="/patient?id='.(int)$s['pid'].'">پرونده مراجعه‌کننده</a><a class="button secondary" href="/appointments">نوبت‌ها</a></div>';
@@ -335,5 +336,5 @@ function visitTimelineView():void{
   }
   echo '</li>';
  }
- echo '</ol></section>';}endLayout();
+ echo '</ol></section>';}stockVisitView($id);endLayout();
 }

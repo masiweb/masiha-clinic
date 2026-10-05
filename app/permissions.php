@@ -4,11 +4,11 @@ function permissionGroups():array{return [
  'حساب‌های کارکنان'=>['staff.create'=>'ساخت کاربر / درمانگر','staff.edit'=>'ویرایش کاربر / درمانگر','staff.delete'=>'حذف کاربر / درمانگر'],
  'مراجعین'=>['patients.create'=>'ساخت پرونده','patients.edit'=>'ویرایش پرونده','patients.delete'=>'حذف و بایگانی پرونده'],
  'لیبل‌ها'=>['labels.create'=>'ساخت لیبل','labels.edit'=>'ویرایش لیبل','labels.delete'=>'حذف لیبل'],
- 'مدیریت'=>['appointments'=>'نوبت‌دهی','appointments.reverse'=>'اصلاح مرحله مراجعه با ثبت دلیل','appointments.timing'=>'گزارش زمان مراجعه','appointments.history'=>'تطبیق شمارش سوابق مراجعه','services'=>'مدیریت خدمات و پکیج‌ها','inventory'=>'مدیریت انبار و کالا','sms'=>'مدیریت پیامک','settings'=>'تنظیمات کلینیک']
+ 'مدیریت'=>['appointments'=>'نوبت‌دهی','appointments.reverse'=>'اصلاح مرحله مراجعه با ثبت دلیل','appointments.timing'=>'گزارش زمان مراجعه','appointments.history'=>'تطبیق شمارش سوابق مراجعه','reports.clinical'=>'گزارش عملکرد مراجعه','services'=>'مدیریت خدمات و پکیج‌ها','inventory'=>'مدیریت انبار و کالا','inventory.consume'=>'ثبت مصرف برای مراجعه خود','sms'=>'مدیریت پیامک','settings'=>'تنظیمات کلینیک']
 ];}
 function defaultsFor($role):array{$p=['profile'=>'none','contact'=>'none','forms.visit'=>'none','forms.general'=>'none'];foreach(permissionGroups() as $g)foreach($g as $k=>$v)$p[$k]=false;
  if($role==='reception'){$p=array_replace($p,['profile'=>'all','contact'=>'all','forms.visit'=>'none','forms.general'=>'own']);foreach(['appointments','patients.create','patients.edit','finance.debt','finance.history','finance.pay','sms'] as $k)$p[$k]=true;}
- if($role==='therapist')$p=array_replace($p,['profile'=>'related','contact'=>'related','forms.visit'=>'own','forms.general'=>'own','appointments'=>true]);
+ if($role==='therapist')$p=array_replace($p,['profile'=>'related','contact'=>'related','forms.visit'=>'own','forms.general'=>'own','appointments'=>true,'inventory.consume'=>true]);
  if($role==='finance')foreach(['finance.debt','finance.history','finance.pay','reports'] as $k)$p[$k]=true;
  return $p;}
 function permissions(?array $u=null):array{$u??=user();if(!$u)return defaultsFor('');$j=q('SELECT permissions FROM staff_permissions WHERE staff_id=?',[$u['id']])->fetchColumn();return $j?array_replace(defaultsFor(''),json_decode($j,true)?:[]):defaultsFor($u['role']);}

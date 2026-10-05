@@ -57,8 +57,8 @@ for timer in "${TIMERS[@]}"; do systemctl stop "$timer"; done
 for service in masiha-importer.service masiha-sms-worker.service; do
  if worker_busy "$service"; then echo "Worker started during preflight: $service"; exit 1; fi
 done
-"$BACKUP_COMMAND"
 systemctl stop php8.3-fpm
+"$BACKUP_COMMAND"
 umask 077
 mkdir -p "$BACKUPS"
 CODE_BACKUP=$(mktemp "$BACKUPS/code-before-upgrade-XXXXXXXX.tar.gz")
@@ -71,9 +71,12 @@ mariadb masiha_clinic < "$ROOT/deploy/workflow.sql"
 mariadb masiha_clinic < "$ROOT/deploy/appointments.sql"
 mariadb masiha_clinic < "$ROOT/deploy/history-reconciliation.sql"
 mariadb masiha_clinic < "$ROOT/deploy/billing.sql"
+mariadb masiha_clinic < "$ROOT/deploy/operations.sql"
 COPY_STARTED=1
 for dir in app public deploy importer; do cp -a "$ROOT/$dir/." "$TARGET/$dir/"; done
 find "$TARGET/app" "$TARGET/public" -type d -exec chmod 755 {} +
 find "$TARGET/app" "$TARGET/public" -type f -exec chmod 644 {} +
+printf '{"commit":"%s"}\n' "$(git -C "$ROOT" rev-parse HEAD)" > "$TARGET/deploy/release.json"
+chmod 644 "$TARGET/deploy/release.json"
 # Installation of worker units is explicit; an upgrade never enables disabled timers.
 printf 'Masiha Clinic upgraded from commit %s; original timer states retained.\n' "$(git -C "$ROOT" rev-parse HEAD)"

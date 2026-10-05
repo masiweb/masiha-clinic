@@ -38,6 +38,9 @@ function clinicAudit(PDO $db): array {
         $check('movements_without_item',['inventory_movements'=>['item_id'],'inventory_items'=>['id']], 'SELECT COUNT(*) FROM inventory_movements m LEFT JOIN inventory_items i ON i.id=m.item_id WHERE i.id IS NULL');
         $check('negative_known_stock',['inventory_items'=>['id','opening_quantity'],'inventory_movements'=>['item_id','quantity_delta','affects_stock']], 'SELECT COUNT(*) FROM inventory_items i LEFT JOIN (SELECT item_id,SUM(quantity_delta) qty FROM inventory_movements WHERE affects_stock=1 GROUP BY item_id) m ON m.item_id=i.id WHERE i.opening_quantity IS NOT NULL AND i.opening_quantity+COALESCE(m.qty,0)<0');
         $check('invalid_permissions_json',['staff_permissions'=>['permissions']], 'SELECT COUNT(*) FROM staff_permissions WHERE NOT JSON_VALID(permissions)');
+        $check('invoice_fee_mismatch',['episode_billing'=>['episode_id','net_toman'],'physio_episodes'=>['id','fee_toman']], 'SELECT COUNT(*) FROM episode_billing b LEFT JOIN physio_episodes e ON e.id=b.episode_id WHERE e.id IS NULL OR e.fee_toman<>b.net_toman');
+        $check('document_type_orphan',['physio_patient_documents'=>['document_type_id'],'document_types'=>['id']], 'SELECT COUNT(*) FROM physio_patient_documents d LEFT JOIN document_types t ON t.id=d.document_type_id WHERE d.document_type_id IS NOT NULL AND t.id IS NULL');
+        $check('stock_visit_identity_mismatch',['inventory_movements'=>['session_id','pid'],'physio_sessions'=>['id','episode_id'],'physio_episodes'=>['id','pid']], 'SELECT COUNT(*) FROM inventory_movements m LEFT JOIN physio_sessions s ON s.id=m.session_id LEFT JOIN physio_episodes e ON e.id=s.episode_id WHERE m.session_id IS NOT NULL AND (e.id IS NULL OR m.pid IS NULL OR m.pid<>e.pid)');
         $financial = [];
         if ($has(['physio_payments'=>['amount_toman','voided']])) $financial['native_net_payments_toman'] = (string)$scalar('SELECT COALESCE(SUM(amount_toman),0) FROM physio_payments WHERE voided=0');
         if ($has(['physio_episodes'=>['fee_toman']])) $financial['episode_fees_toman'] = (string)$scalar('SELECT COALESCE(SUM(fee_toman),0) FROM physio_episodes');
@@ -45,7 +48,7 @@ function clinicAudit(PDO $db): array {
         $concepts = [];
         foreach ($columns as $c) if (preg_match('/room|insurance|bimeh/i', $c['COLUMN_NAME'])) $concepts[] = $c['TABLE_NAME'].'.'.$c['COLUMN_NAME'];
         $roles = $has(['staff'=>['role','active']]) ? $query('SELECT role,active,COUNT(*) AS count FROM staff GROUP BY role,active ORDER BY role,active') : [];
-        $required = ['patients','staff','staff_permissions','physio_episodes','physio_sessions','physio_payments','visit_workflows','visit_events','inventory_items','inventory_movements','physio_patient_documents','physio_slots','import_records'];
+        $required = ['patients','staff','staff_permissions','physio_episodes','physio_sessions','physio_payments','visit_workflows','visit_events','inventory_items','inventory_movements','physio_patient_documents','physio_slots','import_records','visit_types','diagnoses','session_diagnoses','session_labels','visit_history_links','visit_history_reviews','discount_categories','episode_billing','billing_events','stock_events','document_types','document_events','sms_audience_previews'];
         return ['format'=>1,'read_only'=>true,'captured_at_utc'=>gmdate('c'),
             'schema_sha256'=>hash('sha256',json_encode([$columns,$indexes],JSON_THROW_ON_ERROR)),
             'tables'=>$tables,'missing_required_tables'=>array_values(array_diff($required,array_keys($tables))),

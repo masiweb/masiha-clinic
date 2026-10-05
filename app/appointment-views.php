@@ -5,6 +5,7 @@ function appointmentDashboard():void{
  $display=displayEffective();
  layout('appointments','نوبت‌های مراجعین','جستجو، پیگیری مراحل مراجعه و برنامه درمانگران');
  if(displayVisible($display,'panels','shortcuts')){echo '<div class="actions"><a class="button primary" href="/appointment/new">ثبت نوبت</a><a class="button secondary" href="/availability">زمان‌های آزاد</a><a class="button secondary" href="/turn-board">تابلو امروز</a>';
+ if(allowed('reports.clinical'))echo '<a class="button secondary" href="/reports/clinical">گزارش عملکرد</a>';
  if(allowed('appointments.timing'))echo '<a class="button secondary" href="/reports/timing">گزارش زمان مراجعه</a>';
  if(allowed('services'))echo '<a class="button secondary" href="/appointment/catalogs">نوع ویزیت و تشخیص‌ها</a><a class="button secondary" href="/resources">اتاق‌ها و تجهیزات</a>';
  echo '</div>';}
@@ -91,6 +92,9 @@ function appointmentCell(string $key,array $s,array $display):void{
    if(allowed('patients.edit')&&patientAllowed($s['pid'],'contact'))echo '<a href="/patients/edit?id='.(int)$s['pid'].'">ویرایش مراجعه‌کننده</a>';
    if(appointmentClinicalAllowed($s))echo '<a href="/session?id='.(int)$s['id'].'">فرم ویزیت</a>';
    if(allowed('finance.debt')||allowed('finance.history'))echo '<a href="/finance?episode='.(int)$s['episode_id'].'">تراز مالی</a>';
-   echo '</div></details>';break;
+   if(can('episodes'))echo '<a href="/episode?id='.(int)$s['episode_id'].'">طرح درمان</a><a href="/progress?pid='.(int)$s['pid'].'">روند درمان</a>';
+   if(allowed('finance.debt')||allowed('finance.edit'))echo '<a href="/billing?episode='.(int)$s['episode_id'].'">صورتحساب</a>';
+   if(allowed('sms'))echo '<a href="/sms/audience?pid='.(int)$s['pid'].'">پیش‌نمایش پیامک</a>';
+   echo '<a href="/visit?id='.(int)$s['id'].'">تاریخچه، اصلاح مرحله و چاپ</a></div></details>';break;
  }
 }

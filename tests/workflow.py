@@ -64,7 +64,7 @@ try:
         """)
     subprocess.run(['mariadb',database],input=(root/'deploy/appointments.sql').read_text(),text=True,check=True)
     for _ in range(2):
-        subprocess.run(['mariadb',database],input=(root/'deploy/history-reconciliation.sql').read_text()+(root/'deploy/billing.sql').read_text(),text=True,check=True)
+        subprocess.run(['mariadb',database],input=(root/'deploy/history-reconciliation.sql').read_text()+(root/'deploy/billing.sql').read_text()+(root/'deploy/operations.sql').read_text(),text=True,check=True)
     before = sql(f'SELECT id,status,starts_at,ends_at,notes FROM {database}.physio_sessions ORDER BY id')
     migrate(); migrate()
     assert before == sql(f'SELECT id,status,starts_at,ends_at,notes FROM {database}.physio_sessions ORDER BY id')
@@ -333,6 +333,7 @@ try:
     assert sql(f'SELECT fee_toman FROM {database}.physio_episodes WHERE id=801')=='0'
     # Fixed package snapshots do not drift when the catalog changes.
     sql(f"INSERT IGNORE INTO {database}.package_items(package_id,service_id,quantity) VALUES(1,1,10); UPDATE {database}.packages SET price=5000 WHERE id=1")
+    sql(f'UPDATE {database}.physio_sessions SET service_id=1 WHERE episode_id=803')
     version=int(sql(f'SELECT version FROM {database}.episode_billing WHERE episode_id=803'))
     php(101,f"billingSave(803,{version},'package',0,0,1,'Agreed package');")
     sql(f'UPDATE {database}.packages SET price=9000 WHERE id=1')
@@ -341,6 +342,70 @@ try:
     assert json.loads(php(101,"echo json_encode(billingAmounts(5,'percent',10));"))['discount_toman']==1
     assert json.loads(php(101,"echo json_encode(billingAmounts(100,'fixed',200));"))['net_toman']==0
     print('PASS opt-in native invoices, permissions, discount/package snapshots, rounding, stale forms, concurrent completions and clinical/financial rollback')
+
+    # Package reservations are checked against the stored allowance, not changed catalog quantities.
+    sql(f"UPDATE {database}.episode_billing SET package_snapshot=JSON_SET(package_snapshot,'$.items[0].quantity',5) WHERE episode_id=803")
+    output=php(101,"try{$db->beginTransaction();q(\"INSERT INTO physio_sessions(id,episode_id,therapist_id,starts_at,ends_at,room,treatment,notes,created_by,service_id) VALUES(1210,803,102,'2099-07-01 09:00','2099-07-01 09:30','','','',101,1)\");workflowBooked(1210);$db->commit();echo 'BAD';}catch(DomainException $e){$db->rollBack();echo 'DENIED';}")
+    assert output=='DENIED' and sql(f'SELECT COUNT(*) FROM {database}.physio_sessions WHERE id=1210')=='0'
+    sql(f'UPDATE {database}.package_items SET quantity=1 WHERE package_id=1')
+    version=int(sql(f'SELECT version FROM {database}.episode_billing WHERE episode_id=803'))
+    denied(101,f"billingSave(803,{version},'package',0,0,1,'too small')")
+    assert sql(f'SELECT fee_toman FROM {database}.physio_episodes WHERE id=803')=='5000'
+    # Exact thousandth-unit stock, unknown opening, repeat-safe consumption and compensating returns.
+    sql(f"INSERT INTO {database}.inventory_items(id,name,unit) VALUES(990,'Synthetic consumable','unit'),(991,'Unknown','unit')")
+    denied(101,"stockMove(991,'-1','2026-10-05','unknown','"+'1'*32+"')")
+    php(101,"stockOpening(990,'2.500','2026-01-01');")
+    denied(101,"stockOpening(990,'50','2026-01-01')")
+    denied(104,"stockMove(990,'-1','2026-10-05','outside','"+'2'*32+"',701)")
+    token='3'*32
+    move=int(php(102,f"echo stockMove(990,'-1.125','2026-10-05','used','{token}',701);"))
+    assert int(php(102,f"echo stockMove(990,'-1.125','2026-10-05','used','{token}',701);"))==move
+    denied(102,"stockMove(990,'-2','2026-10-05','insufficient','"+'4'*32+"',701)")
+    php(101,f"stockMove(990,'1.125','2026-10-05','return','"+'5'*32+f"',701,{move});")
+    denied(101,f"stockMove(990,'1.125','2026-10-05','second return','"+'6'*32+f"',701,{move})")
+    assert sql(f'SELECT SUM(quantity_delta) FROM {database}.inventory_movements WHERE item_id=990')=='0.000'
+    # A competing stock writer waits on the item and sees the committed balance.
+    signal=work/'stock-ready'
+    code="require '"+str(root/'app/bootstrap.php')+"';$db->beginTransaction();q('SELECT id FROM inventory_items WHERE id=990 FOR UPDATE');q(\"INSERT INTO inventory_movements(item_id,movement_type,quantity_delta,occurred_on,affects_stock,note) VALUES(990,'adjustment',-2,'2026-10-05',1,'synthetic concurrent')\");file_put_contents('"+str(signal)+"','ready');usleep(600000);$db->commit();"
+    job=subprocess.Popen(['php','-r',code],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    try:
+        for _ in range(100):
+            if signal.exists():break
+            if job.poll() is not None:raise AssertionError(job.communicate())
+            time.sleep(.01)
+        assert signal.exists()
+        denied(101,"stockMove(990,'-1','2026-10-05','competing','"+'7'*32+"')")
+        assert job.wait(timeout=5)==0
+    finally:
+        if job.poll() is None:job.kill();job.wait()
+    # Document types extend without changing old documents and classification is patient-scoped.
+    php(101,"documentTypeSave(0,'Synthetic type',true);")
+    doc_type=int(sql(f'SELECT MAX(id) FROM {database}.document_types'))
+    sql(f"INSERT INTO {database}.physio_patient_documents(id,pid,title,storage_name,mime,bytes) VALUES(991,902,'Synthetic','unused-synthetic','application/pdf',1)")
+    denied(104,f'classifyDocument(991,{doc_type})')
+    php(101,f'classifyDocument(991,{doc_type});')
+    assert sql(f'SELECT COUNT(*) FROM {database}.document_events WHERE document_id=991')=='1'
+    # Preview never sends. Queue has explicit enabled gate, owner, membership and repeat protection.
+    sql(f"UPDATE {database}.patients SET phone_cell='09120000001' WHERE pid=901; UPDATE {database}.patients SET phone_cell='09120000002' WHERE pid=902")
+    preview=php(101,"echo audiencePreview(['target_pid'=>901],'Synthetic','Test message');")
+    denied(101,f"audienceQueue('{preview}')")
+    php(101,"setsetting('sms_notifications','1');")
+    denied(103,f"audienceQueue('{preview}')")
+    campaign=int(php(101,f"echo audienceQueue('{preview}');"))
+    assert int(php(101,f"echo audienceQueue('{preview}');"))==campaign
+    assert sql(f"SELECT queued_count FROM {database}.sms_campaigns WHERE id={campaign}")=='1'
+    assert sql(f"SELECT COUNT(*) FROM {database}.sms_outbox WHERE message='Test message'")=='1'
+    preview2=php(101,"echo audiencePreview(['target_pid'=>901],'Synthetic changed','No send');")
+    sql(f"UPDATE {database}.patients SET phone_cell='09120000003' WHERE pid=901")
+    denied(101,f"audienceQueue('{preview2}')")
+    php(101,"setsetting('sms_notifications','0');")
+    # Clinical report and progress permission ceiling.
+    denied(103,"clinicalReportData(['from'=>'2099-06-01','to'=>'2099-06-30'])")
+    denied(103,'progressData(901)')
+    report=json.loads(php(101,"echo json_encode(clinicalReportData(['from'=>'2099-06-01','to'=>'2099-06-30']));"))
+    assert sum(int(x['completed']) for x in report['rows'])==5
+    assert json.loads(php(102,'echo json_encode(progressData(901));'))['count']>0
+    print('PASS package allowance rollback, atomic exact stock/returns/concurrency, document scopes, preview-only SMS/queue guards and clinical reports')
 
     # Real staff HTTP paths use CSRF, form versions and assigned-clinician scope.
     php(101, "$hash=password_hash('SyntheticWorkflowPassword123',PASSWORD_DEFAULT);q('UPDATE staff SET password_hash=?',[$hash]);")
@@ -378,6 +443,8 @@ try:
         assert reception.get(base + '/appointment/catalogs').status_code==403
         assert reception.get(base + '/reports/timing').status_code==403
         admin=login('wf_admin')
+        for path in ['/sms','/document-types','/sms/audience','/reports/clinical?from=2099-06-01&to=2099-06-30','/progress?pid=901']:
+            assert admin.get(base+path).status_code==200,path
         finance_page=admin.get(base+'/finance')
         nonce=re.search(r'name="payment_nonce" value="([^"]+)"',finance_page.text)[1]
         payment_data={'csrf':token(admin,'/finance'),'action':'payment','episode_id':803,'amount_toman':500,'reference':'synthetic','payment_nonce':nonce}

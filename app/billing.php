@@ -39,7 +39,7 @@ function billingSave(int $id,int $version,string $mode,int $base,int $discountId
   elseif($mode==='package'){
    $package=q('SELECT id,name,price FROM packages WHERE id=? AND active=1 AND deleted=0',[$packageId])->fetch();if(!$package)throw new DomainException('پکیج فعال انتخاب کنید.');
    $items=q('SELECT service_id,quantity FROM package_items WHERE package_id=? ORDER BY service_id',[$packageId])->fetchAll();if(!$items)throw new DomainException('پکیج باید حداقل یک خدمت داشته باشد.');
-   $base=(int)$package['price'];$snapshot=json_encode(['package'=>$package,'items'=>$items],JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
+   $base=(int)$package['price'];$snapshot=json_encode(['package'=>$package,'items'=>$items],JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);packageAllowance($id,json_decode($snapshot,true),true);
   }
   $amounts=billingAmounts($base,$discount['kind']??'fixed',(int)($discount['value']??0));
   q('INSERT INTO episode_billing(episode_id,mode,base_toman,discount_id,discount_name,discount_kind,discount_value,discount_toman,net_toman,package_id,package_snapshot,version) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE mode=VALUES(mode),base_toman=VALUES(base_toman),discount_id=VALUES(discount_id),discount_name=VALUES(discount_name),discount_kind=VALUES(discount_kind),discount_value=VALUES(discount_value),discount_toman=VALUES(discount_toman),net_toman=VALUES(net_toman),package_id=VALUES(package_id),package_snapshot=VALUES(package_snapshot),version=VALUES(version)',[$id,$mode,$base,$discountId?:null,$discount['name']??'',$discount['kind']??'fixed',$discount['value']??0,$amounts['discount_toman'],$amounts['net_toman'],$mode==='package'?$packageId:null,$snapshot,$version+1]);
@@ -48,10 +48,20 @@ function billingSave(int $id,int $version,string $mode,int $base,int $discountId
  }catch(Throwable $ex){if($db->inTransaction())$db->rollBack();throw $ex;}
 }
 /** Called in the visit transaction, only for courses explicitly opted into completed-service billing. */
+function packageAllowance(int $episodeId,array $snapshot,bool $includeScheduled=false):array{
+ $limits=[];foreach(($snapshot['items']??[]) as $item)$limits[(int)$item['service_id']]=(int)$item['quantity'];
+ $where=$includeScheduled?"status IN ('scheduled','done')":"status='done'";
+ $used=[];foreach(q("SELECT service_id FROM physio_sessions WHERE episode_id=? AND $where FOR UPDATE",[$episodeId])->fetchAll(PDO::FETCH_COLUMN) as $service)$used[(int)$service]=($used[(int)$service]??0)+1;
+ foreach($used as $service=>$n)if(!isset($limits[$service])||$n>$limits[$service])throw new DomainException('خدمت یا تعداد جلسات از سهم پکیج این دوره بیشتر است؛ ابتدا پکیج یا نوبت‌ها را اصلاح کنید.');
+ return ['limits'=>$limits,'used'=>$used];
+}
+function packageCheckBooking(int $episodeId):void{
+ $b=q("SELECT package_snapshot FROM episode_billing WHERE episode_id=? AND mode='package' FOR UPDATE",[$episodeId])->fetchColumn();if($b)packageAllowance($episodeId,json_decode($b,true),true);
+}
 function billingSyncVisit(int $episodeId,int $sessionId):void{
  global $db;if(!$db->inTransaction())throw new LogicException('billing_sync_requires_transaction');
  q('SELECT id FROM physio_episodes WHERE id=? FOR UPDATE',[$episodeId]);
- $old=q('SELECT * FROM episode_billing WHERE episode_id=? FOR UPDATE',[$episodeId])->fetch();if(!$old||$old['mode']!=='services')return;
+ $old=q('SELECT * FROM episode_billing WHERE episode_id=? FOR UPDATE',[$episodeId])->fetch();if(!$old)return;if($old['mode']==='package'){packageAllowance($episodeId,json_decode($old['package_snapshot'],true));return;}if($old['mode']!=='services')return;
  // Locking/current reads include a concurrent visit that committed while waiting on this course.
  $prices=q("SELECT price_snapshot FROM physio_sessions WHERE episode_id=? AND status='done' FOR UPDATE",[$episodeId])->fetchAll(PDO::FETCH_COLUMN);$base=array_sum(array_map('intval',$prices));
  $amounts=billingAmounts($base,$old['discount_kind'],(int)$old['discount_value']);if($base===(int)$old['base_toman']&&$amounts['net_toman']===(int)$old['net_toman'])return;
@@ -63,6 +73,8 @@ function billingView():void{
  $bill=q('SELECT * FROM episode_billing WHERE episode_id=?',[$id])->fetch();$paid=(int)totalpaid($id);$net=(int)$ep['fee_toman'];
  layout('finance','صورتحساب دوره '.fa($id),'مبالغ تومان؛ سوابق مالی بقراط مستقل باقی می‌مانند.');
  echo '<section class="panel form-panel"><dl>';foreach(['مبلغ پیش از تخفیف'=>$bill['base_toman']??$net,'تخفیف'=>$bill['discount_toman']??0,'مبلغ صورتحساب'=>$net,'خالص پرداخت'=>$paid,'بدهی'=>max(0,$net-$paid),'بستانکاری'=>max(0,$paid-$net)] as $label=>$value)echo '<dt>'.e($label).'</dt><dd>'.money($value).'</dd>';echo '</dl><p>دسته تخفیف: '.e($bill['discount_name']??'بدون تخفیف ثبت‌شده').'</p></section>';
+ echo '<button class="button secondary" type="button" onclick="window.print()">چاپ صورتحساب</button>';
+ if($bill&&$bill['mode']==='package'){echo '<section class="panel form-panel"><h2>سهم خدمات پکیج</h2>';foreach((json_decode($bill['package_snapshot'],true)['items']??[]) as $item){$used=(int)q("SELECT COUNT(*) FROM physio_sessions WHERE episode_id=? AND service_id=? AND status IN ('scheduled','done')",[$id,$item['service_id']])->fetchColumn();$done=(int)q("SELECT COUNT(*) FROM physio_sessions WHERE episode_id=? AND service_id=? AND status='done'",[$id,$item['service_id']])->fetchColumn();$name=q('SELECT name FROM services WHERE id=?',[$item['service_id']])->fetchColumn();echo '<p>'.e($name?:'خدمت '.$item['service_id']).': '.fa($done).' انجام‌شده، '.fa($used-$done).' رزرو، '.fa(max(0,(int)$item['quantity']-$used)).' باقی‌مانده از '.fa($item['quantity']).'</p>';}echo '</section>';}
  if(allowed('finance.pay'))echo '<a class="button primary" href="/finance?episode='.$id.'">ثبت دریافت / بازگشت وجه این دوره</a>';
  if(allowed('finance.edit')){echo '<section class="panel form-panel">';formstart('billing_save');hidden('episode_id',$id);hidden('version',$bill['version']??0);selectfield('mode','مبنای صورتحساب',['manual'=>'مبلغ توافقی دوره','services'=>'خدمات جلسات انجام‌شده؛ به‌روزرسانی خودکار','package'=>'قیمت ثابت پکیج برای این دوره'],$bill['mode']??'manual');field('base_toman','مبلغ توافقی',$bill['base_toman']??$net,'number','فقط در حالت توافقی استفاده می‌شود.',true,false,'min="0"');selectfield('discount_id','دسته تخفیف',['0'=>'بدون تخفیف']+options('discount_categories','active=1'),$bill['discount_id']??0);selectfield('package_id','پکیج',['0'=>'انتخاب کنید']+options('packages','active=1 AND deleted=0'),$bill['package_id']??0);field('reason','دلیل ثبت یا تغییر','','textarea','نسخه قبلی و مبلغ جدید در تاریخچه می‌مانند.',true);echo '<p class="hint">در حالت خدمات، فقط تعرفه ذخیره‌شده جلسات انجام‌شده محاسبه می‌شود. انتخاب پکیج مبلغ همین دوره را تعیین می‌کند. تغییر قیمت پکیج یا دسته تخفیف، صورتحساب‌های قبلی را خودکار تغییر نمی‌دهد. تخفیف ثابت حداکثر تا مبلغ صورتحساب اعمال می‌شود.</p>';formend('ثبت صورتحساب','/finance');echo '</section><section class="panel form-panel"><h2>دسته‌های تخفیف</h2>';
   foreach(q('SELECT * FROM discount_categories ORDER BY id')->fetchAll() as $category){formstart('discount_save');hidden('episode_id',$id);hidden('id',$category['id']);field('name','نام دسته',$category['name']);selectfield('kind','نوع',['percent'=>'درصد صحیح','fixed'=>'مبلغ ثابت تومان'],$category['kind']);field('value','مقدار',$category['value'],'number');echo '<label><input type="checkbox" name="active" '.($category['active']?'checked':'').'> فعال</label>';formend('ذخیره دسته','/billing?episode='.$id);}

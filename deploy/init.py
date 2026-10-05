@@ -12,7 +12,7 @@ if not p.exists():
  p.write_text(json.dumps(c));p.chmod(0o600)
 c=json.loads(p.read_text())
 subprocess.run(['mariadb'],input="CREATE DATABASE IF NOT EXISTS masiha_clinic CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;CREATE USER IF NOT EXISTS 'masiha_clinic'@'localhost' IDENTIFIED BY '"+c['db_password']+"';GRANT ALL ON masiha_clinic.* TO 'masiha_clinic'@'localhost';",text=True,check=True)
-for name in ['schema.sql','therapy.sql','portal.sql','otp.sql','admin-v2.sql','import.sql','workflow.sql','appointments.sql','history-reconciliation.sql','billing.sql']:
+for name in ['schema.sql','therapy.sql','portal.sql','otp.sql','admin-v2.sql','import.sql','workflow.sql','appointments.sql','history-reconciliation.sql','billing.sql','operations.sql']:
  subprocess.run(['mariadb','masiha_clinic'],input=(root/'deploy'/name).read_text(),text=True,check=True)
 phpcfg={'dsn':'mysql:host=localhost;dbname=masiha_clinic;charset=utf8mb4','user':'masiha_clinic','password':c['db_password'],'secret':c['secret'],'storage':'/var/lib/masiha-clinic'}
 # PHP var_export avoids quoting mistakes; secrets only through stdin.
