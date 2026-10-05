@@ -63,6 +63,8 @@ try:
         INSERT INTO physio_payments(episode_id,amount_toman,created_by) VALUES(801,500,103);
         """)
     subprocess.run(['mariadb',database],input=(root/'deploy/appointments.sql').read_text(),text=True,check=True)
+    for _ in range(2):
+        subprocess.run(['mariadb',database],input=(root/'deploy/history-reconciliation.sql').read_text()+(root/'deploy/billing.sql').read_text(),text=True,check=True)
     before = sql(f'SELECT id,status,starts_at,ends_at,notes FROM {database}.physio_sessions ORDER BY id')
     migrate(); migrate()
     assert before == sql(f'SELECT id,status,starts_at,ends_at,notes FROM {database}.physio_sessions ORDER BY id')
@@ -248,6 +250,98 @@ try:
     assert json.loads(php(101,'echo json_encode(episodeCompletion(802));'))['done']==10
     print('PASS tenth completed course session excludes absent/cancelled rows, counts beyond pagination and survives result corrections')
 
+    # Imported history is counted only after explicit, versioned identity/visit reconciliation.
+    sql(f"""INSERT INTO {database}.import_records(id,account_key,source_key,run_id,source_page,source_row,payload,payload_hash,bytes,pid)
+      VALUES(501,REPEAT('a',64),REPEAT('b',64),1,1,1,'{{}}',REPEAT('c',64),2,901),
+            (502,REPEAT('a',64),REPEAT('d',64),1,1,2,'{{}}',REPEAT('e',64),2,901),
+            (503,REPEAT('a',64),REPEAT('f',64),1,1,3,'{{}}',REPEAT('f',64),2,902);
+      INSERT INTO {database}.import_patient_events(record_id,event_no,appointment_code,event_date,status_code,notes,services,goods,payload)
+      VALUES(501,1,'۱۲۳','2098-01-01','done','','','','{{}}'),(502,1,'123','2098-01-01','done','','','','{{}}'),
+            (501,2,'456','2099-01-01','done','','','','{{}}'),(501,3,'789','2098-02-01','absent','','','','{{}}'),
+            (501,4,'','2098-03-01','done','','','','{{}}');""")
+    def history():
+        return json.loads(php(101,'echo json_encode(patientCompletedHistory(901));'))
+    def review(group,decision='historical',session=0,version=0,actor=101):
+        code=f"reviewCompletedHistory(901,'{group['source_hash']}','{group['evidence_hash']}',{version},'{decision}',{session},'Verified synthetic source');"
+        return php(actor,code)
+    hist=history();native_count=hist['native']
+    assert hist['pending']==4 and hist['historical']==0 and hist['duplicate_rows']==1 and not hist['complete']
+    groups={g['code']:g for g in hist['groups'].values()}
+    denied(103,f"reviewCompletedHistory(901,'{groups['123']['source_hash']}','{groups['123']['evidence_hash']}',0,'historical',0,'Denied')")
+    review(groups['123']);review(groups['456'],'native',701)
+    hist=history();assert hist['verified_total']==native_count+1 and hist['mapped']==1 and hist['pending']==2
+    denied(101,f"reviewCompletedHistory(901,'{groups['123']['source_hash']}','{groups['123']['evidence_hash']}',0,'exclude',0,'stale')")
+    denied(101,f"reviewCompletedHistory(901,'{groups['123']['source_hash']}','{groups['123']['evidence_hash']}',1,'native',1102,'other patient')")
+    denied(101,f"reviewCompletedHistory(901,'{groups['123']['source_hash']}','{groups['123']['evidence_hash']}',1,'native',701,'duplicate link')")
+    assert sql(f'SELECT COUNT(*) FROM {database}.visit_history_reviews')=='2'
+    # Re-import with changed evidence invalidates the old decision without deleting it.
+    sql(f"UPDATE {database}.import_patient_events SET event_date='2098-01-02' WHERE appointment_code='123'")
+    hist=history();assert hist['historical']==0 and hist['pending']==3
+    # An appointment code assigned to two different patients must never be merged.
+    sql(f"INSERT INTO {database}.import_patient_events(record_id,event_no,appointment_code,event_date,status_code,notes,services,goods,payload) VALUES(503,1,'123','2098-01-01','done','','','','{{}}')")
+    group=next(g for g in history()['groups'].values() if g['code']=='123')
+    assert group['identity_conflict']
+    denied(101,f"reviewCompletedHistory(901,'{group['source_hash']}','{group['evidence_hash']}',1,'historical',0,'conflict')")
+    assert sql(f'SELECT COUNT(*) FROM {database}.visit_history_reviews')=='2'
+    print('PASS imported/native history deduplication, Persian codes, uncoded/changed evidence, stale reviews, identity/permission isolation and immutable audit')
+
+    # Native billing is opt-in, versioned, snapshot-based and independent from imported finance.
+    sql(f"""INSERT INTO {database}.physio_episodes(id,pid,diagnosis,body_region,assessment,goals,precautions,exercises,planned_sessions,fee_toman,created_by)
+        VALUES(803,901,'billing','test','','','','',10,888,101);
+        INSERT INTO {database}.physio_sessions(id,episode_id,therapist_id,starts_at,ends_at,room,treatment,notes,created_by,price_snapshot)
+        VALUES(1200,803,102,'2099-06-01 09:00','2099-06-01 09:30','','','',101,1001),
+              (1201,803,102,'2099-06-02 09:00','2099-06-02 09:30','','','',101,999),
+              (1202,803,102,'2099-06-03 09:00','2099-06-03 09:30','','','',101,500),
+              (1203,803,102,'2099-06-04 09:00','2099-06-04 09:30','','','',101,500);""")
+    denied(103,"discountCategorySave(0,'denied','percent',10,true)")
+    denied(101,"discountCategorySave(0,'bad','percent',101,true)")
+    discount=int(php(101,"echo discountCategorySave(0,'Synthetic discount','percent',10,true);"))
+    denied(103,"billingSave(803,0,'manual',100,0,0,'denied')")
+    php(101,f"billingSave(803,0,'services',0,{discount},0,'Opt into performed service billing');")
+    assert sql(f'SELECT fee_toman FROM {database}.physio_episodes WHERE id=803')=='0'
+    php(102,"workflowTransition(1200,'visited',[],0,['notes'=>'completed']);")
+    assert sql(f'SELECT fee_toman FROM {database}.physio_episodes WHERE id=803')=='901'
+    invoice_version=sql(f'SELECT version FROM {database}.episode_billing WHERE episode_id=803')
+    php(102,"workflowTransition(1200,'visited',[],1,['notes'=>'corrected result']);")
+    assert sql(f'SELECT version FROM {database}.episode_billing WHERE episode_id=803')==invoice_version
+    php(101,f"discountCategorySave({discount},'Changed catalog','percent',50,true);")
+    php(102,"workflowTransition(1201,'visited',[],0,['notes'=>'completed']);")
+    assert sql(f'SELECT fee_toman FROM {database}.physio_episodes WHERE id=803')=='1800'
+    denied(101,"billingSave(803,1,'manual',999,0,0,'stale')")
+    # Two completed visits serialize on the course and neither charge is lost.
+    signal=work/'billing-ready'
+    code="require '"+str(root/'app/bootstrap.php')+"';$_SESSION=['uid'=>102];$db->beginTransaction();workflowTransition(1202,'visited',[],0,['notes'=>'concurrent one']);file_put_contents('"+str(signal)+"','ready');usleep(600000);$db->commit();"
+    job=subprocess.Popen(['php','-r',code],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    try:
+        for _ in range(100):
+            if signal.exists():break
+            if job.poll() is not None:raise AssertionError(job.communicate())
+            time.sleep(.01)
+        assert signal.exists()
+        php(102,"workflowTransition(1203,'visited',[],0,['notes'=>'concurrent two']);")
+        assert job.wait(timeout=5)==0
+    finally:
+        if job.poll() is None:job.kill();job.wait()
+    assert sql(f'SELECT fee_toman FROM {database}.physio_episodes WHERE id=803')=='2700'
+    # A later failure rolls back both the clinical result and derived invoice/audit.
+    sql(f"INSERT INTO {database}.physio_sessions(id,episode_id,therapist_id,starts_at,ends_at,room,treatment,notes,created_by,price_snapshot) VALUES(1204,803,102,'2099-06-05 09:00','2099-06-05 09:30','','','',101,500)")
+    before_billing=sql(f'SELECT COUNT(*) FROM {database}.billing_events')
+    php(102,"try{workflowTransition(1204,'visited',['bad'=>NAN],0,['notes'=>'rollback']);}catch(JsonException $e){echo 'ROLLBACK';}")
+    assert sql(f'SELECT fee_toman FROM {database}.physio_episodes WHERE id=803')=='2700'
+    assert sql(f'SELECT status FROM {database}.physio_sessions WHERE id=1204')=='scheduled'
+    assert sql(f'SELECT COUNT(*) FROM {database}.billing_events')==before_billing
+    assert sql(f'SELECT fee_toman FROM {database}.physio_episodes WHERE id=801')=='0'
+    # Fixed package snapshots do not drift when the catalog changes.
+    sql(f"INSERT IGNORE INTO {database}.package_items(package_id,service_id,quantity) VALUES(1,1,10); UPDATE {database}.packages SET price=5000 WHERE id=1")
+    version=int(sql(f'SELECT version FROM {database}.episode_billing WHERE episode_id=803'))
+    php(101,f"billingSave(803,{version},'package',0,0,1,'Agreed package');")
+    sql(f'UPDATE {database}.packages SET price=9000 WHERE id=1')
+    php(102,"workflowTransition(1204,'visited',[],0,['notes'=>'complete under package']);")
+    assert sql(f'SELECT fee_toman FROM {database}.physio_episodes WHERE id=803')=='5000'
+    assert json.loads(php(101,"echo json_encode(billingAmounts(5,'percent',10));"))['discount_toman']==1
+    assert json.loads(php(101,"echo json_encode(billingAmounts(100,'fixed',200));"))['net_toman']==0
+    print('PASS opt-in native invoices, permissions, discount/package snapshots, rounding, stale forms, concurrent completions and clinical/financial rollback')
+
     # Real staff HTTP paths use CSRF, form versions and assigned-clinician scope.
     php(101, "$hash=password_hash('SyntheticWorkflowPassword123',PASSWORD_DEFAULT);q('UPDATE staff SET password_hash=?',[$hash]);")
     with socket.socket() as probe:
@@ -284,6 +378,28 @@ try:
         assert reception.get(base + '/appointment/catalogs').status_code==403
         assert reception.get(base + '/reports/timing').status_code==403
         admin=login('wf_admin')
+        finance_page=admin.get(base+'/finance')
+        nonce=re.search(r'name="payment_nonce" value="([^"]+)"',finance_page.text)[1]
+        payment_data={'csrf':token(admin,'/finance'),'action':'payment','episode_id':803,'amount_toman':500,'reference':'synthetic','payment_nonce':nonce}
+        response=admin.post(base+'/finance',payment_data)
+        assert response.status_code==200
+        payment_id=int(sql(f'SELECT MAX(id) FROM {database}.physio_payments'))
+        assert sql(f"SELECT COUNT(*) FROM {database}.billing_events WHERE entity_type='payment' AND entity_id={payment_id}")=='1'
+        admin.post(base+'/finance',payment_data)
+        assert sql(f"SELECT COUNT(*) FROM {database}.physio_payments WHERE episode_id=803")=='1'
+        response=reception.post(base+'/finance',{'csrf':token(reception,'/finance'),'action':'payment_edit','id':payment_id,'amount_toman':450,'reason':'denied'})
+        assert response.status_code==403
+        response=admin.post(base+'/finance',{'csrf':token(admin,'/finance'),'action':'payment_edit','id':payment_id,'amount_toman':450,'reason':'synthetic correction'})
+        assert response.status_code==200
+        response=admin.post(base+'/finance',{'csrf':token(admin,'/finance'),'action':'payment_void','id':payment_id,'reason':'synthetic void'})
+        assert response.status_code==200
+        assert sql(f"SELECT COUNT(*) FROM {database}.billing_events WHERE entity_type='payment' AND entity_id={payment_id}")=='3'
+        assert sql(f'SELECT voided FROM {database}.physio_payments WHERE id={payment_id}')=='1'
+        invoice_page=admin.get(base+'/billing?episode=803')
+        assert invoice_page.status_code==200 and 'تاریخچه صورتحساب' in invoice_page.text
+        history_page=admin.get(base+'/visit-history?pid=901')
+        assert history_page.status_code==200 and 'مجموع قطعی' in history_page.text
+        assert reception.get(base+'/visit-history?pid=901').status_code==200
         timing_page=admin.get(base+'/reports/timing?from=2099-03-01&to=2099-03-01')
         assert timing_page.status_code==200 and 'زمان معلوم' in timing_page.text
         csrf = token(reception, '/appointments')
@@ -314,6 +430,7 @@ try:
         assert response.status_code==200 and '/appointments?date=2099-02-01' in response.url
         assert sql(f"SELECT visit_type_id FROM {database}.physio_sessions WHERE starts_at='2099-02-01 10:00:00'")=='1'
         clinician = login('wf_therapist')
+        assert clinician.get(base+'/billing?episode=803').status_code==403
         csrf = token(clinician, '/session?id=704')
         response = clinician.post(base + '/session?id=704', data={'csrf': csrf, 'action': 'session', 'session_id': 704, 'status': 'done',
                                   'pain_before': 6, 'pain_after': 2, 'rom': '115', 'notes': 'HTTP clinical result', 'workflow_version': 1}, timeout=5)
@@ -322,6 +439,7 @@ try:
         other = login('wf_other')
         assert other.get(base + '/api/visit-timeline?session_id=701', timeout=5).status_code == 403
         assert other.get(base + '/visit?id=701').status_code == 403
+        assert other.get(base+'/visit-history?pid=901').status_code==403
         print('PASS HTTP authentication, CSRF, stale forms, timeline privacy and assigned-clinician result path')
     finally:
         server.terminate();server.wait(timeout=5);server_log.close()

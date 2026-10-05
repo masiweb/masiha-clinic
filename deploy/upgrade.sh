@@ -69,6 +69,8 @@ mariadb masiha_clinic < "$ROOT/deploy/admin-v2.sql"
 mariadb masiha_clinic < "$ROOT/deploy/import.sql"
 mariadb masiha_clinic < "$ROOT/deploy/workflow.sql"
 mariadb masiha_clinic < "$ROOT/deploy/appointments.sql"
+mariadb masiha_clinic < "$ROOT/deploy/history-reconciliation.sql"
+mariadb masiha_clinic < "$ROOT/deploy/billing.sql"
 COPY_STARTED=1
 for dir in app public deploy importer; do cp -a "$ROOT/$dir/." "$TARGET/$dir/"; done
 find "$TARGET/app" "$TARGET/public" -type d -exec chmod 755 {} +

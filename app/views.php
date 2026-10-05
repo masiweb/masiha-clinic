@@ -36,7 +36,7 @@ function patientView():void{
  $allocationsBy=[];foreach($sourceAllocations as $x)$allocationsBy[(int)$x['transaction_id']][]=$x;
  $formsBy=[];foreach($formRows as $x){$k=(int)$x['submission_id'];$formsBy[$k]['name']=$x['title'];$formsBy[$k]['submitted_jalali']=$x['source_submitted_jalali'];if($x['label']!==null)$formsBy[$k]['fields'][]=['field_name'=>$x['label'],'field_value'=>$x['value_text'],'field_type'=>$x['field_type']];}
  layout('patients',patientName($p),'پرونده شماره '.fa($pid).' · '.($p['phone_cell']?fa($p['phone_cell']):'شماره همراه ثبت نشده'));?>
- <?php patientExtras($pid,$p);?>
+ <?php patientExtras($pid,$p);if(allowed('appointments')||can('episodes'))echo '<a class="button secondary" href="/visit-history?pid='.$pid.'">تطبیق جلسات انجام‌شده</a>';?>
  <div class="patient-overview panel">
   <div class="person"><span class="large-avatar"><?=e(mb_substr($p['fname'],0,1))?></span><div><h2><?=e(patientName($p))?></h2><p class="muted">شماره پرونده: <?=fa($pid)?> · کد ملی: <?=fa($p['national_id']?:'—')?> · تولد: <?=jd($p['DOB'])?></p></div></div>
   <div class="actions"><?php if(allowed('patients.edit')&&$contactAllowed):?><a class="button secondary" href="/patients/edit?id=<?=$pid?>">ویرایش مشخصات</a><?php endif;?><?php if(can('episodes')):?><a class="button primary" href="/episodes/new?pid=<?=$pid?>"><?=icon('plus')?> دوره درمان جدید</a><?php endif;?></div>
@@ -305,6 +305,7 @@ function visitTimelineView():void{
  $w=$timeline['workflow'];$labels=workflowLabels();
  layout('appointments','گردش مراجعه',patientName($s).' · '.jd($s['starts_at'],'yyyy/MM/dd HH:mm'));
  episodeCompletionNotice((int)$s['episode_id']);
+ if(allowed('finance.debt')||allowed('finance.history')||allowed('finance.edit'))echo '<a class="button secondary" href="/billing?episode='.(int)$s['episode_id'].'">صورتحساب دوره</a>';
  echo '<div class="actions"><a class="button secondary" href="/patient?id='.(int)$s['pid'].'">پرونده مراجعه‌کننده</a><a class="button secondary" href="/appointments">نوبت‌ها</a></div>';
  echo '<section class="panel form-panel"><h2>مرحله فعلی: '.e($labels[$w['state']]).'</h2><dl>';
  foreach(['arrived_at'=>'ورود','called_at'=>'ارجاع','treatment_started_at'=>'شروع درمان','treatment_finished_at'=>'پایان درمان','departed_at'=>'خروج'] as $key=>$title)echo '<dt>'.e($title).'</dt><dd>'.e(isset($w[$key])?jd($w[$key],'yyyy/MM/dd HH:mm:ss'):'ثبت نشده').'</dd>';

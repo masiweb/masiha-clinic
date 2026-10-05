@@ -16,7 +16,7 @@ def bridge(op,**args):
 def php(code):return subprocess.check_output(['php','-r',"require '"+str(root/'app/bootstrap.php')+"';require '"+str(root/'app/import.php')+"';"+code],env=env,text=True)
 try:
  sql('CREATE DATABASE '+db+' CHARACTER SET utf8mb4')
- for f in ['schema.sql','therapy.sql','admin-v2.sql','import.sql','workflow.sql']:
+ for f in ['schema.sql','therapy.sql','admin-v2.sql','import.sql','workflow.sql','history-reconciliation.sql','billing.sql']:
   subprocess.run(['mariadb',db],input=(root/'deploy'/f).read_text(),text=True,check=True)
  key='b'*64
  sql(f"USE {db};INSERT INTO import_runs(account_key,status,hourly_limit,total_limit,storage_mb,created_by) VALUES('{key}','running',2,3,16,1)")

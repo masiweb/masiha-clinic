@@ -63,7 +63,7 @@ function handlePost():never{
   need('finance');$id=num('episode_id',1);$amount=num('amount_toman',-999999999999);if(!$amount)throw new DomainException('مبلغ نمی‌تواند صفر باشد.');
   $nonce=val('payment_nonce',64,true);if(empty($_SESSION['payments'][$nonce]))throw new DomainException('این درخواست پرداخت قبلاً ثبت شده یا منقضی است.');
   $db->beginTransaction();try{$ep=q('SELECT id FROM physio_episodes WHERE id=? FOR UPDATE',[$id])->fetch();if(!$ep)throw new DomainException('دوره پیدا نشد.');if(totalpaid($id)+$amount<0)throw new DomainException('بازگشت وجه نمی‌تواند بیشتر از دریافتی باشد.');
-   q('INSERT INTO physio_payments(episode_id,amount_toman,reference,created_by) VALUES(?,?,?,?)',[$id,$amount,val('reference',100),user()['id']]);audit('payment_recorded',(int)$db->lastInsertId());$db->commit();unset($_SESSION['payments'][$nonce]);
+   q('INSERT INTO physio_payments(episode_id,amount_toman,reference,created_by) VALUES(?,?,?,?)',[$id,$amount,val('reference',100),user()['id']]);$paymentId=(int)$db->lastInsertId();billingAudit('payment',$paymentId,'payment_recorded','ثبت دریافت یا بازگشت وجه',null,q('SELECT * FROM physio_payments WHERE id=?',[$paymentId])->fetch());audit('payment_recorded',$paymentId);$db->commit();unset($_SESSION['payments'][$nonce]);
   }catch(Throwable $ex){if($db->inTransaction())$db->rollBack();throw $ex;}flash('تراکنش مالی ثبت شد.');go('/finance?episode='.$id);
  }
  if($action==='document'){need('patients');$pid=num('pid',1);if(!q('SELECT pid FROM patients WHERE pid=?',[$pid])->fetchColumn())throw new DomainException('بیمار پیدا نشد.');uploadDocument($pid);flash('مدرک به پرونده اضافه شد.');go('/patient?id='.$pid.'&tab=documents');}
