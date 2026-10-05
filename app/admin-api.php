@@ -3,6 +3,14 @@ function adminApi($path):void{global $config;
  if($path==='/theme.css'){header('Content-Type: text/css');$color=setting('theme_color','#087f75');if(!preg_match('/^#[0-9a-f]{6}$/iD',$color))$color='#087f75';echo ':root{--teal:'.$color.';--primary:'.$color.'} .button.primary,.brand-initial{background:'.$color.'} .welcome-banner{background:linear-gradient(120deg,'.$color.',#183e49)}';foreach(['font_id'=>'body,input,select,textarea,button','heading_font_id'=>'h1,h2,h3,.brand'] as $key=>$selector){$id=(int)setting($key,'0');if($id&&q('SELECT id FROM custom_fonts WHERE id=?',[$id])->fetchColumn())echo "@font-face{font-family:custom$id;src:url('/font?id=$id')} $selector{font-family:custom$id,Vazir,sans-serif}";}exit;}
  if($path==='/font'){$r=q('SELECT * FROM custom_fonts WHERE id=?',[(int)($_GET['id']??0)])->fetch();if(!$r){http_response_code(404);exit;}$f=$config['storage'].'/fonts/'.basename($r['filename']);if(!is_file($f)){http_response_code(404);exit;}header('Content-Type: font/'.$r['format']);readfile($f);exit;}
  if(!str_starts_with($path,'/api/'))return;if(!user()){http_response_code(401);exit;}header('Content-Type: application/json; charset=utf-8');
+ if($path==='/api/appointment-slots'){
+  try{
+   $integer=static function($key,$default=0){$v=$_GET[$key]??$default;$n=filter_var($v,FILTER_VALIDATE_INT,['options'=>['min_range'=>0,'max_range'=>999999999]]);if($n===false)throw new DomainException('شناسه معتبر نیست.');return $n;};
+   $date=$_GET['from']??date('Y-m-d');$room=$_GET['room']??'';if(!is_string($date)||!is_string($room)||mb_strlen($room)>100)throw new DomainException('ورودی معتبر نیست.');
+   echo json_encode(['slots'=>appointmentSlotSuggestions($integer('pid'),$integer('therapist'),$integer('clinic',1),$date,$integer('duration',30),$room)],JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
+  }catch(DomainException $ex){http_response_code(400);echo json_encode(['error'=>$ex->getMessage()],JSON_UNESCAPED_UNICODE);}
+  catch(Throwable $ex){http_response_code(500);error_log('Masiha slots '.get_class($ex));echo '{"error":"جستجوی زمان انجام نشد."}';}exit;
+ }
  if($path==='/api/visit-timeline'){
   try{$id=filter_var($_GET['session_id']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);if(!$id)throw new DomainException('شناسه نوبت معتبر نیست.');echo json_encode(workflowTimeline($id),JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);}
   catch(DomainException $ex){http_response_code(403);echo json_encode(['error'=>$ex->getMessage()],JSON_UNESCAPED_UNICODE);}

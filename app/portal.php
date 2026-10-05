@@ -17,6 +17,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $slot=q('SELECT x.* FROM physio_slots x JOIN staff u ON u.id=x.therapist_id AND u.active=1 WHERE x.id=? AND x.enabled=1 AND x.starts_at>NOW() FOR UPDATE',[$id])->fetch();
     $ep=q("SELECT * FROM physio_episodes WHERE id=? AND pid=? AND status='active' FOR UPDATE",[$eid,$pid])->fetch();if(!$slot||!$ep)throw new DomainException('زمان یا دوره انتخاب‌شده دیگر قابل رزرو نیست.');
     if((int)q("SELECT COUNT(*) FROM physio_sessions WHERE episode_id=? AND status IN ('scheduled','done')",[$eid])->fetchColumn()>=(int)$ep['planned_sessions'])throw new DomainException('همه جلسات این دوره رزرو یا انجام شده‌اند.');
+    validateResources($slot['room'],$slot['equipment']);
     if($issue=therapistAvailabilityIssue($slot['starts_at'],$slot['ends_at'],(int)$slot['therapist_id']))throw new DomainException($issue);
     if(conflict($slot['starts_at'],$slot['ends_at'],$slot['therapist_id'],$slot['room'],$slot['equipment'],$pid))throw new DomainException('این زمان دیگر آزاد نیست. زمان دیگری انتخاب کنید.');
     q("INSERT INTO physio_sessions(episode_id,therapist_id,starts_at,ends_at,room,equipment,treatment,notes,created_by) VALUES(?,?,?,?,?,?,'جلسه فیزیوتراپی','',?)",[$eid,$slot['therapist_id'],$slot['starts_at'],$slot['ends_at'],$slot['room'],$slot['equipment'],-$pid]);$sessionId=(int)$db->lastInsertId();workflowBooked($sessionId,'patient');audit('patient_booked',$sessionId);$db->commit();

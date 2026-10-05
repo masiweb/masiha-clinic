@@ -2,10 +2,14 @@
 function appointmentDashboard():void{
  need('appointments');
  try{$f=appointmentFilters($_GET);$r=appointmentResults($f,max(1,(int)($_GET['p']??1)));}catch(DomainException $ex){layout('appointments','نوبت‌ها');echo '<p class="notice">'.e($ex->getMessage()).'</p>';endLayout();return;}
+ $display=displayEffective();
  layout('appointments','نوبت‌های مراجعین','جستجو، پیگیری مراحل مراجعه و برنامه درمانگران');
- echo '<div class="actions"><a class="button primary" href="/appointment/new">ثبت نوبت</a><a class="button secondary" href="/availability">زمان‌های آزاد</a><a class="button secondary" href="/turn-board">تابلو امروز</a>';
+ if(displayVisible($display,'panels','shortcuts')){echo '<div class="actions"><a class="button primary" href="/appointment/new">ثبت نوبت</a><a class="button secondary" href="/availability">زمان‌های آزاد</a><a class="button secondary" href="/turn-board">تابلو امروز</a>';
+ if(allowed('appointments.timing'))echo '<a class="button secondary" href="/reports/timing">گزارش زمان مراجعه</a>';
  if(allowed('services'))echo '<a class="button secondary" href="/appointment/catalogs">نوع ویزیت و تشخیص‌ها</a><a class="button secondary" href="/resources">اتاق‌ها و تجهیزات</a>';
- echo '</div><section class="panel form-panel"><form method="get"><div class="form-grid">';
+ echo '</div>';}
+ echo '<a class="button secondary" href="/display">تنظیم نمایش</a>';
+ if(displayVisible($display,'panels','filters')){echo '<section class="panel form-panel"><form method="get"><div class="form-grid">';
  field('from','از تاریخ',$f['from'],'date');field('to','تا تاریخ',$f['to'],'date');field('q','نام، موبایل یا کد پرونده',$f['q']);
  selectfield('therapist','درمانگر',['0'=>'همه']+array_filter(therapists()),$f['therapist']);
  selectfield('visit_type','نوع ویزیت',['0'=>'همه']+options('visit_types','active=1'),$f['visit_type']);
@@ -19,27 +23,19 @@ function appointmentDashboard():void{
  selectfield('patient_type','سابقه مراجعه در سامانه',[''=>'همه','new'=>'بدون جلسه انجام‌شده قبلی','returning'=>'دارای جلسه انجام‌شده قبلی'],$f['patient_type']);
  selectfield('clinic','کلینیک',['0'=>'همه']+options('clinics','active=1'),$f['clinic']);
  if(allowed('finance.debt'))selectfield('financial','مالی دوره',[''=>'همه','debt'=>'دارای بدهی','settled'=>'بدون بدهی دوره'],$f['financial']);
- echo '</div><div class="form-actions"><button class="button primary">اعمال فیلترها</button><a class="button secondary" href="/appointments">امروز / پاک‌کردن فیلترها</a></div></form></section>';
+ echo '</div><div class="form-actions"><button class="button primary">اعمال فیلترها</button><a class="button secondary" href="/appointments">امروز / پاک‌کردن فیلترها</a></div></form></section>';}
  $stats=array_fill_keys(array_keys(workflowLabels()),0);foreach($r['stats'] as $item)$stats[$item['state']]=(int)$item['n'];
- echo '<div class="stats-grid"><article class="stat-card"><span>مراجعین یکتای بازه</span><strong>'.fa($r['patients']).'</strong></article><article class="stat-card"><span>تمام نوبت‌های بازه</span><strong>'.fa(array_sum($stats)).'</strong></article>';
- foreach(['absent'=>'غایب در مطب','waiting'=>'در انتظار','cancelled'=>'کنسل‌شده','in_service'=>'در حال ویزیت','visited'=>'ویزیت‌شده','discharged'=>'ترخیصی'] as $k=>$title){$url='/appointments?'.http_build_query(array_replace($f,['state'=>$k]));echo '<a class="stat-card" href="'.e($url).'"><span>'.e($title).'</span><strong>'.fa($stats[$k]).'</strong></a>';}echo '</div>';
- echo '<div class="actions">';foreach(q('SELECT id,name FROM labels WHERE active=1 AND deleted=0 ORDER BY name')->fetchAll() as $l)echo '<a class="button secondary" href="'.e('/appointments?'.http_build_query(array_replace($f,['label'=>$l['id']]))).'">#'.e($l['name']).'</a>';echo '</div>';
- echo '<section class="panel"><div class="panel-header"><h2>فهرست مراجعه</h2><span>'.fa($r['count']).' نوبت</span></div><div class="table-scroll"><table><thead><tr><th>اطلاعات مراجعه</th><th>زمان نوبت</th><th>درمانگر</th><th>وضعیت بیمار</th><th>تشخیص‌ها</th><th>پکیج / عملیات</th></tr></thead><tbody>';
- foreach($r['rows'] as $s){
-  echo '<tr><td><a href="/patient?id='.(int)$s['pid'].'">'.e(patientName($s)).'</a><small>پرونده '.fa($s['pid']).' · '.e($s['visit_type_name']??'نوع ویزیت تعیین نشده').'</small>';
-  foreach(q('SELECT l.name FROM labels l WHERE l.id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=? AND sl.label_id=l.id)',[$s['label_id'],$s['id']])->fetchAll() as $label)echo '<span class="badge">#'.e($label['name']).'</span>';
-  echo '</td><td>'.jd($s['starts_at'],'yyyy/MM/dd HH:mm').'<small>تا '.jd($s['ends_at'],'HH:mm').'</small></td><td>'.e($s['therapist_name']).'<small>'.e($s['room']?:'بدون اتاق اختصاصی').'</small></td><td>'.e(workflowLabels()[$s['workflow_state']??workflowInitialState($s)]).'</td><td>';
-  if(appointmentClinicalAllowed($s)){
-   $diagnoses=q('SELECT d.name FROM session_diagnoses sd JOIN diagnoses d ON d.id=sd.diagnosis_id WHERE sd.session_id=? ORDER BY d.name',[$s['id']])->fetchAll(PDO::FETCH_COLUMN);
-   echo e(implode('، ',$diagnoses)?:$s['legacy_diagnosis']);
-  }else echo '—';
-  echo '</td><td>'.e($s['package_name']??'—').'<div class="actions"><a class="button secondary small" href="/visit?id='.(int)$s['id'].'">گردش مراجعه</a><a class="button secondary small" href="/appointment/new?pid='.(int)$s['pid'].'">نوبت بعدی</a></div><details><summary>بیشتر</summary><div class="actions">';
-  echo '<a href="/patient?id='.(int)$s['pid'].'">اطلاعات کامل و مدارک</a><a href="/appointment/details?id='.(int)$s['id'].'">مشخصات مراجعه</a>';
-  if(allowed('patients.edit')&&patientAllowed($s['pid'],'contact'))echo '<a href="/patients/edit?id='.(int)$s['pid'].'">ویرایش مراجعه‌کننده</a>';
-  if(appointmentClinicalAllowed($s))echo '<a href="/session?id='.(int)$s['id'].'">فرم ویزیت</a>';
-  if(allowed('finance.debt')||allowed('finance.history'))echo '<a href="/finance?episode='.(int)$s['episode_id'].'">تراز مالی</a>';
-  echo '</div></details></td></tr>';
- }
+ if(displayVisible($display,'panels','stats')){echo '<div class="stats-grid"><article class="stat-card"><span>مراجعین یکتای بازه</span><strong>'.fa($r['patients']).'</strong></article><article class="stat-card"><span>تمام نوبت‌های بازه</span><strong>'.fa(array_sum($stats)).'</strong></article>';
+ foreach(['absent'=>'غایب در مطب','waiting'=>'در انتظار','cancelled'=>'کنسل‌شده','in_service'=>'در حال ویزیت','visited'=>'ویزیت‌شده','discharged'=>'ترخیصی'] as $k=>$title){$url='/appointments?'.http_build_query(array_replace($f,['state'=>$k]));echo '<a class="stat-card" href="'.e($url).'"><span>'.e($title).'</span><strong>'.fa($stats[$k]).'</strong></a>';}echo '</div>';}
+ if(displayVisible($display,'panels','labels')){echo '<div class="actions">';foreach(q('SELECT id,name FROM labels WHERE active=1 AND deleted=0 ORDER BY name')->fetchAll() as $l)echo '<a class="button secondary" href="'.e('/appointments?'.http_build_query(array_replace($f,['label'=>$l['id']]))).'">#'.e($l['name']).'</a>';echo '</div>';}
+
+ $columns=array_keys(array_filter($display['columns'],static fn($item)=>$item['visible']));
+ echo '<section class="panel"><div class="panel-header"><h2>فهرست مراجعه</h2><span>'.fa($r['count']).' نوبت</span></div>';
+ if(!$columns)echo '<p class="notice">ستونی برای نمایش انتخاب نشده است. از تنظیم نمایش ستون‌ها را انتخاب کنید.</p>';
+ echo '<div class="table-scroll"><table><thead><tr>';
+ foreach($columns as $key)echo '<th data-column="'.e($key).'">'.e(displayOptions()['columns'][$key]).'</th>';
+ echo '</tr></thead><tbody>';
+ foreach($r['rows'] as $s){echo '<tr>';foreach($columns as $key){echo '<td data-column="'.e($key).'">';appointmentCell($key,$s,$display);echo '</td>';}echo '</tr>';}
  echo '</tbody></table></div>';if(!$r['rows'])emptyState('نوبتی با این فیلترها پیدا نشد','بازه تاریخ یا فیلترها را تغییر دهید.');echo '<div class="form-actions">';
  if($r['page']>1)echo '<a class="button secondary" href="'.e('/appointments?'.http_build_query($f+['p'=>$r['page']-1])).'">صفحه قبل</a>';
  echo '<span>صفحه '.fa($r['page']).'</span>';
@@ -73,4 +69,28 @@ function appointmentDetailsView():void{
   echo '</fieldset>';
  }
  echo '</section>';formend('ذخیره با ثبت سابقه','/visit?id='.$id);endLayout();
+}
+
+function appointmentCell(string $key,array $s,array $display):void{
+ switch($key){
+  case 'patient':
+   echo '<a href="/patient?id='.(int)$s['pid'].'">'.e(patientName($s)).'</a><small>پرونده '.fa($s['pid']).' · '.e($s['visit_type_name']??'نوع ویزیت تعیین نشده').'</small>';
+   foreach(q('SELECT l.name FROM labels l WHERE l.id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=? AND sl.label_id=l.id)',[$s['label_id'],$s['id']])->fetchAll() as $label)echo '<span class="badge">#'.e($label['name']).'</span>';
+   break;
+  case 'time': echo jd($s['starts_at'],'yyyy/MM/dd HH:mm').'<small>تا '.jd($s['ends_at'],'HH:mm').'</small>';break;
+  case 'therapist': echo e($s['therapist_name']);if(displayVisible($display,'panels','room'))echo '<small>'.e($s['room']?:'بدون اتاق اختصاصی').'</small>';break;
+  case 'state': echo e(workflowLabels()[$s['workflow_state']??workflowInitialState($s)]);break;
+  case 'diagnoses':
+   if(appointmentClinicalAllowed($s)){
+    $names=q('SELECT d.name FROM session_diagnoses sd JOIN diagnoses d ON d.id=sd.diagnosis_id WHERE sd.session_id=? ORDER BY d.name',[$s['id']])->fetchAll(PDO::FETCH_COLUMN);
+    echo e(implode('، ',$names)?:$s['legacy_diagnosis']);
+   }else echo '—';break;
+  case 'actions':
+   echo e($s['package_name']??'—').'<div class="actions"><a class="button secondary small" href="/visit?id='.(int)$s['id'].'">گردش مراجعه</a><a class="button secondary small" href="/appointment/new?pid='.(int)$s['pid'].'&amp;previous='.(int)$s['id'].'">نوبت بعدی</a></div><details><summary>بیشتر</summary><div class="actions">';
+   echo '<a href="/patient?id='.(int)$s['pid'].'">اطلاعات کامل و مدارک</a><a href="/appointment/details?id='.(int)$s['id'].'">مشخصات مراجعه</a>';
+   if(allowed('patients.edit')&&patientAllowed($s['pid'],'contact'))echo '<a href="/patients/edit?id='.(int)$s['pid'].'">ویرایش مراجعه‌کننده</a>';
+   if(appointmentClinicalAllowed($s))echo '<a href="/session?id='.(int)$s['id'].'">فرم ویزیت</a>';
+   if(allowed('finance.debt')||allowed('finance.history'))echo '<a href="/finance?episode='.(int)$s['episode_id'].'">تراز مالی</a>';
+   echo '</div></details>';break;
+ }
 }

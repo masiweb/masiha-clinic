@@ -47,7 +47,7 @@ def denied(actor, code, patient=False):
 
 try:
     sql('CREATE DATABASE ' + database + ' CHARACTER SET utf8mb4')
-    for name in ['schema.sql', 'therapy.sql', 'admin-v2.sql', 'import.sql']:
+    for name in ['schema.sql', 'therapy.sql', 'portal.sql', 'admin-v2.sql', 'import.sql']:
         subprocess.run(['mariadb', database], input=(root / 'deploy' / name).read_text(), text=True, check=True)
     sql(f"""USE {database};
         INSERT INTO staff(id,username,name,password_hash,role) VALUES
@@ -161,6 +161,93 @@ try:
     assert result['count']==1, 'imported completed visits must prevent new-patient misclassification'
     print('PASS appointment metadata rollback, stale version, diagnosis/package permissions, combined filters and private timeline')
 
+    # Preferences are scoped to the signed-in user; role policy wins over user overrides.
+    as_post="$v=displayDefaults();foreach($v as &$g){foreach($g as &$item){foreach(['visible','allowed','locked'] as $k)if(!$item[$k])unset($item[$k]);}unset($item);}unset($g);"
+    denied(103, "displaySave([],true,'admin')")
+    php(101, as_post+"unset($v['columns']['state']['visible']);$v['columns']['state']['locked']=1;unset($v['columns']['diagnoses']['allowed']);displaySave($v,true,'reception');")
+    php(103, as_post+"unset($v['columns']['patient']['visible']);$v['columns']['time']['order']=1;displaySave($v);")
+    prefs=json.loads(php(103,"echo json_encode(displayEffective());"))
+    assert prefs['columns']['patient']['visible'] is False
+    assert prefs['columns']['state']['visible'] is False and prefs['columns']['state']['locked'] is True
+    assert prefs['columns']['diagnoses']['visible'] is False
+    assert prefs['sidebar']['reports']['visible'] is False
+    other_prefs=json.loads(php(104,"echo json_encode(displayEffective());"))
+    assert other_prefs['columns']['patient']['visible'] is True
+    php(103,"displaySave([],false,'',true);")
+    assert json.loads(php(103,"echo json_encode(displayEffective());"))['columns']['patient']['visible'] is True
+    php(101,"displaySave([],true,'reception',true);")
+    print('PASS isolated display preferences, role locks, reset, forged-policy denial and permission ceiling')
+
+    # Suggestions obey schedules, absence and both therapist/patient/resource conflicts.
+    schedule="['therapist_id'=>102,'clinic_id'=>1,'weekday'=>clinicWeekday('2099-03-01'),'start_time'=>'09:00:00','end_time'=>'12:00:00','effective_from'=>'2099-03-01','effective_to'=>'2099-03-01']"
+    denied(104,'saveTherapistSchedule('+schedule+')')
+    php(101,'saveTherapistSchedule('+schedule+');')
+    denied(101,'saveTherapistSchedule('+schedule+')')
+    php(101,"saveTherapistAbsence(102,'2099-03-01 10:00:00','2099-03-01 11:00:00','Away');")
+    sql(f"INSERT INTO {database}.physio_sessions(id,episode_id,therapist_id,starts_at,ends_at,room,treatment,notes,created_by) VALUES(710,801,102,'2099-03-01 09:00','2099-03-01 09:30','New room','','',103)")
+    slots=json.loads(php(103,"echo json_encode(appointmentSlotSuggestions(901,102,1,'2099-03-01',30,'New room',1));"))
+    assert slots[0]['starts_at']=='2099-03-01 09:30:00'
+    assert all(x['ends_at']<='2099-03-01 10:00:00' or x['starts_at']>='2099-03-01 11:00:00' for x in slots)
+    denied(101,"saveTherapistAbsence(102,'2099-03-01 09:00:00','2099-03-01 09:30:00','Booked interval')")
+    denied(104,"appointmentSlotSuggestions(901,102,1,'2099-03-01',30)")
+    assert json.loads(php(101,"echo json_encode(appointmentSlotSuggestions(901,104,1,'2099-03-02',30,'',1));"))==[]
+    # A concurrent absence waits for a committed booking and then refuses the overlap.
+    signal=work/'booking-lock-ready'
+    lock_code="require '"+str(root/'app/bootstrap.php')+"';$_SESSION=['uid'=>101];schedulingTransaction(function(){q(\"INSERT INTO physio_sessions(id,episode_id,therapist_id,starts_at,ends_at,room,treatment,notes,created_by) VALUES(711,801,102,'2099-03-01 11:00','2099-03-01 11:30','New room','','',101)\");file_put_contents('"+str(signal)+"','ready');usleep(600000);});"
+    booking=subprocess.Popen(['php','-r',lock_code],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    try:
+        for _ in range(100):
+            if signal.exists():break
+            if booking.poll() is not None:raise AssertionError(booking.communicate())
+            time.sleep(.01)
+        assert signal.exists()
+        denied(101,"saveTherapistAbsence(102,'2099-03-01 11:00:00','2099-03-01 11:30:00','Concurrent')")
+        assert booking.wait(timeout=5)==0
+    finally:
+        if booking.poll() is None:booking.kill();booking.wait()
+    # A conflicting copy must not leave any of its earlier inserts behind.
+    php(101,"saveTherapistSchedule(['therapist_id'=>102,'clinic_id'=>1,'weekday'=>clinicWeekday('2099-03-02'),'start_time'=>'09:00:00','end_time'=>'12:00:00','effective_from'=>'2099-03-02','effective_to'=>'2099-03-02']);saveTherapistSchedule(['therapist_id'=>104,'clinic_id'=>1,'weekday'=>clinicWeekday('2099-03-02'),'start_time'=>'10:00:00','end_time'=>'13:00:00','effective_from'=>'2099-03-02','effective_to'=>'2099-03-02']);")
+    denied(101,"copyTherapistSchedule(102,104)")
+    assert sql(f'SELECT COUNT(*) FROM {database}.therapist_schedules WHERE therapist_id=104')=='1'
+    defaults=json.loads(php(103,"echo json_encode(nextAppointmentDefaults(705,901));"))
+    assert defaults['therapist_id']==102 and defaults['room']=='New room'
+    denied(103,"nextAppointmentDefaults(705,902)")
+    print('PASS actual free slots, no invented hours, absence/booking locking race, schedule collision and next-visit ownership')
+
+    # Report excludes unknown/invalid observed durations from averages, with separate permission.
+    sql(f"""INSERT INTO {database}.visit_workflows(session_id,state,arrived_at,treatment_started_at,treatment_finished_at,departed_at)
+        VALUES(710,'discharged','2099-03-01 09:00','2099-03-01 09:10','2099-03-01 09:30','2099-03-01 09:35'),
+              (711,'scheduled',NULL,NULL,NULL,NULL)""")
+    report_query="visitTimingReport(['from'=>'2099-03-01','to'=>'2099-03-01'])"
+    denied(103,report_query)
+    report=json.loads(php(101,'echo json_encode('+report_query+');'))
+    assert int(report['summary']['visits'])==2 and int(report['summary']['waiting_known'])==1
+    assert float(report['summary']['waiting_average'])==600 and float(report['summary']['treatment_average'])==1200
+    assert float(report['summary']['total_average'])==2100 and report['rows'][1]['total_seconds'] is None
+    sql(f"UPDATE {database}.visit_workflows SET arrived_at='2099-03-01 11:30',treatment_started_at='2099-03-01 11:00' WHERE session_id=711")
+    report=json.loads(php(101,'echo json_encode('+report_query+');'))
+    assert int(report['summary']['waiting_known'])==1 and report['rows'][1]['waiting_seconds'] is None
+    php(101,"$p=defaultsFor('therapist');$p['appointments.timing']=true;q('INSERT INTO staff_permissions(staff_id,permissions) VALUES(?,?)',[104,json_encode($p)]);")
+    report=json.loads(php(104,"echo json_encode(visitTimingReport(['from'=>'2099-03-01','to'=>'2099-03-01','therapist'=>102]));"))
+    assert int(report['summary']['visits'])==0 and report['f']['therapist']==104
+    sql(f'DELETE FROM {database}.staff_permissions WHERE staff_id=104')
+    print('PASS timing report range, real durations, unknown/invalid exclusion and independent permission/therapist scope')
+
+    # The tenth-session milestone counts completed rows in this course, not absence/cancellation/events.
+    sql(f"INSERT INTO {database}.physio_episodes(id,pid,diagnosis,body_region,assessment,goals,precautions,exercises,planned_sessions,created_by) VALUES(802,902,'count','test','','','','',120,101)")
+    for i in range(103):
+        status='done' if i<9 else ('absent' if i%2 else 'cancelled')
+        sql(f"INSERT INTO {database}.physio_sessions(id,episode_id,therapist_id,starts_at,ends_at,room,treatment,notes,created_by,status) VALUES({1000+i},802,101,'2099-05-01 09:00','2099-05-01 09:30','','','',101,'{status}')")
+    progress=json.loads(php(101,'echo json_encode(episodeCompletion(802));'))
+    assert progress['done']==9 and not progress['tenth_reached']
+    denied(104,'episodeCompletion(802)')
+    sql(f"UPDATE {database}.physio_sessions SET status='done' WHERE id=1102")
+    progress=json.loads(php(101,'echo json_encode(episodeCompletion(802));'))
+    assert progress['done']==10 and progress['remaining']==110 and progress['tenth_reached']
+    php(101,"workflowTransition(1102,'visited',[],null,['notes'=>'correction']);workflowTransition(1102,'visited',[],null,['notes'=>'second correction']);")
+    assert json.loads(php(101,'echo json_encode(episodeCompletion(802));'))['done']==10
+    print('PASS tenth completed course session excludes absent/cancelled rows, counts beyond pagination and survives result corrections')
+
     # Real staff HTTP paths use CSRF, form versions and assigned-clinician scope.
     php(101, "$hash=password_hash('SyntheticWorkflowPassword123',PASSWORD_DEFAULT);q('UPDATE staff SET password_hash=?',[$hash]);")
     with socket.socket() as probe:
@@ -195,6 +282,10 @@ try:
         assert page.status_code==200 and 'PRIVATE_DIAGNOSIS' not in page.text
         assert reception.get(base + '/appointment/details?id=705').status_code==200
         assert reception.get(base + '/appointment/catalogs').status_code==403
+        assert reception.get(base + '/reports/timing').status_code==403
+        admin=login('wf_admin')
+        timing_page=admin.get(base+'/reports/timing?from=2099-03-01&to=2099-03-01')
+        assert timing_page.status_code==200 and 'زمان معلوم' in timing_page.text
         csrf = token(reception, '/appointments')
         data = {'csrf': csrf, 'action': 'visit_state', 'session_id': 704, 'state': 'waiting', 'workflow_version': 0, 'clinic_id': 0}
         response = reception.post(base + '/appointments', data={**data, 'csrf': 'invalid'}, timeout=5)
@@ -205,6 +296,19 @@ try:
         assert 'صفحه را تازه کنید' in response.text
         timeline = reception.get(base + '/api/visit-timeline?session_id=701', timeout=5).json()
         assert 'after_result' not in timeline['events'][-1]['details']
+        slots_response=reception.get(base+'/api/appointment-slots?pid=901&therapist=102&clinic=1&from=2099-03-01&duration=30&room=New%20room')
+        assert slots_response.status_code==200 and slots_response.json()['slots'][0]['starts_at']=='2099-03-01 09:30:00'
+        next_page=reception.get(base+'/appointment/new?pid=901&previous=705')
+        assert next_page.status_code==200 and 'data-find-slots' in next_page.text and 'ثبت سریع' in next_page.text
+        display_csrf=token(reception,'/display')
+        response=reception.post(base+'/display',data={'csrf':display_csrf,'action':'display_save','policy':'1','role':'admin'})
+        assert 'فقط برای مدیر' in response.text
+        assert sql(f"SELECT COUNT(*) FROM {database}.settings WHERE `key`='display.policy.admin'")=='0'
+        response=reception.post(base+'/display',data={'csrf':display_csrf,'action':'display_save','policy':'0','role':'reception','display[columns][time][visible]':'on','display[columns][time][order]':'1'})
+        page=reception.get(base+'/appointments?from=2099-01-01&to=2099-01-31')
+        assert '<th data-column="time">' in page.text and '<th data-column="patient">' not in page.text
+        assert 'href="/display"' in page.text
+        reception.post(base+'/display',data={'csrf':display_csrf,'action':'display_save','policy':'0','role':'reception','reset':'1'})
         booking_csrf=token(reception,'/appointment/new')
         response=reception.post(base+'/appointment/new',data={'csrf':booking_csrf,'action':'book_v2','pid':901,'therapist_id':102,'visit_type_id':1,'date':'2099-02-01','time':'10:00','duration':30,'clinic_id':1,'label_id':0,'service_id':0,'tariff_id':0,'episode_id':0,'room':'','equipment':'','notes':''})
         assert response.status_code==200 and '/appointments?date=2099-02-01' in response.url

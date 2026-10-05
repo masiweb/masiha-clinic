@@ -1,6 +1,20 @@
 <?php
 declare(strict_types=1);
 
+/** Count completed session rows, never result-event revisions or displayed page rows. */
+function episodeCompletion(int $id):array{
+ $ep=q('SELECT id,pid,planned_sessions FROM physio_episodes WHERE id=?',[$id])->fetch();
+ if(!$ep||!user()||!patientAllowed($ep['pid'])||(!allowed('appointments')&&!can('episodes')))throw new DomainException('به این دوره دسترسی ندارید.');
+ $done=(int)q("SELECT COUNT(*) FROM physio_sessions WHERE episode_id=? AND status='done'",[$id])->fetchColumn();
+ return ['done'=>$done,'planned'=>(int)$ep['planned_sessions'],'remaining'=>max(0,(int)$ep['planned_sessions']-$done),'tenth_reached'=>$done>=10];
+}
+
+function episodeCompletionNotice(int $id):void{
+ $progress=episodeCompletion($id);
+ if($progress['tenth_reached'])echo '<p class="notice" role="status">جلسه دهم انجام‌شدهٔ این دوره ثبت شده است؛ '.fa($progress['done']).' جلسه تکمیل شده. ارزیابی پیشرفت بیمار را بررسی کنید.</p>';
+ elseif($progress['done']===9)echo '<p class="notice" role="status">۹ جلسه این دوره انجام شده است؛ جلسه انجام‌شدهٔ بعدی، جلسه دهم خواهد بود.</p>';
+}
+
 function workflowLabels():array{return ['scheduled'=>'نوبت ثبت‌شده','referred'=>'ارجاعی','waiting'=>'منتظر','in_service'=>'در حال ویزیت','visited'=>'ویزیت‌شده','discharged'=>'ترخیصی','absent'=>'غایب','cancelled'=>'کنسلی'];}
 
 
