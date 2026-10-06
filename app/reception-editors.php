@@ -65,8 +65,11 @@ function receptionEditor(array $s,string $kind,string $title):void{
  if($kind==='diagnoses'&&!$names&&!empty($s['legacy_diagnosis']))$names[]=$s['legacy_diagnosis'];
  $summary=$kind==='notes'?trim($s['reception_notes']??''):implode('، ',$names);
  if(!$editable){echo '<span class="row-selection-text">'.e($summary?:'ثبت نشده').'</span>';return;}
- ?><details class="row-editor editor-<?=e($kind)?>" data-row-editor><summary aria-label="<?=e($title)?>" title="<?=e($title.($summary!==''?' — '.$summary:''))?>"><span class="editor-symbol" aria-hidden="true"><?= $kind==='labels'?'#':icon(match($kind){'diagnoses'=>'heart','packages'=>'box',default=>'file'}) ?></span><?php if($kind!=='notes'&&count($selected)): ?><span class="editor-count"><?=fa(count($selected))?></span><?php elseif($summary!==''): ?><span class="editor-dot" aria-hidden="true">•</span><?php endif; ?></summary>
- <?php if($kind==='diagnoses'||$kind==='packages'): ?><span class="editor-values"><?=e($summary)?></span><?php endif; ?>
+ if($kind==='diagnoses'||$kind==='packages'){
+  echo '<ul class="reception-selected-values">';foreach($names as $name)echo '<li>'.e($name).'</li>';echo '</ul>';
+ }
+ ?><details class="row-editor editor-<?=e($kind)?>" data-row-editor><summary aria-label="<?=e($title)?>" title="<?=e($title.($summary!==''?' — '.$summary:''))?>"><span class="editor-symbol" aria-hidden="true"><?= $kind==='labels'?'#':icon(match($kind){'diagnoses'=>'heart','packages'=>'box',default=>'pen'}) ?></span><?php if($kind!=='notes'&&count($selected)): ?><span class="editor-count"><?=fa(count($selected))?></span><?php elseif($summary!==''): ?><span class="editor-dot" aria-hidden="true">•</span><?php endif; ?></summary>
+
  <form method="post" class="row-editor-body">
  <?php csrf();hidden('action','reception_update');hidden('session_id',$id);hidden('workflow_version',(int)($s['workflow_version']??0));hidden('kind',$kind); ?>
  <strong><?=e($title)?></strong><p class="editor-caption"><?=e(patientName($s))?> · <?=jd($s['starts_at'],'HH:mm')?></p>

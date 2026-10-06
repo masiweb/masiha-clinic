@@ -59,7 +59,7 @@ function adminAction($a):bool{global $db,$config;if(importAction($a))return true
   $expected=isset($_POST['workflow_version'])?num('workflow_version'):null;
   workflowTransition($id,$target,['reason'=>val('reason',1000)],$expected);
   if(in_array($target,['absent','cancelled','discharged'],true))MasihaSms::safely(fn()=>MasihaSms::cancelSession($id));
-  flash('مرحله مراجعه با ثبت سابقه به‌روز شد.');if(($_POST['return_visit']??'')==='1')go('/visit?id='.$id);$clinic=num('clinic_id');go('/turn-board'.($clinic?'?clinic='.$clinic:''));
+  flash('مرحله مراجعه با ثبت سابقه به‌روز شد.');if(($_POST['return_appointments']??'')==='1')go('/appointments?'.http_build_query(appointmentFilters($_GET)));if(($_POST['return_visit']??'')==='1')go('/visit?id='.$id);$clinic=num('clinic_id');go('/turn-board'.($clinic?'?clinic='.$clinic:''));
  }
  if($a==='absence_save'||$a==='absence_delete'){
   demand('appointments');if($a==='absence_delete')disableScheduleRecord('absence',num('id',1));

@@ -150,3 +150,19 @@
 .row-editor-body { margin-top: 7px; border-radius: 12px; border-top: 1px solid #dbe5ed; }
 .patient-visit-labels { padding: 16px; margin-bottom: 16px; }
 .patient-visit-labels .badge { margin: 4px; }
+
+.reception-patient-heading,.reception-tag-line,.reception-row-actions,.reception-therapist { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.reception-patient-heading>a:first-child { font-weight:700; }
+.reception-tag-values { display:flex; flex-wrap:wrap; gap:5px; }
+.reception-tag-values .badge { background:#eef7e9; color:#397246; border:1px solid #d5e8ce; }
+.reception-admission-note { margin-top:6px; padding:6px 9px; border-inline-start:3px solid #dfb953; background:#fffbee; color:#67572f; white-space:normal; overflow-wrap:anywhere; font-size:12px; line-height:1.8; max-width:380px; }
+.reception-selected-values { margin:0 0 5px; padding-inline-start:17px; line-height:1.9; white-space:normal; }
+.reception-time { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.visit-type-chip { display:inline-block; margin-top:4px; padding:3px 10px; background:#fff1de; color:#92570d; border-radius:20px; font-size:11px; }
+.reception-therapist svg,.row-action-icon svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7; }
+.reception-therapist { color:#675799; }
+.reception-state-menu>summary { cursor:pointer; list-style:none; }
+.reception-state-menu .text-link { display:block; margin-top:8px; }
+.row-action-icon { display:inline-flex; padding:7px; border-radius:9px; background:#f1f6fa; color:#47677e; }
+.row-action-icon:hover,.row-action-icon:focus-visible { background:var(--editor-bg,#e0edf5); outline:2px solid #86a6ba; }
+.reception-list td { vertical-align:top; }

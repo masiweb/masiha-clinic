@@ -579,6 +579,22 @@ try:
         response=reception.post(base+'/appointments?from=2099-01-01&to=2099-01-31',data=payload)
         assert response.status_code==200 and 'from=2099-01-01' in response.url
         assert sql(f"SELECT reception_notes FROM {database}.physio_sessions WHERE id=705")=='Edited reception note'
+        visible=reception.get(base+'/appointments?from=2099-01-01&to=2099-01-31').text
+        assert '<div class="reception-admission-note">Edited reception note</div>' in visible
+        # Saved values must sit outside collapsed details, not only in tooltips/forms.
+        from html.parser import HTMLParser
+        class VisibleValues(HTMLParser):
+            def __init__(self):
+                super().__init__();self.depth=0;self.values=[]
+            def handle_starttag(self,tag,attrs):
+                if tag=='details':self.depth+=1
+            def handle_endtag(self,tag):
+                if tag=='details':self.depth-=1
+            def handle_data(self,data):
+                if self.depth==0:self.values.append(data)
+        parsed=VisibleValues();parsed.feed(visible)
+        assert 'Second package' in ''.join(parsed.values) and 'Edited reception note' in ''.join(parsed.values)
+
         response=reception.post(base+'/appointments',data={**payload,'csrf':'invalid','notes':'must not save'})
         assert response.status_code==403
         assert sql(f"SELECT reception_notes FROM {database}.physio_sessions WHERE id=705")=='Edited reception note'

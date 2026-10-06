@@ -109,19 +109,27 @@ function appointmentDetailsView():void{
 function appointmentCell(string $key,array $s,array $display):void{
  switch($key){
   case 'patient':
-   echo '<a href="/patient?id='.(int)$s['pid'].'">'.e(patientName($s)).'</a><small>پرونده '.fa($s['pid']).' · '.e($s['visit_type_name']??'نوع ویزیت تعیین نشده').'</small>';
-   foreach(q('SELECT l.name FROM labels l WHERE l.id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=? AND sl.label_id=l.id)',[$s['label_id'],$s['id']])->fetchAll() as $label)echo '<span class="badge">#'.e($label['name']).'</span>';
-   echo '<div class="patient-row-tools">';
+   echo '<div class="reception-patient-heading"><a href="/patient?id='.(int)$s['pid'].'">'.e(patientName($s)).'</a>';
    if(can('finance'))echo '<a class="settlement-link" href="/finance?episode='.(int)$s['episode_id'].'" aria-label="تسویه حساب '.e(patientName($s)).'" title="تسویه حساب">$</a>';
-   receptionEditor($s,'labels','هشتگ‌ها');receptionEditor($s,'notes','توضیحات پذیرش');echo '</div>';
+   echo '</div><small>پرونده '.fa($s['pid']).'</small><div class="reception-tag-line"><div class="reception-tag-values">';
+   foreach(q('SELECT l.name FROM labels l WHERE l.id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=? AND sl.label_id=l.id)',[$s['label_id'],$s['id']])->fetchAll() as $label)echo '<span class="badge">#'.e($label['name']).'</span>';
+   echo '</div><div class="patient-row-tools">';receptionEditor($s,'labels','هشتگ‌ها');receptionEditor($s,'notes','یادداشت پذیرش');echo '</div></div>';
+   if(trim($s['reception_notes']??'')!=='')echo '<div class="reception-admission-note">'.nl2br(e($s['reception_notes'])).'</div>';
    break;
 
-  case 'time': echo jd($s['starts_at'],'yyyy/MM/dd HH:mm').'<small>تا '.jd($s['ends_at'],'HH:mm').'</small>';break;
-  case 'therapist': echo e($s['therapist_name']);if(displayVisible($display,'panels','room'))echo '<small>'.e($s['room']?:'بدون اتاق اختصاصی').'</small>';break;
-  case 'state': $state=$s['workflow_state']??workflowInitialState($s);echo '<a class="visit-state state-'.e($state).'" href="/visit?id='.(int)$s['id'].'">'.e(workflowLabels()[$state]).'</a>';break;
-  case 'diagnoses': receptionEditor($s,'diagnoses','تشخیص‌ها');break;
+  case 'time': echo '<strong class="reception-time">'.jd($s['starts_at'],'HH:mm').'–'.jd($s['ends_at'],'HH:mm').'</strong><small>'.jd($s['starts_at'],'yyyy/MM/dd').'</small><span class="visit-type-chip">'.e($s['visit_type_name']??'نوع ویزیت تعیین نشده').'</span>';break;
+  case 'therapist': echo '<span class="reception-therapist">'.icon('users').e($s['therapist_name']).'</span>';if(displayVisible($display,'panels','room'))echo '<small>'.e($s['room']?:'بدون اتاق اختصاصی').'</small>';break;
+  case 'state':
+   $state=$s['workflow_state']??workflowInitialState($s);$next=array_values(array_diff(workflowNextStates()[$state],['visited']));
+   echo '<details class="reception-state-menu"><summary class="visit-state state-'.e($state).'" title="تغییر وضعیت مراجعه">'.e(workflowLabels()[$state]).' ⌄</summary>';
+   if($next&&allowed('appointments')&&(user()['role']!=='therapist'||(int)$s['therapist_id']===(int)user()['id'])){
+    echo '<form method="post" class="row-editor-body">';csrf();hidden('action','visit_state');hidden('session_id',$s['id']);hidden('workflow_version',$s['workflow_version']);hidden('return_appointments',1);hidden('clinic_id',0);
+    selectfield('state','مرحله بعد',array_intersect_key(workflowLabels(),array_flip($next)),$next[0]);echo '<button type="submit" class="button primary small">ثبت وضعیت</button></form>';
+   }
+   echo '<a class="text-link" href="/visit?id='.(int)$s['id'].'">تاریخچه و گردش مراجعه</a></details>';break;
+  case 'diagnoses': receptionEditor($s,'diagnoses','تشخیص‌ها');if(appointmentClinicalAllowed($s)&&!empty($s['service_id'])){$service=q('SELECT name FROM services WHERE id=?',[$s['service_id']])->fetchColumn();if($service)echo '<small class="reception-service">'.e($service).'</small>';}break;
   case 'actions':
-   receptionEditor($s,'packages','پکیج‌های درمانی');echo '<div class="actions"><a class="button secondary small" href="/visit?id='.(int)$s['id'].'">گردش مراجعه</a><a class="button secondary small" href="/appointment/new?pid='.(int)$s['pid'].'&amp;previous='.(int)$s['id'].'">نوبت بعدی</a></div><details><summary>بیشتر</summary><div class="actions">';
+   receptionEditor($s,'packages','پکیج‌های درمانی');echo '<div class="reception-row-actions"><a class="row-action-icon" title="گردش مراجعه" aria-label="گردش مراجعه" href="/visit?id='.(int)$s['id'].'">'.icon('arrow').'</a><a class="row-action-icon" title="نوبت بعدی" aria-label="نوبت بعدی" href="/appointment/new?pid='.(int)$s['pid'].'&amp;previous='.(int)$s['id'].'">'.icon('calendar').'</a></div><details><summary title="عملیات بیشتر" aria-label="عملیات بیشتر">⋯</summary><div class="actions">';
    echo '<a href="/patient?id='.(int)$s['pid'].'">اطلاعات کامل و مدارک</a><a href="/appointment/details?id='.(int)$s['id'].'">مشخصات مراجعه</a>';
    if(allowed('patients.edit')&&patientAllowed($s['pid'],'contact'))echo '<a href="/patients/edit?id='.(int)$s['pid'].'">ویرایش مراجعه‌کننده</a>';
    if(appointmentClinicalAllowed($s))echo '<a href="/session?id='.(int)$s['id'].'">فرم ویزیت</a>';

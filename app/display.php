@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 function displayOptions():array{return [
- 'columns'=>['patient'=>'اطلاعات مراجعه','time'=>'زمان نوبت','therapist'=>'درمانگر','state'=>'وضعیت بیمار','diagnoses'=>'تشخیص‌ها','actions'=>'پکیج / عملیات'],
+ 'columns'=>['patient'=>'اطلاعات مراجعه','time'=>'زمان نوبت','therapist'=>'درمانگر','state'=>'وضعیت بیمار','diagnoses'=>'تشخیص‌ها','actions'=>'پکیج‌های درمانی'],
  'panels'=>['filters'=>'فیلترهای نوبت‌ها','stats'=>'آمار نوبت‌ها','labels'=>'هشتگ‌ها','room'=>'اتاق در فهرست نوبت‌ها','shortcuts'=>'میانبرهای نوبت‌ها','timeline'=>'Timeline مراجعه'],
  'sidebar'=>['dashboard'=>'نمای کلی','appointments'=>'نوبت‌ها','patients'=>'بیماران','episodes'=>'دوره‌های درمان','finance'=>'مالی','reports'=>'گزارش‌ها','staff'=>'همکاران','services'=>'خدمات و پکیج‌ها','inventory'=>'انبار','sms'=>'پیامک','labels'=>'لیبل‌ها','forms'=>'فرم‌ها','resources'=>'اتاق‌ها و تجهیزات','imports'=>'انتقال بقراط','settings'=>'تنظیمات']
 ];}
