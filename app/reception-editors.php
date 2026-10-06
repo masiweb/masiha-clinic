@@ -18,11 +18,12 @@ function receptionUpdate(int $id,int $version,string $kind,array $input):void{
   if($kind==='diagnoses'&&!receptionDiagnosisEdit($s))throw new DomainException('ثبت تشخیص فقط برای درمانگر مسئول یا مدیر مجاز است.');
   workflowEnsure($s);$w=q('SELECT * FROM visit_workflows WHERE session_id=? FOR UPDATE',[$id])->fetch();
   if((int)$w['version']!==$version)throw new DomainException('این مراجعه تغییر کرده است. صفحه را تازه کنید و دوباره ذخیره کنید.');
-  $event=['actor_name'=>user()['name']];
+  $event=['actor_name'=>user()['name'],'change_kind'=>$kind];
   if($kind==='notes'){
    $note=$input['notes']??'';
    if(!is_string($note)||mb_strlen($note)>5000)throw new DomainException('توضیحات پذیرش حداکثر ۵۰۰۰ نویسه است.');
    $event['before_reception_notes']=$s['reception_notes']??'';$event['after_reception_notes']=trim($note);
+   if($event['before_reception_notes']===$event['after_reception_notes']){$db->commit();return;}
    q('UPDATE physio_sessions SET reception_notes=? WHERE id=?',[trim($note),$id]);
   }else{
    [$table,$column,$catalog]=match($kind){'labels'=>['session_labels','label_id','labels'],'diagnoses'=>['session_diagnoses','diagnosis_id','diagnoses'],'packages'=>['session_packages','package_id','packages']};
@@ -39,10 +40,12 @@ function receptionUpdate(int $id,int $version,string $kind,array $input):void{
     $n=(int)q('SELECT id FROM diagnoses WHERE name=? AND active=1',[$new])->fetchColumn();if(!$n)throw new DomainException('این تشخیص غیرفعال است؛ با مدیر هماهنگ کنید.');$ids[$n]=$n;
    }
    if(count($ids)>30)throw new DomainException('حداکثر ۳۰ مورد انتخاب کنید.');
+   $sorted=array_values($ids);sort($sorted);if($sorted===$old){$db->commit();return;}
    q("DELETE FROM $table WHERE session_id=?",[$id]);foreach($ids as $n)q("INSERT INTO $table(session_id,$column) VALUES(?,?)",[$id,$n]);
    if($kind==='labels')q('UPDATE physio_sessions SET label_id=? WHERE id=?',[array_values($ids)[0]??null,$id]);
    if($kind==='packages')q('UPDATE physio_sessions SET package_id=? WHERE id=?',[array_values($ids)[0]??null,$id]);
    $event['before_'.$kind]=$old;$event['after_'.$kind]=array_values($ids);
+   $event['before_'.$kind.'_names']=receptionNames($kind,$old);$event['after_'.$kind.'_names']=receptionNames($kind,array_values($ids));
   }
   q('UPDATE visit_workflows SET version=version+1,updated_at=NOW() WHERE session_id=?',[$id]);
   q("INSERT INTO visit_events(session_id,version,event_type,from_state,to_state,actor_id,source,details) VALUES(?,?,'appointment_updated',?,?,?,'staff',?)",[$id,$version+1,$w['state'],$w['state'],user()['id'],json_encode($event,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)]);
@@ -62,10 +65,11 @@ function receptionEditor(array $s,string $kind,string $title):void{
  if($kind==='diagnoses'&&!$names&&!empty($s['legacy_diagnosis']))$names[]=$s['legacy_diagnosis'];
  $summary=$kind==='notes'?trim($s['reception_notes']??''):implode('، ',$names);
  if(!$editable){echo '<span class="row-selection-text">'.e($summary?:'ثبت نشده').'</span>';return;}
- ?><details class="row-editor editor-<?=e($kind)?>" data-row-editor><summary><span class="editor-symbol"><?=match($kind){'labels'=>'#','diagnoses'=>'+','packages'=>'▦',default=>'✎'}?></span><span><strong><?=e($title)?></strong><small><?=e($summary!==''?mb_strimwidth($summary,0,85,'…'):'انتخاب / افزودن')?></small></span><span class="editor-chevron">⌄</span></summary>
+ ?><details class="row-editor editor-<?=e($kind)?>" data-row-editor><summary aria-label="<?=e($title)?>" title="<?=e($title.($summary!==''?' — '.$summary:''))?>"><span class="editor-symbol" aria-hidden="true"><?= $kind==='labels'?'#':icon(match($kind){'diagnoses'=>'heart','packages'=>'box',default=>'file'}) ?></span><?php if($kind!=='notes'&&count($selected)): ?><span class="editor-count"><?=fa(count($selected))?></span><?php elseif($summary!==''): ?><span class="editor-dot" aria-hidden="true">•</span><?php endif; ?></summary>
+ <?php if($kind==='diagnoses'||$kind==='packages'): ?><span class="editor-values"><?=e($summary)?></span><?php endif; ?>
  <form method="post" class="row-editor-body">
  <?php csrf();hidden('action','reception_update');hidden('session_id',$id);hidden('workflow_version',(int)($s['workflow_version']??0));hidden('kind',$kind); ?>
- <p class="editor-caption"><?=e(patientName($s))?> · <?=jd($s['starts_at'],'HH:mm')?></p>
+ <strong><?=e($title)?></strong><p class="editor-caption"><?=e(patientName($s))?> · <?=jd($s['starts_at'],'HH:mm')?></p>
  <?php if($kind==='notes'): ?>
  <label for="reception-notes-<?=$id?>">توضیحات پذیرش</label><textarea id="reception-notes-<?=$id?>" name="notes" rows="4" maxlength="5000" placeholder="توضیح موردنیاز پذیرش را بنویسید…"><?=e($s['reception_notes']??'')?></textarea><p class="hint">ویرایش‌ها با حفظ سابقه ذخیره می‌شوند.</p>
  <?php else: ?>
@@ -78,4 +82,30 @@ function receptionEditor(array $s,string $kind,string $title):void{
  <?php if($kind==='packages'): ?><p class="hint">این انتخاب برای برنامه درمان مراجعه است. مبلغ صورتحساب در بخش مالی تعیین می‌شود.</p><?php endif; ?>
  <?php endif; ?><div class="editor-actions"><button type="submit" class="button primary small">ذخیره</button><button type="button" class="button secondary small" data-editor-cancel>انصراف</button></div>
  </form></details><?php
+}
+
+/** Resolve old ID-only events, while new events retain names at edit time. */
+function receptionNames(string $kind,array $ids):array{
+ $table=match($kind){'labels'=>'labels','diagnoses'=>'diagnoses','packages'=>'packages'};
+ $out=[];foreach($ids as $id)$out[]=q("SELECT name FROM $table WHERE id=?",[(int)$id])->fetchColumn()?:'مورد حذف‌شده #'.(int)$id;
+ return $out;
+}
+function receptionEventChanges(array $d):array{
+ $changes=[];
+ foreach(['labels'=>'هشتگ','diagnoses'=>'تشخیص','packages'=>'پکیج درمانی'] as $kind=>$caption){
+  if(!array_key_exists('after_'.$kind,$d))continue;
+  $before=$d['before_'.$kind]??[];$after=$d['after_'.$kind];
+  $bn=$d['before_'.$kind.'_names']??receptionNames($kind,$before);$an=$d['after_'.$kind.'_names']??receptionNames($kind,$after);
+  $added=[];$removed=[];foreach($after as $i=>$id)if(!in_array($id,$before))$added[]=$an[$i];foreach($before as $i=>$id)if(!in_array($id,$after))$removed[]=$bn[$i];
+  if($added)$changes[]=['title'=>'افزودن '.$caption,'value'=>implode('، ',$added)];
+  if($removed)$changes[]=['title'=>'حذف '.$caption,'value'=>implode('، ',$removed)];
+ }
+ if(array_key_exists('after_reception_notes',$d)&&($d['before_reception_notes']??'')!==$d['after_reception_notes']){
+  $changes[]=['title'=>'توضیحات پذیرش — قبل','value'=>$d['before_reception_notes']?:'خالی'];
+  $changes[]=['title'=>'توضیحات پذیرش — بعد','value'=>$d['after_reception_notes']?:'خالی'];
+ }
+ return $changes;
+}
+function patientVisitLabels(int $pid):array{
+ return q('SELECT DISTINCT l.id,l.name FROM labels l WHERE l.id=(SELECT label_id FROM patients WHERE pid=?) OR EXISTS(SELECT 1 FROM physio_episodes e JOIN physio_sessions s ON s.episode_id=e.id LEFT JOIN session_labels sl ON sl.session_id=s.id WHERE e.pid=? AND (sl.label_id=l.id OR s.label_id=l.id)) ORDER BY l.name',[$pid,$pid])->fetchAll();
 }

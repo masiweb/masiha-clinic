@@ -583,6 +583,34 @@ try:
         assert response.status_code==403
         assert sql(f"SELECT reception_notes FROM {database}.physio_sessions WHERE id=705")=='Edited reception note'
 
+        # Round-trip labels through real forms, patient profile/filter and readable history.
+        current=int(sql(f"SELECT version FROM {database}.visit_workflows WHERE session_id=705"))
+        tag_payload={'csrf':token(reception,'/appointments'),'action':'reception_update','session_id':705,'workflow_version':current,'kind':'labels','selection[]':'1'}
+        saved=reception.post(base+'/appointments?from=2099-01-01&to=2099-01-31',data=tag_payload)
+        assert saved.status_code==200 and '#Label' in saved.text
+        assert sql(f"SELECT label_id FROM {database}.session_labels WHERE session_id=705")=='1'
+        pid=sql(f"SELECT e.pid FROM {database}.physio_sessions s JOIN {database}.physio_episodes e ON e.id=s.episode_id WHERE s.id=705")
+        assert '#Label' in admin.get(base+'/patient?id='+pid).text
+        filtered=admin.get(base+'/patients?label=1&q='+pid)
+        assert filtered.status_code==200 and '/patient?id='+pid in filtered.text
+        history=admin.get(base+'/visit?id=705')
+        assert history.status_code==200 and 'افزودن هشتگ' in history.text and 'Label' in history.text
+        assert 'Edited reception note' in history.text and 'Second package' in history.text
+        # Re-saving identical selections makes no new event/version.
+        current+=1
+        reception.post(base+'/appointments',data={**tag_payload,'workflow_version':current})
+        assert int(sql(f"SELECT version FROM {database}.visit_workflows WHERE session_id=705"))==current
+        # Snapshot titles survive catalog rename, including old ID-only events.
+        sql(f"UPDATE {database}.labels SET name='Renamed label' WHERE id=1")
+        history=admin.get(base+'/visit?id=705').text
+        assert 'Label' in history
+        private=reception.get(base+'/api/visit-timeline?session_id=705').json()
+        assert all('after_diagnoses_names' not in ev['details'] for ev in private['events'])
+        reception.post(base+'/appointments',data={k:v for k,v in {**tag_payload,'workflow_version':current}.items() if k!='selection[]'})
+        assert sql(f"SELECT COUNT(*) FROM {database}.session_labels WHERE session_id=705")=='0'
+        assert 'حذف هشتگ' in admin.get(base+'/visit?id=705').text
+        print('PASS label HTTP round-trip, patient visibility/filter, descriptive history, no-op and clinical name privacy')
+
         assert clinician.get(base+'/billing?episode=803').status_code==403
         csrf = token(clinician, '/session?id=704')
         response = clinician.post(base + '/session?id=704', data={'csrf': csrf, 'action': 'session', 'session_id': 704, 'status': 'done',

@@ -113,7 +113,7 @@ function appointmentCell(string $key,array $s,array $display):void{
    foreach(q('SELECT l.name FROM labels l WHERE l.id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=? AND sl.label_id=l.id)',[$s['label_id'],$s['id']])->fetchAll() as $label)echo '<span class="badge">#'.e($label['name']).'</span>';
    echo '<div class="patient-row-tools">';
    if(can('finance'))echo '<a class="settlement-link" href="/finance?episode='.(int)$s['episode_id'].'" aria-label="تسویه حساب '.e(patientName($s)).'" title="تسویه حساب">$</a>';
-   receptionEditor($s,'labels','هشتگ‌ها');echo '</div>';receptionEditor($s,'notes','توضیحات پذیرش');
+   receptionEditor($s,'labels','هشتگ‌ها');receptionEditor($s,'notes','توضیحات پذیرش');echo '</div>';
    break;
 
   case 'time': echo jd($s['starts_at'],'yyyy/MM/dd HH:mm').'<small>تا '.jd($s['ends_at'],'HH:mm').'</small>';break;
