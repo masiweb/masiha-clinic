@@ -15,3 +15,7 @@ Presentation files:
 PHP page templates contain no inline style attributes, style blocks or event-handler attributes. Dynamic label colors and progress percentages are data attributes consumed by the external shared script. Existing external assets remain for their component-specific rules and behavior.
 
 `tests/workflow.py` verifies theme persistence, rejected input without partial saves, permission/CSRF protection, external asset markup and expanded active filters alongside the existing clinical regressions. Set `MASIHA_UI_PREVIEW_DIR` during isolated tests to export synthetic HTML fixtures for local visual inspection; never export production patient pages as fixtures.
+
+## Reception layout (2026-10-06)
+
+The appointments route now uses a reception-specific shell based on the user's comparison screenshots: collapsed global navigation, a compact booking/patient/search toolbar, previous/next-day controls that preserve the current filters, inline visit-type/room/therapist selectors, state tabs, count chips, label chips and a search immediately above the list. Existing available tools appear in a small side rail. Rows retain the user's allowed/visible columns and show colored workflow states linking to the existing visit screen. No new clinical mutations or permissions are introduced. The other routes retain the general workspace shell. All new presentation rules are in `public/assets/reception.css`; no inline CSS or JavaScript is introduced.

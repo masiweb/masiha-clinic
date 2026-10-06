@@ -3,47 +3,79 @@ function appointmentDashboard():void{
  need('appointments');
  try{$f=appointmentFilters($_GET);$r=appointmentResults($f,max(1,(int)($_GET['p']??1)));}catch(DomainException $ex){layout('appointments','نوبت‌ها');echo '<p class="notice">'.e($ex->getMessage()).'</p>';endLayout();return;}
  $display=displayEffective();
- layout('appointments','نوبت‌های مراجعین','جستجو، پیگیری مراحل مراجعه و برنامه درمانگران');
- if(displayVisible($display,'panels','shortcuts')){echo '<div class="actions"><a class="button secondary" href="/availability">زمان‌های آزاد</a><a class="button secondary" href="/turn-board">تابلو امروز</a>';
- if(allowed('reports.clinical'))echo '<a class="button secondary" href="/reports/clinical">گزارش عملکرد</a>';
- if(allowed('appointments.timing'))echo '<a class="button secondary" href="/reports/timing">گزارش زمان مراجعه</a>';
- if(allowed('services'))echo '<a class="button secondary" href="/appointment/catalogs">نوع ویزیت و تشخیص‌ها</a><a class="button secondary" href="/resources">اتاق‌ها و تجهیزات</a>';
- echo '</div>';}
-
- if(displayVisible($display,'panels','filters')){echo '<section class="panel form-panel appointment-filters"><form method="get"><div class="form-grid three">';
- field('from','از تاریخ',$f['from'],'date');field('to','تا تاریخ',$f['to'],'date');field('q','نام، موبایل یا کد پرونده',$f['q']);
- selectfield('therapist','درمانگر',['0'=>'همه']+array_filter(therapists()),$f['therapist']);
- $advanced=false;foreach(['visit_type','room','state','service','package','label','diagnosis','presence','patient_type','clinic','financial'] as $key)if(!empty($f[$key]))$advanced=true;
- echo '</div><details class="advanced-filters" '.($advanced?'open':'').'><summary>فیلترهای بیشتر <span>اتاق، وضعیت، نوع ویزیت و مالی</span></summary><div class="form-grid three">';
- selectfield('visit_type','نوع ویزیت',['0'=>'همه']+options('visit_types','active=1'),$f['visit_type']);
- selectfield('room','اتاق',[''=>'همه']+array_column(q("SELECT DISTINCT room FROM physio_sessions WHERE room<>'' UNION SELECT name room FROM resources WHERE kind='room'")->fetchAll(),'room','room'),$f['room']);
- selectfield('state','وضعیت',[''=>'همه']+workflowLabels(),$f['state']);
- selectfield('service','خدمت / نوع درمان',['0'=>'همه']+options('services','deleted=0'),$f['service']);
- selectfield('package','پکیج',['0'=>'همه']+options('packages','deleted=0'),$f['package']);
- selectfield('label','هشتگ',['0'=>'همه']+options('labels','deleted=0'),$f['label']);
- if(scope('forms.visit')!=='none')selectfield('diagnosis','تشخیص',['0'=>'همه']+options('diagnoses','active=1'),$f['diagnosis']);
- selectfield('presence','حضور',[''=>'همه','present'=>'وارد شده','not_arrived'=>'ورود ثبت نشده'],$f['presence']);
- selectfield('patient_type','سابقه مراجعه در سامانه',[''=>'همه','new'=>'بدون جلسه انجام‌شده قبلی','returning'=>'دارای جلسه انجام‌شده قبلی'],$f['patient_type']);
- selectfield('clinic','کلینیک',['0'=>'همه']+options('clinics','active=1'),$f['clinic']);
- if(allowed('finance.debt'))selectfield('financial','مالی دوره',[''=>'همه','debt'=>'دارای بدهی','settled'=>'بدون بدهی دوره'],$f['financial']);
- echo '</div></details><div class="form-actions"><button class="button primary">جستجوی نوبت‌ها</button><a class="button secondary" href="/appointments">امروز / پاک‌کردن فیلترها</a></div></form></section>';}
+ layout('appointments','میز پذیرش · نوبت‌های مراجعین','',true);
+ $url=static fn(array $changes)=>'/appointments?'.http_build_query(array_replace($f,$changes));
+ echo '<div class="reception-toolbar"><a class="button primary" href="/appointment/new">'.icon('plus').' ثبت / نوبت‌دهی</a>';
+ if(can('patients'))echo '<a class="button secondary" href="/patients">'.icon('users').' تمامی مراجعین</a>';
+ if(displayVisible($display,'panels','filters'))echo '<a class="button secondary" href="#reception-search">'.icon('search').' جستجوی سریع</a>';
+ echo '<a class="button secondary refresh-link" href="'.e($url([])).'">بارگذاری مجدد</a></div>';
+ echo '<div class="reception-datebar"><strong>برنامه مراجعین</strong><div class="reception-days">';
+ foreach([-1=>'روز قبل',1=>'روز بعد'] as $step=>$label){
+  $next=['from'=>date('Y-m-d',strtotime($f['from'].' '.($step>0?'+':'').$step.' day')),'to'=>date('Y-m-d',strtotime($f['to'].' '.($step>0?'+':'').$step.' day'))];
+  if($step===1)echo '<span class="reception-current-date">'.icon('calendar').jd($f['from'],'EEEE، d MMMM yyyy').($f['to']!==$f['from']?' تا '.jd($f['to']):'').'</span>';
+  echo '<a class="button secondary small" href="'.e($url($next)).'">'.$label.'</a>';
+ }
+ echo '<a class="text-link" href="'.e($url(['from'=>date('Y-m-d'),'to'=>date('Y-m-d')])).'">امروز</a></div><a class="button secondary small" href="/display">'.icon('settings').' تنظیم نمایش</a></div>';
+ echo '<div class="reception-grid"><div class="reception-content">';
+ if(displayVisible($display,'panels','filters')){
+  echo '<section class="panel reception-filters"><form method="get" id="reception-filters"><div class="reception-primary-filters">';
+  selectfield('visit_type','نوع ویزیت',['0'=>'همه ویزیت‌ها']+options('visit_types','active=1'),$f['visit_type']);
+  selectfield('room','اتاق',[''=>'همه اتاق‌ها']+array_column(q("SELECT DISTINCT room FROM physio_sessions WHERE room<>'' UNION SELECT name room FROM resources WHERE kind='room'")->fetchAll(),'room','room'),$f['room']);
+  selectfield('therapist','درمانگر',['0'=>'همه درمانگران']+array_filter(therapists()),$f['therapist']);
+  echo '<button class="button primary small" type="submit">اعمال فیلتر</button></div><div class="reception-status-tabs" aria-label="مرحله مراجعه">';
+  foreach([''=>'همه']+workflowLabels() as $key=>$label)echo '<a class="status-tab '.($f['state']===$key?'selected':'').'" '.($f['state']===$key?'aria-current="true"':'').' href="'.e($url(['state'=>$key])).'">'.e($label).'</a>';
+  echo '</div>';
+  hidden('state',$f['state']);
+  $advanced=false;foreach(['service','package','label','diagnosis','presence','patient_type','clinic','financial'] as $key)if(!empty($f[$key]))$advanced=true;
+  if($f['from']!==$f['to'])$advanced=true;
+  echo '<details class="advanced-filters" '.($advanced?'open':'').'><summary>تاریخ و فیلترهای بیشتر <span>بازه، خدمت، پکیج و مالی</span></summary><div class="form-grid three">';
+  field('from','از تاریخ',$f['from'],'date');field('to','تا تاریخ',$f['to'],'date');
+  selectfield('service','خدمت / نوع درمان',['0'=>'همه']+options('services','deleted=0'),$f['service']);
+  selectfield('package','پکیج',['0'=>'همه']+options('packages','deleted=0'),$f['package']);
+  selectfield('label','هشتگ',['0'=>'همه']+options('labels','deleted=0'),$f['label']);
+  if(scope('forms.visit')!=='none')selectfield('diagnosis','تشخیص',['0'=>'همه']+options('diagnoses','active=1'),$f['diagnosis']);
+  selectfield('presence','حضور',[''=>'همه','present'=>'وارد شده','not_arrived'=>'ورود ثبت نشده'],$f['presence']);
+  selectfield('patient_type','سابقه مراجعه',[''=>'همه','new'=>'بدون جلسه انجام‌شده قبلی','returning'=>'دارای جلسه انجام‌شده قبلی'],$f['patient_type']);
+  selectfield('clinic','کلینیک',['0'=>'همه']+options('clinics','active=1'),$f['clinic']);
+  if(allowed('finance.debt'))selectfield('financial','مالی دوره',[''=>'همه','debt'=>'دارای بدهی','settled'=>'بدون بدهی دوره'],$f['financial']);
+  echo '</div></details></form></section>';
+ }
  $stats=array_fill_keys(array_keys(workflowLabels()),0);foreach($r['stats'] as $item)$stats[$item['state']]=(int)$item['n'];
- if(displayVisible($display,'panels','stats')){echo '<div class="stats-grid"><article class="stat-card"><span>مراجعین یکتای بازه</span><strong>'.fa($r['patients']).'</strong></article><article class="stat-card"><span>تمام نوبت‌های بازه</span><strong>'.fa(array_sum($stats)).'</strong></article>';
- foreach(['absent'=>'غایب در مطب','waiting'=>'در انتظار','cancelled'=>'کنسل‌شده','in_service'=>'در حال ویزیت','visited'=>'ویزیت‌شده','discharged'=>'ترخیصی'] as $k=>$title){$url='/appointments?'.http_build_query(array_replace($f,['state'=>$k]));echo '<a class="stat-card" href="'.e($url).'"><span>'.e($title).'</span><strong>'.fa($stats[$k]).'</strong></a>';}echo '</div>';}
- if(displayVisible($display,'panels','labels')){echo '<div class="actions">';foreach(q('SELECT id,name FROM labels WHERE active=1 AND deleted=0 ORDER BY name')->fetchAll() as $l)echo '<a class="button secondary" href="'.e('/appointments?'.http_build_query(array_replace($f,['label'=>$l['id']]))).'">#'.e($l['name']).'</a>';echo '</div>';}
-
+ if(displayVisible($display,'panels','stats')){
+  echo '<section class="reception-summary" aria-label="آمار بازه انتخاب‌شده"><span class="summary-chip"><strong>'.fa($r['patients']).'</strong> مراجع یکتا</span><a class="summary-chip" href="'.e($url(['state'=>''])).'"><strong>'.fa(array_sum($stats)).'</strong> تمام نوبت‌ها</a>';
+  foreach(['absent'=>'غایب','waiting'=>'در انتظار','cancelled'=>'کنسل‌شده','in_service'=>'در حال ویزیت','visited'=>'ویزیت‌شده','discharged'=>'ترخیصی'] as $k=>$title)
+   echo '<a class="summary-chip state-'.e($k).'" href="'.e($url(['state'=>$k])).'"><strong>'.fa($stats[$k]).'</strong> '.e($title).'</a>';
+  echo '</section>';
+ }
+ if(displayVisible($display,'panels','labels')){
+  echo '<div class="reception-labels" aria-label="هشتگ‌های مراجعین">';
+  foreach(q('SELECT id,name FROM labels WHERE active=1 AND deleted=0 ORDER BY name')->fetchAll() as $l)
+   echo '<a class="badge '.((int)$f['label']===(int)$l['id']?'selected':'').'" href="'.e($url(['label'=>(int)$f['label']===(int)$l['id']?0:$l['id']])).'">#'.e($l['name']).'</a>';
+  echo '</div>';
+ }
+ if(displayVisible($display,'panels','filters')){
+  echo '<div class="reception-list-search"><label for="reception-search">'.icon('search').' جستجو در نوبت‌ها</label><input id="reception-search" name="q" type="search" form="reception-filters" value="'.e($f['q']).'" placeholder="نام، موبایل یا کد پرونده"><button type="submit" form="reception-filters" class="button secondary small">جستجو</button><a class="text-link" href="/appointments">پاک‌کردن فیلترها</a></div>';
+ }
  $columns=array_keys(array_filter($display['columns'],static fn($item)=>$item['visible']));
- echo '<section class="panel"><div class="panel-header"><h2>فهرست مراجعه</h2><span>'.fa($r['count']).' نوبت</span></div>';
+ echo '<section class="panel reception-list"><div class="panel-header"><h2>فهرست مراجعه</h2><span>'.fa($r['count']).' نوبت</span></div>';
  if(!$columns)echo '<p class="notice">ستونی برای نمایش انتخاب نشده است. از تنظیم نمایش ستون‌ها را انتخاب کنید.</p>';
  echo '<div class="table-scroll"><table><thead><tr>';
  foreach($columns as $key)echo '<th data-column="'.e($key).'">'.e(displayOptions()['columns'][$key]).'</th>';
  echo '</tr></thead><tbody>';
- foreach($r['rows'] as $s){echo '<tr>';foreach($columns as $key){echo '<td data-column="'.e($key).'">';appointmentCell($key,$s,$display);echo '</td>';}echo '</tr>';}
+ foreach($r['rows'] as $s){$state=$s['workflow_state']??workflowInitialState($s);echo '<tr class="visit-row state-'.e($state).'">';foreach($columns as $key){echo '<td data-column="'.e($key).'">';appointmentCell($key,$s,$display);echo '</td>';}echo '</tr>';}
  echo '</tbody></table></div>';if(!$r['rows'])emptyState('نوبتی با این فیلترها پیدا نشد','بازه تاریخ یا فیلترها را تغییر دهید.');echo '<div class="form-actions">';
  if($r['page']>1)echo '<a class="button secondary" href="'.e('/appointments?'.http_build_query($f+['p'=>$r['page']-1])).'">صفحه قبل</a>';
  echo '<span>صفحه '.fa($r['page']).'</span>';
  if($r['page']*50<$r['count'])echo '<a class="button secondary" href="'.e('/appointments?'.http_build_query($f+['p'=>$r['page']+1])).'">صفحه بعد</a>';
- echo '</div></section>';endLayout();
+ echo '</div></section></div>';
+ if(displayVisible($display,'panels','shortcuts')){
+  echo '<aside class="reception-tools" aria-label="دسترسی سریع"><section class="panel"><h2>دسترسی سریع</h2><a href="/availability">'.icon('calendar').' زمان‌های آزاد</a><a href="/turn-board">'.icon('users').' تابلو انتظار</a>';
+  if(allowed('reports.clinical'))echo '<a href="/reports/clinical">'.icon('chart').' گزارش عملکرد</a>';
+  if(allowed('appointments.timing'))echo '<a href="/reports/timing">'.icon('chart').' زمان مراجعه</a>';
+  if(allowed('services'))echo '<a href="/appointment/catalogs">نوع ویزیت و تشخیص</a><a href="/resources">اتاق‌ها و تجهیزات</a>';
+  echo '</section><section class="panel"><h2>راهنمای پذیرش</h2><p>برای ثبت ورود، انتظار یا ارسال به درمان، «گردش مراجعه» را در ردیف بیمار باز کنید.</p></section></aside>';
+ }
+ echo '</div>';endLayout();
 }
 function appointmentCatalogView():void{
  need('services');layout('services','نوع ویزیت و تشخیص‌ها','موارد غیرفعال در سابقه حفظ می‌شوند.');
@@ -82,7 +114,7 @@ function appointmentCell(string $key,array $s,array $display):void{
    break;
   case 'time': echo jd($s['starts_at'],'yyyy/MM/dd HH:mm').'<small>تا '.jd($s['ends_at'],'HH:mm').'</small>';break;
   case 'therapist': echo e($s['therapist_name']);if(displayVisible($display,'panels','room'))echo '<small>'.e($s['room']?:'بدون اتاق اختصاصی').'</small>';break;
-  case 'state': echo e(workflowLabels()[$s['workflow_state']??workflowInitialState($s)]);break;
+  case 'state': $state=$s['workflow_state']??workflowInitialState($s);echo '<a class="visit-state state-'.e($state).'" href="/visit?id='.(int)$s['id'].'">'.e(workflowLabels()[$state]).'</a>';break;
   case 'diagnoses':
    if(appointmentClinicalAllowed($s)){
     $names=q('SELECT d.name FROM session_diagnoses sd JOIN diagnoses d ON d.id=sd.diagnosis_id WHERE sd.session_id=? ORDER BY d.name',[$s['id']])->fetchAll(PDO::FETCH_COLUMN);

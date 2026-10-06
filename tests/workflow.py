@@ -465,8 +465,12 @@ try:
         assert denied.status_code==403
         reset={'theme_color':'#087f75','theme_hover_color':'#065f58','theme_background_color':'#f3f6fa','font_id':'0','heading_font_id':'0'}
         admin.post(base+'/appearance',data={'csrf':token(admin,'/appearance'),'action':'appearance',**reset})
-        filtered=admin.get(base+'/appointments?room=Room+A')
+        filtered=admin.get(base+'/appointments?presence=present')
         assert '<details class="advanced-filters" open>' in filtered.text
+        assert 'reception-mode' in filtered.text and 'reception-toolbar' in filtered.text
+        assert 'name="room"' in filtered.text and 'form="reception-filters"' in filtered.text
+        assert filtered.text.index('reception-summary') < filtered.text.index('reception-list-search') < filtered.text.index('reception-list"')
+        assert 'روز قبل' in filtered.text and 'روز بعد' in filtered.text
         # Optional disposable, synthetic render fixtures for developer visual review.
         preview_dir=os.environ.get('MASIHA_UI_PREVIEW_DIR')
         if preview_dir:

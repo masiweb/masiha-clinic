@@ -1,0 +1,109 @@
+/* Reception workspace: operational controls stay above the patient list. */
+.reception-mode .sidebar { transform: translateX(100%); visibility: hidden; width: 254px; }
+.reception-mode.menu-open .sidebar { transform: none; visibility: visible; z-index: 70; }
+.reception-mode .workspace { margin-right: 0; }
+.reception-mode .menu-toggle { display: grid; place-items: center; height: 38px; width: 38px; }
+.reception-mode .topbar { height: 52px; padding: 0 20px; gap: 14px; }
+.reception-mode .breadcrumb { margin-inline-end: auto; }
+.reception-mode .workspace-nav { display: none; }
+.reception-mode .main { padding: 14px 20px; max-width: 1800px; }
+.reception-mode .page-heading { margin-bottom: 10px; }
+.reception-mode .page-heading h1 { font-size: 18px; }
+.reception-mode .page-heading .eyebrow, .reception-mode .page-heading > .button { display: none; }
+.reception-mode.menu-open .workspace::after { content: ''; position: fixed; inset: 0; background: #12212e65; z-index: 60; }
+.reception-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #edf3f6; border: 1px solid #dae4eb; border-radius: 13px; padding: 10px 14px; margin-bottom: 12px; }
+.reception-toolbar .button { min-height: 38px; font-size: 13px; padding: 7px 14px; }
+.reception-toolbar .refresh-link { margin-inline-start: auto; }
+.reception-datebar { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.reception-datebar > strong { font-size: 15px; color: var(--canvas-ink); }
+.reception-datebar > .button { margin-inline-start: auto; }
+.reception-days { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.reception-current-date { display: inline-flex; gap: 8px; align-items: center; background: #fff; border: 1px solid #dce4ec; padding: 6px 12px; border-radius: 9px; font-size: 13px; }
+.reception-current-date svg { width: 18px; }
+.reception-grid { display: grid; grid-template-columns: 172px minmax(0, 1fr); gap: 16px; align-items: start; }
+.reception-grid:not(:has(.reception-tools)) { grid-template-columns: minmax(0, 1fr); }
+.reception-content { min-width: 0; grid-column: 2; grid-row: 1; }
+.reception-grid:not(:has(.reception-tools)) > .reception-content { grid-column: 1; }
+.reception-tools { grid-column: 1; grid-row: 1; }
+.reception-tools .panel { padding: 15px; margin-bottom: 14px; border-radius: 12px; }
+.reception-tools h2 { font-size: 14px; margin-bottom: 10px; }
+.reception-tools a { display: flex; align-items: center; gap: 7px; font-size: 12px; min-height: 40px; border-bottom: 1px solid #edf0f4; }
+.reception-tools a:last-child { border: 0; }
+.reception-tools a:hover { color: var(--primary); }
+.reception-tools svg { width: 17px; }
+.reception-tools p { font-size: 12px; line-height: 2; color: #607385; }
+.reception-filters { padding: 12px 16px; margin-bottom: 10px; border-radius: 12px; background: #fffaf1; border-color: #eee2ca; }
+.reception-primary-filters { display: grid; grid-template-columns: 1fr 1fr 1.2fr auto; gap: 12px; align-items: end; }
+.reception-primary-filters .field { margin: 0; }
+.reception-primary-filters label { font-size: 12px; min-height: 0; margin-bottom: 3px; }
+.reception-primary-filters select { min-height: 36px; padding: 6px 10px; font-size: 13px; background: #fff; }
+.reception-status-tabs { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 10px; }
+.status-tab { padding: 4px 12px; border: 1px solid #e5dac5; background: white; font-size: 12px; min-height: 32px; display: inline-flex; align-items: center; }
+.status-tab:first-child { border-radius: 0 8px 8px 0; }
+.status-tab:last-child { border-radius: 8px 0 0 8px; }
+.status-tab.selected { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+.status-tab:hover { background: var(--primary-hover); color: var(--hover-ink); }
+.reception-filters .advanced-filters { margin: 8px 0 0; padding-top: 5px; }
+.reception-filters .advanced-filters summary { font-size: 12px; padding: 2px 0; }
+.reception-filters .advanced-filters[open] { padding-bottom: 12px; }
+.reception-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 12px; background: #edf0f4; padding: 12px 14px; border-radius: 10px; margin-bottom: 8px; }
+.summary-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #47596d; }
+.summary-chip strong { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 5px; background: currentColor; border-radius: 7px; color: #34495c; }
+.summary-chip strong { background: #fff; }
+.summary-chip:hover { text-decoration: underline; }
+.state-waiting { --state: #98600e; --state-bg: #fff1d7; }
+.state-in_service { --state: #207341; --state-bg: #e7f6e9; }
+.state-visited, .state-discharged { --state: #5a4e8c; --state-bg: #f0ecfa; }
+.state-cancelled { --state: #a33f35; --state-bg: #fcece9; }
+.state-absent { --state: #2b689a; --state-bg: #e5f2fd; }
+.state-scheduled, .state-arrived { --state: #426b7b; --state-bg: #eaf3f6; }
+.summary-chip[class*="state-"] { color: var(--state, #47596d); }
+.reception-labels { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.reception-labels:empty { display: none; }
+.reception-labels .badge { background: #fff; border: 1px solid #dbe4ea; border-radius: 16px; font-size: 12px; }
+.reception-labels .selected { background: var(--primary); color: var(--primary-ink); }
+.reception-list-search { display: flex; gap: 10px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+.reception-list-search label { display: flex; gap: 5px; align-items: center; font-size: 12px; color: var(--canvas-ink); }
+.reception-list-search label svg { width: 17px; }
+.reception-list-search input[type=search] { flex: 1; min-width: 180px; max-width: 460px; min-height: 38px; padding: 6px 12px; }
+.reception-list { border-radius: 12px; }
+.reception-list .panel-header { padding: 10px 16px; }
+.reception-list .panel-header h2 { font-size: 14px; }
+.reception-list th { padding: 10px 14px; font-size: 12px; }
+.reception-list td { padding: 13px 14px; font-size: 13px; }
+.reception-list td[data-column=patient] { min-width: 210px; }
+.reception-list td[data-column=patient] > a { font-weight: 700; font-size: 14px; }
+.reception-list .visit-row td:first-child { border-inline-start: 4px solid var(--state, #d5dfe6); }
+.reception-list .visit-row:hover { background: var(--state-bg, #f5f8fa); }
+.visit-state { display: inline-flex; padding: 5px 10px; border-radius: 8px; background: var(--state-bg, #eef3f7); color: var(--state, #47596d) !important; font-weight: 700; font-size: 12px; }
+.reception-list td .actions { gap: 6px; }
+.reception-list td details { margin-top: 5px; }
+.reception-list td details summary { font-size: 12px; color: #3b6679; }
+.reception-list td details[open] .actions { display: grid; gap: 0; min-width: 220px; background: #fff; border: 1px solid #dce5ed; padding: 8px 12px; border-radius: 10px; white-space: normal; }
+.reception-list td details[open] a { padding: 7px 0; }
+@media(max-width: 1000px) {
+ .reception-grid { grid-template-columns: 1fr; }
+ .reception-content { grid-column: 1; }
+ .reception-tools { grid-column: 1; grid-row: 2; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+ .reception-tools a { display: inline-flex; margin-inline-end: 12px; }
+ .reception-primary-filters { grid-template-columns: 1fr 1fr; }
+}
+@media(max-width: 600px) {
+ .reception-mode .main { padding: 12px; }
+ .reception-mode .topbar { padding-inline: 12px; }
+ .reception-toolbar { padding: 10px; gap: 8px; }
+ .reception-toolbar .button { font-size: 12px; flex: 1 1 auto; }
+ .reception-toolbar .refresh-link { margin: 0; }
+ .reception-datebar { gap: 8px; }
+ .reception-current-date { font-size: 12px; }
+ .reception-primary-filters { gap: 8px; }
+ .reception-tools { grid-template-columns: 1fr; }
+ .reception-list-search label { width: 100%; }
+ .reception-list-search input[type=search] { min-width: 130px; }
+ .reception-summary { gap: 8px; padding: 10px; }
+ .summary-chip { font-size: 11px; }
+}
+@media print {
+ .reception-toolbar, .reception-datebar, .reception-tools, .reception-filters, .reception-list-search { display: none; }
+ .reception-grid { display: block; }
+}
