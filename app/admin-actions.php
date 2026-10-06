@@ -63,7 +63,23 @@ function adminAction($a):bool{global $db,$config;if(importAction($a))return true
   flash('برنامه غیبت ذخیره شد.');go('/availability');
  }
  if($a==='clinic_save'){demand('settings');$id=num('id');$v=[val('name',160,true),val('address',2000),val('phone',30),isset($_POST['active'])?1:0];if($id)q('UPDATE clinics SET name=?,address=?,phone=?,active=? WHERE id=?',[...$v,$id]);else q('INSERT INTO clinics(name,address,phone,active) VALUES(?,?,?,?)',$v);audit($a,$id);flash('کلینیک ثبت شد.');go('/appearance');}
- if($a==='appearance') {demand('settings');$color=val('theme_color',7,true);if(!preg_match('/^#[0-9a-f]{6}$/iD',$color))throw new DomainException('رنگ معتبر نیست.');$font=num('font_id');$heading=num('heading_font_id');foreach([$font,$heading] as $f)if($f&&!q('SELECT id FROM custom_fonts WHERE id=?',[$f])->fetchColumn())throw new DomainException('فونت معتبر نیست.');foreach(['theme_color'=>$color,'font_id'=>$font,'heading_font_id'=>$heading] as $k=>$v)setsetting($k,$v);audit($a);flash('ظاهر سامانه به‌روز شد.');go('/appearance');}
+ if($a==='appearance') {
+  demand('settings');$values=[];
+  foreach(['theme_color','theme_hover_color','theme_background_color'] as $key){
+   $color=val($key,7,true);
+   if(!preg_match('/^#[0-9a-f]{6}$/iD',$color))throw new DomainException('رنگ معتبر انتخاب کنید.');
+   $values[$key]=strtolower($color);
+  }
+  foreach(['font_id','heading_font_id'] as $key){
+   $font=num($key);
+   if($font&&!q('SELECT id FROM custom_fonts WHERE id=?',[$font])->fetchColumn())throw new DomainException('فونت معتبر نیست.');
+   $values[$key]=$font;
+  }
+  $db->beginTransaction();
+  try{foreach($values as $k=>$v)setsetting($k,$v);audit($a);$db->commit();}
+  catch(Throwable $ex){if($db->inTransaction())$db->rollBack();throw $ex;}
+  flash('رنگ‌ها و فونت‌های جدید برای همه صفحات ذخیره شد.');go('/appearance');
+ }
  if($a==='font_upload'){demand('settings');$f=$_FILES['font']??null;if(!$f||$f['error']!==UPLOAD_ERR_OK||$f['size']>3*1024*1024||!is_uploaded_file($f['tmp_name']))throw new DomainException('فایل فونت تا ۳ مگابایت انتخاب کنید.');$signature=file_get_contents($f['tmp_name'],false,null,0,4);$format=match($signature){'wOFF'=>'woff','wOF2'=>'woff2',default=>null};if(!$format)throw new DomainException('فقط فونت WOFF یا WOFF2 پذیرفته می‌شود.');$filename=bin2hex(random_bytes(20)).'.'.$format;if(!is_dir($config['storage'].'/fonts'))mkdir($config['storage'].'/fonts',0700);if(!move_uploaded_file($f['tmp_name'],$config['storage'].'/fonts/'.$filename))throw new RuntimeException('font');chmod($config['storage'].'/fonts/'.$filename,0600);q('INSERT INTO custom_fonts(name,filename,format) VALUES(?,?,?)',[val('name',100,true),$filename,$format]);audit($a);flash('فونت بارگذاری شد؛ آن را از فهرست ظاهر انتخاب کنید.');go('/appearance');}
  if($a==='form_save'||$a==='form_delete'){$id=num('id');$old=$id?q('SELECT * FROM clinic_forms WHERE id=? AND deleted=0',[$id])->fetch():null;$pid=$old?(int)$old['pid']:num('pid',1);requirePatient($pid);$kind=$old?$old['kind']:val('kind',10);if(!in_array($kind,['visit','general'])||scope('forms.'.$kind)==='none'||($old&&scope('forms.'.$kind)==='own'&&(int)$old['created_by']!==(int)user()['id'])){http_response_code(403);exit('به این فرم دسترسی ندارید.');}if($a==='form_delete')q('UPDATE clinic_forms SET deleted=1 WHERE id=?',[$id]);elseif($id)q('UPDATE clinic_forms SET title=?,body=? WHERE id=?',[val('title',160,true),val('body',20000,true),$id]);else q('INSERT INTO clinic_forms(pid,title,kind,body,created_by) VALUES(?,?,?,?,?)',[$pid,val('title',160,true),$kind,val('body',20000,true),user()['id']]);audit($a,$id);flash('فرم ذخیره شد.');go('/forms?pid='.$pid);}
  if($a==='patient_assignment'){demand('patients.edit');$pid=num('pid',1);requirePatient($pid);$tid=num('providerID');if($tid&&!q('SELECT id FROM staff WHERE id=? AND active=1 AND deleted=0',[$tid])->fetchColumn())throw new DomainException('همکار معتبر انتخاب کنید.');$label=num('label_id');if($label&&!q('SELECT id FROM labels WHERE id=? AND deleted=0 AND active=1',[$label])->fetchColumn())throw new DomainException('لیبل معتبر انتخاب کنید.');q('UPDATE patients SET providerID=?,label_id=? WHERE pid=?',[$tid,$label?:null,$pid]);audit($a,$pid);flash('مسئول پرونده و لیبل ذخیره شد.');go('/patient?id='.$pid);}

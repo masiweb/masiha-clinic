@@ -443,6 +443,38 @@ try:
         assert reception.get(base + '/appointment/catalogs').status_code==403
         assert reception.get(base + '/reports/timing').status_code==403
         admin=login('wf_admin')
+        # Theme settings persist atomically; PHP pages contain no inline presentation.
+        appearance=admin.get(base+'/appearance')
+        assert appearance.status_code==200
+        for name in ['theme_color','theme_hover_color','theme_background_color']:
+            assert f'name="{name}"' in appearance.text
+        assert 'data-theme-preview' in appearance.text and '/assets/workspace.css?v=1' in appearance.text
+        assert not re.search(r'\s(?:style|onclick|onchange|oninput)=|<style\b|<script(?![^>]*\bsrc=)',appearance.text,re.I)
+        colors={'theme_color':'#3459a8','theme_hover_color':'#23417e','theme_background_color':'#f1f5fc','font_id':'0','heading_font_id':'0'}
+        saved=admin.post(base+'/appearance',data={'csrf':token(admin,'/appearance'),'action':'appearance',**colors})
+        assert saved.status_code==200 and 'ذخیره شد' in saved.text
+        theme=Client().get(base+'/theme.css')
+        assert theme.status_code==200 and '--primary-hover: #23417e' in theme.text and '--bg: #f1f5fc' in theme.text
+        assert '{{' not in theme.text and '--primary-ink: #ffffff' in theme.text
+        for invalid in ['#000000;','bad','']:
+            admin.post(base+'/appearance',data={'csrf':token(admin,'/appearance'),'action':'appearance',**colors,'theme_color':'#abcdef','theme_hover_color':invalid})
+            assert '--primary: #3459a8' in Client().get(base+'/theme.css').text
+        denied=reception.post(base+'/appearance',data={'csrf':token(reception,'/appointments'),'action':'appearance',**colors,'theme_color':'#ffffff'})
+        assert denied.status_code==403 and '--primary: #3459a8' in Client().get(base+'/theme.css').text
+        denied=admin.post(base+'/appearance',data={'csrf':'invalid','action':'appearance',**colors})
+        assert denied.status_code==403
+        reset={'theme_color':'#087f75','theme_hover_color':'#065f58','theme_background_color':'#f3f6fa','font_id':'0','heading_font_id':'0'}
+        admin.post(base+'/appearance',data={'csrf':token(admin,'/appearance'),'action':'appearance',**reset})
+        filtered=admin.get(base+'/appointments?room=Room+A')
+        assert '<details class="advanced-filters" open>' in filtered.text
+        # Optional disposable, synthetic render fixtures for developer visual review.
+        preview_dir=os.environ.get('MASIHA_UI_PREVIEW_DIR')
+        if preview_dir:
+            preview=pathlib.Path(preview_dir);preview.mkdir(parents=True,exist_ok=True)
+            for route,name in [('/appearance','appearance'),('/appointments','appointments'),('/','dashboard'),('/appointment/new','booking')]:
+                (preview/(name+'.html')).write_text(admin.get(base+route).text)
+            (preview/'theme.css').write_text(Client().get(base+'/theme.css').text)
+        print('PASS theme persistence, invalid-input rollback, permission/CSRF enforcement, external assets and expanded active filters')
         for path in ['/sms','/document-types','/sms/audience','/reports/clinical?from=2099-06-01&to=2099-06-30','/progress?pid=901']:
             assert admin.get(base+path).status_code==200,path
         finance_page=admin.get(base+'/finance')

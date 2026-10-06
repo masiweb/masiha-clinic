@@ -1,6 +1,28 @@
 <?php
 function adminApi($path):void{global $config;
- if($path==='/theme.css'){header('Content-Type: text/css');$color=setting('theme_color','#087f75');if(!preg_match('/^#[0-9a-f]{6}$/iD',$color))$color='#087f75';echo ':root{--teal:'.$color.';--primary:'.$color.'} .button.primary,.brand-initial{background:'.$color.'} .welcome-banner{background:linear-gradient(120deg,'.$color.',#183e49)}';foreach(['font_id'=>'body,input,select,textarea,button','heading_font_id'=>'h1,h2,h3,.brand'] as $key=>$selector){$id=(int)setting($key,'0');if($id&&q('SELECT id FROM custom_fonts WHERE id=?',[$id])->fetchColumn())echo "@font-face{font-family:custom$id;src:url('/font?id=$id')} $selector{font-family:custom$id,Vazir,sans-serif}";}exit;}
+ if($path==='/theme.css'){
+  header('Content-Type: text/css; charset=utf-8');
+  $values=[];
+  foreach(['theme_color'=>'#087f75','theme_hover_color'=>'#065f58','theme_background_color'=>'#f3f6fa'] as $key=>$fallback){
+   $value=setting($key,$fallback);
+   $values['{{'.$key.'}}']=preg_match('/^#[0-9a-f]{6}$/iD',$value)?$value:$fallback;
+  }
+  $contrast=static function(string $hex):string{
+   $channels=[];foreach(str_split(substr($hex,1),2) as $part){$c=hexdec($part)/255;$channels[]=$c<=.04045?$c/12.92:(($c+.055)/1.055)**2.4;}
+   return $channels[0]*.2126+$channels[1]*.7152+$channels[2]*.0722>.179?'#000000':'#ffffff';
+  };
+  $values['{{primary_ink}}']=$contrast($values['{{theme_color}}']);
+  $values['{{hover_ink}}']=$contrast($values['{{theme_hover_color}}']);
+  $values['{{canvas_ink}}']=$contrast($values['{{theme_background_color}}']);
+  // All presentation rules live in CSS files; only validated values enter templates.
+  echo strtr(file_get_contents(__DIR__.'/../public/assets/theme.css'),$values);
+  foreach(['font_id'=>'body','heading_font_id'=>'heading'] as $key=>$kind){
+   $id=(int)setting($key,'0');
+   if($id>0&&q('SELECT id FROM custom_fonts WHERE id=?',[$id])->fetchColumn())
+    echo str_replace('{{font_id}}',(string)$id,file_get_contents(__DIR__.'/../public/assets/font-'.$kind.'.css'));
+  }
+  exit;
+ }
  if($path==='/font'){$r=q('SELECT * FROM custom_fonts WHERE id=?',[(int)($_GET['id']??0)])->fetch();if(!$r){http_response_code(404);exit;}$f=$config['storage'].'/fonts/'.basename($r['filename']);if(!is_file($f)){http_response_code(404);exit;}header('Content-Type: font/'.$r['format']);readfile($f);exit;}
  if(!str_starts_with($path,'/api/'))return;if(!user()){http_response_code(401);exit;}header('Content-Type: application/json; charset=utf-8');
  if($path==='/api/appointment-slots'){

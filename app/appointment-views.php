@@ -4,15 +4,17 @@ function appointmentDashboard():void{
  try{$f=appointmentFilters($_GET);$r=appointmentResults($f,max(1,(int)($_GET['p']??1)));}catch(DomainException $ex){layout('appointments','نوبت‌ها');echo '<p class="notice">'.e($ex->getMessage()).'</p>';endLayout();return;}
  $display=displayEffective();
  layout('appointments','نوبت‌های مراجعین','جستجو، پیگیری مراحل مراجعه و برنامه درمانگران');
- if(displayVisible($display,'panels','shortcuts')){echo '<div class="actions"><a class="button primary" href="/appointment/new">ثبت نوبت</a><a class="button secondary" href="/availability">زمان‌های آزاد</a><a class="button secondary" href="/turn-board">تابلو امروز</a>';
+ if(displayVisible($display,'panels','shortcuts')){echo '<div class="actions"><a class="button secondary" href="/availability">زمان‌های آزاد</a><a class="button secondary" href="/turn-board">تابلو امروز</a>';
  if(allowed('reports.clinical'))echo '<a class="button secondary" href="/reports/clinical">گزارش عملکرد</a>';
  if(allowed('appointments.timing'))echo '<a class="button secondary" href="/reports/timing">گزارش زمان مراجعه</a>';
  if(allowed('services'))echo '<a class="button secondary" href="/appointment/catalogs">نوع ویزیت و تشخیص‌ها</a><a class="button secondary" href="/resources">اتاق‌ها و تجهیزات</a>';
  echo '</div>';}
- echo '<a class="button secondary" href="/display">تنظیم نمایش</a>';
- if(displayVisible($display,'panels','filters')){echo '<section class="panel form-panel"><form method="get"><div class="form-grid">';
+
+ if(displayVisible($display,'panels','filters')){echo '<section class="panel form-panel appointment-filters"><form method="get"><div class="form-grid three">';
  field('from','از تاریخ',$f['from'],'date');field('to','تا تاریخ',$f['to'],'date');field('q','نام، موبایل یا کد پرونده',$f['q']);
  selectfield('therapist','درمانگر',['0'=>'همه']+array_filter(therapists()),$f['therapist']);
+ $advanced=false;foreach(['visit_type','room','state','service','package','label','diagnosis','presence','patient_type','clinic','financial'] as $key)if(!empty($f[$key]))$advanced=true;
+ echo '</div><details class="advanced-filters" '.($advanced?'open':'').'><summary>فیلترهای بیشتر <span>اتاق، وضعیت، نوع ویزیت و مالی</span></summary><div class="form-grid three">';
  selectfield('visit_type','نوع ویزیت',['0'=>'همه']+options('visit_types','active=1'),$f['visit_type']);
  selectfield('room','اتاق',[''=>'همه']+array_column(q("SELECT DISTINCT room FROM physio_sessions WHERE room<>'' UNION SELECT name room FROM resources WHERE kind='room'")->fetchAll(),'room','room'),$f['room']);
  selectfield('state','وضعیت',[''=>'همه']+workflowLabels(),$f['state']);
@@ -24,7 +26,7 @@ function appointmentDashboard():void{
  selectfield('patient_type','سابقه مراجعه در سامانه',[''=>'همه','new'=>'بدون جلسه انجام‌شده قبلی','returning'=>'دارای جلسه انجام‌شده قبلی'],$f['patient_type']);
  selectfield('clinic','کلینیک',['0'=>'همه']+options('clinics','active=1'),$f['clinic']);
  if(allowed('finance.debt'))selectfield('financial','مالی دوره',[''=>'همه','debt'=>'دارای بدهی','settled'=>'بدون بدهی دوره'],$f['financial']);
- echo '</div><div class="form-actions"><button class="button primary">اعمال فیلترها</button><a class="button secondary" href="/appointments">امروز / پاک‌کردن فیلترها</a></div></form></section>';}
+ echo '</div></details><div class="form-actions"><button class="button primary">جستجوی نوبت‌ها</button><a class="button secondary" href="/appointments">امروز / پاک‌کردن فیلترها</a></div></form></section>';}
  $stats=array_fill_keys(array_keys(workflowLabels()),0);foreach($r['stats'] as $item)$stats[$item['state']]=(int)$item['n'];
  if(displayVisible($display,'panels','stats')){echo '<div class="stats-grid"><article class="stat-card"><span>مراجعین یکتای بازه</span><strong>'.fa($r['patients']).'</strong></article><article class="stat-card"><span>تمام نوبت‌های بازه</span><strong>'.fa(array_sum($stats)).'</strong></article>';
  foreach(['absent'=>'غایب در مطب','waiting'=>'در انتظار','cancelled'=>'کنسل‌شده','in_service'=>'در حال ویزیت','visited'=>'ویزیت‌شده','discharged'=>'ترخیصی'] as $k=>$title){$url='/appointments?'.http_build_query(array_replace($f,['state'=>$k]));echo '<a class="stat-card" href="'.e($url).'"><span>'.e($title).'</span><strong>'.fa($stats[$k]).'</strong></a>';}echo '</div>';}

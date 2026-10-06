@@ -1,0 +1,10 @@
+/* Values are substituted by /theme.css after strict hexadecimal validation. */
+:root {
+  --teal: {{theme_color}};
+  --primary: {{theme_color}};
+  --primary-hover: {{theme_hover_color}};
+  --bg: {{theme_background_color}};
+  --primary-ink: {{primary_ink}};
+  --hover-ink: {{hover_ink}};
+  --canvas-ink: {{canvas_ink}};
+}
