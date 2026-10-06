@@ -107,3 +107,34 @@
  .reception-toolbar, .reception-datebar, .reception-tools, .reception-filters, .reception-list-search { display: none; }
  .reception-grid { display: block; }
 }
+/* Inline patient controls keep selection, notes and settlement on the same row. */
+.patient-row-tools { display: flex; gap: 8px; align-items: start; margin-top: 9px; }
+.settlement-link { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #b9dec8; background: #eaf7ef; color: #19673b !important; border-radius: 50%; font: 700 20px/1 sans-serif; flex-shrink: 0; }
+.settlement-link:hover { background: #d8efdf; box-shadow: 0 3px 10px #1c643718; }
+.row-editor { min-width: 190px; max-width: 360px; white-space: normal; margin: 7px 0; --editor-accent: #657589; --editor-bg: #f3f5f8; }
+.patient-row-tools .row-editor { margin: 0; flex: 1; }
+.editor-diagnoses { --editor-accent: #2775a6; --editor-bg: #edf7ff; }
+.editor-packages { --editor-accent: #94612f; --editor-bg: #fff5e9; }
+.editor-notes { --editor-accent: #96721e; --editor-bg: #fffae9; }
+.reception-list td .row-editor > summary { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #e0e7ed; border-radius: 10px; background: var(--editor-bg); color: var(--editor-accent); list-style: none; }
+.row-editor > summary::-webkit-details-marker { display: none; }
+.row-editor > summary strong { display: block; font-size: 12px; color: inherit; }
+.row-editor > summary small { display: block; font-size: 11px; color: #637385; line-height: 1.7; margin: 2px 0 0; overflow-wrap: anywhere; }
+.editor-symbol { font-size: 19px; font-weight: 700; width: 22px; text-align: center; }
+.editor-chevron { margin-inline-start: auto; }
+.row-editor[open] > summary { border-color: var(--editor-accent); border-radius: 10px 10px 0 0; }
+.row-editor[open] .editor-chevron { transform: rotate(180deg); }
+.row-editor-body { padding: 13px; border: 1px solid #dbe5ed; border-top: 0; background: white; border-radius: 0 0 12px 12px; box-shadow: 0 7px 18px #24384c0a; min-width: 230px; }
+.row-editor-body > label { display: block; font-size: 12px; margin: 10px 0 5px; color: #425d70; }
+.row-editor-body input[type=search], .row-editor-body input[type=text], .row-editor-body input:not([type]), .row-editor-body textarea { min-height: 38px; font-size: 12px; padding: 8px 10px; }
+.editor-caption { font-size: 11px; color: #65798a; margin-bottom: 9px; }
+.choice-counter { display: block; font-size: 11px; color: #496577; margin: 7px 0; }
+.choice-list { max-height: 185px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.choice-option { display: flex; align-items: center; gap: 9px; padding: 9px 7px; border-radius: 7px; cursor: pointer; font-size: 12px; color: #365365; line-height: 1.7; }
+.choice-option:hover { background: #f2f7fa; }
+.choice-option:has(input:checked) { background: #edf5f4; color: #225b52; }
+.choice-option span { overflow-wrap: anywhere; }
+.editor-actions { display: flex; gap: 8px; margin-top: 12px; }
+.row-selection-text { display: block; white-space: normal; max-width: 270px; font-size: 13px; }
+@media(max-width:600px) { .row-editor-body { min-width: 220px; } }
+@media print { .row-editor-body, .settlement-link { display: none; } }

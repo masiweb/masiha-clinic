@@ -24,7 +24,8 @@ function appointmentFilters(array $input):array {
 
 function appointmentWhere(array $f,bool $withState=true):array{
  $where=['s.starts_at>=?','s.starts_at<DATE_ADD(?,INTERVAL 1 DAY)',patientScope('p')];$a=[$f['from'],$f['to']];
- foreach(['therapist'=>'s.therapist_id','clinic'=>'s.clinic_id','visit_type'=>'s.visit_type_id','service'=>'s.service_id','package'=>'s.package_id'] as $k=>$col)if($f[$k]){$where[]="$col=?";$a[]=$f[$k];}
+ foreach(['therapist'=>'s.therapist_id','clinic'=>'s.clinic_id','visit_type'=>'s.visit_type_id','service'=>'s.service_id'] as $k=>$col)if($f[$k]){$where[]="$col=?";$a[]=$f[$k];}
+ if($f['package']){$where[]='(s.package_id=? OR EXISTS(SELECT 1 FROM session_packages sp WHERE sp.session_id=s.id AND sp.package_id=?))';$a[]=$f['package'];$a[]=$f['package'];}
  if($f['room']!==''){$where[]='s.room=?';$a[]=$f['room'];}
  if($withState&&$f['state']!==''){$where[]='w.state=?';$a[]=$f['state'];}
  if($f['label']){$where[]='(s.label_id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=s.id AND sl.label_id=?))';$a[]=$f['label'];$a[]=$f['label'];}
@@ -80,6 +81,7 @@ function appointmentMetadata(int $id,int $version,array $input):void{
   }
   $before=['visit_type_id'=>$s['visit_type_id'],'room'=>$s['room'],'package_id'=>$s['package_id']];$after=['visit_type_id'=>$type?:null,'room'=>$room,'package_id'=>$package?:null];
   q('UPDATE physio_sessions SET visit_type_id=?,room=?,package_id=? WHERE id=?',[$type?:null,$room,$package?:null,$id]);
+  if(array_key_exists('package_id',$input)&&(int)$s['package_id']!==$package){q('DELETE FROM session_packages WHERE session_id=?',[$id]);if($package)q('INSERT INTO session_packages(session_id,package_id) VALUES(?,?)',[$id,$package]);}
   $event=['before_appointment'=>$before,'after_appointment'=>$after,'actor_name'=>user()['name']];
   foreach(['diagnoses'=>['session_diagnoses','diagnosis_id','diagnoses'],'labels'=>['session_labels','label_id','labels']] as $key=>[$table,$column,$catalog]){
    if(!array_key_exists($key,$input))continue;

@@ -27,3 +27,15 @@ CREATE TABLE IF NOT EXISTS session_labels (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 INSERT IGNORE INTO session_labels(session_id,label_id)
 SELECT s.id,s.label_id FROM physio_sessions s JOIN labels l ON l.id=s.label_id;
+
+-- Multiple treatment selections are reception metadata; billing remains explicit.
+ALTER TABLE physio_sessions ADD COLUMN IF NOT EXISTS reception_notes TEXT NULL;
+CREATE TABLE IF NOT EXISTS session_packages (
+ session_id BIGINT UNSIGNED NOT NULL,
+ package_id BIGINT UNSIGNED NOT NULL,
+ PRIMARY KEY(session_id,package_id),
+ FOREIGN KEY(session_id) REFERENCES physio_sessions(id),
+ FOREIGN KEY(package_id) REFERENCES packages(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT IGNORE INTO session_packages(session_id,package_id)
+SELECT s.id,s.package_id FROM physio_sessions s JOIN packages p ON p.id=s.package_id;

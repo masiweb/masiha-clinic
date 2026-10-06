@@ -407,6 +407,41 @@ try:
     assert json.loads(php(102,'echo json_encode(progressData(901));'))['count']>0
     print('PASS package allowance rollback, atomic exact stock/returns/concurrency, document scopes, preview-only SMS/queue guards and clinical reports')
 
+    # Reception edits: multi-selection, versioning, clinical privacy and finance isolation.
+    sql(f"INSERT INTO {database}.packages(id,name,price) VALUES(880,'Second package',250000)")
+    version=int(sql(f"SELECT version FROM {database}.visit_workflows WHERE session_id=705"))
+    original=sql(f"SELECT notes FROM {database}.physio_sessions WHERE id=705")
+    fees=sql(f"SELECT SUM(fee_toman) FROM {database}.physio_episodes")
+    denied(104,f"receptionUpdate(705,{version},'notes',['notes'=>'forbidden'])")
+    denied(103,f"receptionUpdate(705,{version},'diagnoses',['selection'=>[1]])")
+    php(103,f"receptionUpdate(705,{version},'packages',['selection'=>[1,880,880]]);")
+    assert sql(f"SELECT COUNT(*) FROM {database}.session_packages WHERE session_id=705")=='2'
+    assert sql(f"SELECT SUM(fee_toman) FROM {database}.physio_episodes")==fees
+    denied(103,f"receptionUpdate(705,{version},'notes',['notes'=>'stale'])")
+    version+=1
+    denied(103,f"receptionUpdate(705,{version},'packages',['selection'=>[999999]])")
+    assert sql(f"SELECT COUNT(*) FROM {database}.session_packages WHERE session_id=705")=='2'
+    found=json.loads(php(103,"echo json_encode(appointmentResults(appointmentFilters(['from'=>'2099-01-01','to'=>'2099-01-31','package'=>880])));"))
+    assert any(int(row['id'])==705 for row in found['rows'])
+    php(103,f"receptionUpdate(705,{version},'notes',['notes'=>'Reception-only note']);")
+    version+=1
+    assert sql(f"SELECT reception_notes FROM {database}.physio_sessions WHERE id=705")=='Reception-only note'
+    assert sql(f"SELECT notes FROM {database}.physio_sessions WHERE id=705")==original
+    php(102,f"receptionUpdate(705,{version},'diagnoses',['selection'=>[1],'new_diagnosis'=>'Synthetic new diagnosis']);")
+    version+=1
+    assert sql(f"SELECT COUNT(*) FROM {database}.session_diagnoses WHERE session_id=705")=='2'
+    timeline=json.loads(php(103,"echo json_encode(workflowTimeline(705));"))
+    assert all('after_diagnoses' not in item['details'] for item in timeline['events'])
+    php(103,f"receptionUpdate(705,{version},'labels',['selection'=>[]]);")
+    version+=1
+    assert sql(f"SELECT COUNT(*) FROM {database}.session_labels WHERE session_id=705")=='0'
+    assert sql(f"SELECT label_id IS NULL FROM {database}.physio_sessions WHERE id=705")=='1'
+    # Repeat migrations must not resurrect removed labels or lose additional packages.
+    subprocess.run(['mariadb',database],input=(root/'deploy/appointments.sql').read_text(),text=True,check=True)
+    assert sql(f"SELECT COUNT(*) FROM {database}.session_packages WHERE session_id=705")=='2'
+    assert sql(f"SELECT COUNT(*) FROM {database}.session_labels WHERE session_id=705")=='0'
+    print('PASS multi-package selection/filter, isolated admission notes, diagnosis creation/privacy, stale forms and repeat migration')
+
     # Real staff HTTP paths use CSRF, form versions and assigned-clinician scope.
     php(101, "$hash=password_hash('SyntheticWorkflowPassword123',PASSWORD_DEFAULT);q('UPDATE staff SET password_hash=?',[$hash]);")
     with socket.socket() as probe:
@@ -533,6 +568,21 @@ try:
         assert response.status_code==200 and '/appointments?date=2099-02-01' in response.url
         assert sql(f"SELECT visit_type_id FROM {database}.physio_sessions WHERE starts_at='2099-02-01 10:00:00'")=='1'
         clinician = login('wf_therapist')
+        row_page=clinician.get(base+'/appointments?from=2099-01-01&to=2099-01-31')
+        assert row_page.status_code==200 and 'class="settlement-link"' not in row_page.text
+        admin_rows=admin.get(base+'/appointments?from=2099-01-01&to=2099-01-31')
+        assert 'class="settlement-link"' in admin_rows.text and 'data-choice-search' in admin_rows.text
+        assert 'editor-packages' in admin_rows.text and 'name="selection[]"' in admin_rows.text
+        assert 'name="new_diagnosis"' in admin_rows.text and 'name="notes"' in admin_rows.text
+        current=int(sql(f"SELECT version FROM {database}.visit_workflows WHERE session_id=705"))
+        payload={'csrf':token(reception,'/appointments'),'action':'reception_update','session_id':705,'workflow_version':current,'kind':'notes','notes':'Edited reception note'}
+        response=reception.post(base+'/appointments?from=2099-01-01&to=2099-01-31',data=payload)
+        assert response.status_code==200 and 'from=2099-01-01' in response.url
+        assert sql(f"SELECT reception_notes FROM {database}.physio_sessions WHERE id=705")=='Edited reception note'
+        response=reception.post(base+'/appointments',data={**payload,'csrf':'invalid','notes':'must not save'})
+        assert response.status_code==403
+        assert sql(f"SELECT reception_notes FROM {database}.physio_sessions WHERE id=705")=='Edited reception note'
+
         assert clinician.get(base+'/billing?episode=803').status_code==403
         csrf = token(clinician, '/session?id=704')
         response = clinician.post(base + '/session?id=704', data={'csrf': csrf, 'action': 'session', 'session_id': 704, 'status': 'done',
