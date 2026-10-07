@@ -241,7 +241,7 @@ function availabilityView():void{
 
  <div class="dashboard-grid">
   <section class="panel form-panel">
-   <?php sectiontitle('برنامه هفتگی حضور','اگر برای درمانگر هیچ برنامه‌ای تعریف نشده باشد رفتار قبلی سیستم حفظ می‌شود؛ با تعریف اولین برنامه، رزرو فقط داخل ساعت‌های حضور مجاز است.');formstart('work_schedule_save');?>
+   <?php sectiontitle('برنامه هفتگی حضور','اگر برای درمانگر هیچ برنامه‌ای تعریف نشده باشد رفتار قبلی سیستم حفظ می‌شود؛ با تعریف اولین برنامه، رزرو فقط داخل ساعت‌های حضور مجاز است.');formstart('work_schedule_save');hidden('id',0);?>
    <div class="form-grid three">
     <?php selectfield('therapist_id','درمانگر',$staff,'','درمانگر فعال.',true);?>
     <?php selectfield('weekday','روز هفته',$week,0,'روز تکرارشونده برنامه.',true);?>
@@ -270,6 +270,13 @@ function availabilityView():void{
   <?php sectiontitle('کپی برنامه حضور','تمام بازه‌های فعال یک درمانگر را برای درمانگر دیگری کپی کنید؛ موارد تکراری دوباره ساخته نمی‌شوند.');formstart('work_schedule_copy');?>
   <div class="form-grid"><?php selectfield('source_therapist_id','از درمانگر',$staff,'','برنامه مبدا.',true);selectfield('target_therapist_id','به درمانگر',$staff,'','درمانگر مقصد.',true);?></div>
   <?php formend('کپی برنامه','/availability');?>
+ </section>
+
+ <section class="panel form-panel">
+  <?php sectiontitle('کپی شیفت به روزهای هفته','همه شیفت‌های فعال روز مبدا با ساعت، کلینیک و اعتبار فعلی کپی می‌شوند. اگر تداخل وجود داشته باشد هیچ تغییری ذخیره نمی‌شود.');formstart('work_schedule_copy_days');?>
+  <div class="form-grid"><?php selectfield('therapist_id','درمانگر',$staff,'','',true);selectfield('source_weekday','روز مبدا',$week,0,'',true);?></div>
+  <fieldset><legend>روزهای مقصد</legend><div class="actions"><?php foreach($week as $day=>$title):?><label><input type="checkbox" name="target_days[]" value="<?=$day?>"> <?=e($title)?></label><?php endforeach;?></div></fieldset>
+  <?php formend('کپی به روزهای انتخاب‌شده','/availability');?>
  </section>
 
  <section class="panel">

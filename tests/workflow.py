@@ -501,10 +501,10 @@ try:
         for invalid in ['#000000;','bad','']:
             admin.post(base+'/appearance',data={'csrf':token(admin,'/appearance'),'action':'appearance',**colors,'theme_color':'#abcdef','theme_hover_color':invalid})
             assert '--primary: #3459a8' in Client().get(base+'/theme.css').text
-        denied=reception.post(base+'/appearance',data={'csrf':token(reception,'/appointments'),'action':'appearance',**colors,'theme_color':'#ffffff'})
-        assert denied.status_code==403 and '--primary: #3459a8' in Client().get(base+'/theme.css').text
-        denied=admin.post(base+'/appearance',data={'csrf':'invalid','action':'appearance',**colors})
-        assert denied.status_code==403
+        denied_response=reception.post(base+'/appearance',data={'csrf':token(reception,'/appointments'),'action':'appearance',**colors,'theme_color':'#ffffff'})
+        assert denied_response.status_code==403 and '--primary: #3459a8' in Client().get(base+'/theme.css').text
+        denied_response=admin.post(base+'/appearance',data={'csrf':'invalid','action':'appearance',**colors})
+        assert denied_response.status_code==403
         reset={'theme_color':'#087f75','theme_hover_color':'#065f58','theme_background_color':'#f3f6fa','font_id':'0','heading_font_id':'0'}
         admin.post(base+'/appearance',data={'csrf':token(admin,'/appearance'),'action':'appearance',**reset})
         filtered=admin.get(base+'/appointments?presence=present')
@@ -566,6 +566,25 @@ try:
         assert week.status_code==200 and all('2099-03-01'<=x['starts_at'][:10]<='2099-03-07' for x in week.json()['slots'])
         assert reception.get(base+'/api/appointment-slots?pid=901&therapist=102&days=32').status_code==400
 
+        # Reproduce create via the actual availability form (no existing record ID).
+        schedule_data={'csrf':token(admin,'/availability'),'action':'work_schedule_save','therapist_id':102,'clinic_id':1,'weekday':0,'start_time':'08:00','end_time':'10:00','effective_from':'2099-12-01','effective_to':'2099-12-31'}
+        response=admin.post(base+'/availability',data=schedule_data)
+        assert response.status_code==200 and 'عدد واردشده معتبر نیست' not in response.text
+        assert sql(f"SELECT COUNT(*) FROM {database}.therapist_schedules WHERE therapist_id=102 AND weekday=0 AND effective_from='2099-12-01'")=='1'
+        copied=php(101,"echo copyTherapistScheduleDays(102,0,[1,2,2]);")
+        assert copied=='2'
+        assert php(101,"echo copyTherapistScheduleDays(102,0,[1,2]);")=='0'
+        denied(104,"copyTherapistScheduleDays(102,0,[3])")
+        denied(101,"copyTherapistScheduleDays(102,0,[0])")
+        denied(101,"copyTherapistScheduleDays(102,0,[7])")
+        # A later conflict rolls back earlier destinations in the same operation.
+        php(101,"saveTherapistSchedule(['therapist_id'=>102,'clinic_id'=>1,'weekday'=>4,'start_time'=>'09:00:00','end_time'=>'11:00:00','effective_from'=>'2099-12-01','effective_to'=>'2099-12-31']);")
+        denied(101,"copyTherapistScheduleDays(102,0,[3,4])")
+        assert sql(f"SELECT COUNT(*) FROM {database}.therapist_schedules WHERE therapist_id=102 AND weekday=3 AND effective_from='2099-12-01'")=='0'
+        response=admin.post(base+'/availability',data={'csrf':token(admin,'/availability'),'action':'work_schedule_copy_days','therapist_id':102,'source_weekday':0,'target_days[]':5})
+        assert response.status_code==200 and 'بازه جدید' in response.text
+        assert sql(f"SELECT COUNT(*) FROM {database}.therapist_schedules WHERE therapist_id=102 AND weekday=5 AND effective_from='2099-12-01'")=='1'
+        print('PASS actual schedule create form, copy weekdays, duplicate skip, permission and atomic conflict rollback')
         display_csrf=token(reception,'/display')
         response=reception.post(base+'/display',data={'csrf':display_csrf,'action':'display_save','policy':'1','role':'admin'})
         assert 'فقط برای مدیر' in response.text

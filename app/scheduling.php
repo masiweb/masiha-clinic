@@ -84,3 +84,17 @@ function nextAppointmentDefaults(int $previous,int $pid):array{
  $day=max(date('Y-m-d'),date('Y-m-d',strtotime(substr($s['starts_at'],0,10).' +1 day')));
  return ['therapist_id'=>(int)$s['therapist_id'],'clinic_id'=>(int)$s['clinic_id'],'service_id'=>(int)$s['service_id'],'episode_id'=>$episodeId,'visit_type_id'=>(int)$s['visit_type_id'],'room'=>$s['room'],'equipment'=>$s['equipment'],'duration'=>max(5,min(480,(int)((strtotime($s['ends_at'])-strtotime($s['starts_at']))/60))),'date'=>$day];
 }
+
+function copyTherapistScheduleDays(int $tid,int $source,array $days):int{
+ if($source<0||$source>6||count($days)>7)throw new DomainException('روزهای هفته معتبر نیست.');
+ $targets=[];foreach($days as $day){if(!is_scalar($day))throw new DomainException('روز مقصد معتبر نیست.');$n=filter_var(MasihaOtp::digits((string)$day),FILTER_VALIDATE_INT,['options'=>['min_range'=>0,'max_range'=>6]]);if($n===false)throw new DomainException('روز مقصد معتبر نیست.');if($n!==$source)$targets[$n]=$n;}
+ if(!$targets)throw new DomainException('حداقل یک روز مقصد متفاوت از روز مبدا انتخاب کنید.');
+ return schedulingTransaction(function()use($tid,$source,$targets){
+  scheduleTherapist($tid);$rows=q('SELECT * FROM therapist_schedules WHERE therapist_id=? AND weekday=? AND active=1 ORDER BY start_time,id',[$tid,$source])->fetchAll();
+  if(!$rows)throw new DomainException('برای روز مبدا برنامه حضور فعالی ثبت نشده است.');$count=0;
+  foreach($targets as $day)foreach($rows as $row){
+   if(q('SELECT id FROM therapist_schedules WHERE therapist_id=? AND weekday=? AND start_time=? AND end_time=? AND clinic_id<=>? AND effective_from<=>? AND effective_to<=>? AND active=1',[$tid,$day,$row['start_time'],$row['end_time'],$row['clinic_id'],$row['effective_from'],$row['effective_to']])->fetchColumn())continue;
+   $row['weekday']=$day;saveTherapistSchedule($row);$count++;
+  }audit('work_schedule_days_copied',$tid);return $count;
+ });
+}
