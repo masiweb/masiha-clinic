@@ -1,0 +1,6 @@
+@font-face {
+  font-family: clinicHeading;
+  src: url('/font?id={{font_id}}');
+  font-display: swap;
+}
+h1, h2, h3, .brand { font-family: clinicHeading, Vazir, sans-serif; }

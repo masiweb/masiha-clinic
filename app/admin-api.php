@@ -1,8 +1,43 @@
 <?php
 function adminApi($path):void{global $config;
- if($path==='/theme.css'){header('Content-Type: text/css');$color=setting('theme_color','#087f75');if(!preg_match('/^#[0-9a-f]{6}$/iD',$color))$color='#087f75';echo ':root{--teal:'.$color.';--primary:'.$color.'} .button.primary,.brand-initial{background:'.$color.'} .welcome-banner{background:linear-gradient(120deg,'.$color.',#183e49)}';foreach(['font_id'=>'body,input,select,textarea,button','heading_font_id'=>'h1,h2,h3,.brand'] as $key=>$selector){$id=(int)setting($key,'0');if($id&&q('SELECT id FROM custom_fonts WHERE id=?',[$id])->fetchColumn())echo "@font-face{font-family:custom$id;src:url('/font?id=$id')} $selector{font-family:custom$id,Vazir,sans-serif}";}exit;}
+ if($path==='/theme.css'){
+  header('Content-Type: text/css; charset=utf-8');
+  $values=[];
+  foreach(['theme_color'=>'#087f75','theme_hover_color'=>'#065f58','theme_background_color'=>'#f3f6fa'] as $key=>$fallback){
+   $value=setting($key,$fallback);
+   $values['{{'.$key.'}}']=preg_match('/^#[0-9a-f]{6}$/iD',$value)?$value:$fallback;
+  }
+  $contrast=static function(string $hex):string{
+   $channels=[];foreach(str_split(substr($hex,1),2) as $part){$c=hexdec($part)/255;$channels[]=$c<=.04045?$c/12.92:(($c+.055)/1.055)**2.4;}
+   return $channels[0]*.2126+$channels[1]*.7152+$channels[2]*.0722>.179?'#000000':'#ffffff';
+  };
+  $values['{{primary_ink}}']=$contrast($values['{{theme_color}}']);
+  $values['{{hover_ink}}']=$contrast($values['{{theme_hover_color}}']);
+  $values['{{canvas_ink}}']=$contrast($values['{{theme_background_color}}']);
+  // All presentation rules live in CSS files; only validated values enter templates.
+  echo strtr(file_get_contents(__DIR__.'/../public/assets/theme.css'),$values);
+  foreach(['font_id'=>'body','heading_font_id'=>'heading'] as $key=>$kind){
+   $id=(int)setting($key,'0');
+   if($id>0&&q('SELECT id FROM custom_fonts WHERE id=?',[$id])->fetchColumn())
+    echo str_replace('{{font_id}}',(string)$id,file_get_contents(__DIR__.'/../public/assets/font-'.$kind.'.css'));
+  }
+  exit;
+ }
  if($path==='/font'){$r=q('SELECT * FROM custom_fonts WHERE id=?',[(int)($_GET['id']??0)])->fetch();if(!$r){http_response_code(404);exit;}$f=$config['storage'].'/fonts/'.basename($r['filename']);if(!is_file($f)){http_response_code(404);exit;}header('Content-Type: font/'.$r['format']);readfile($f);exit;}
  if(!str_starts_with($path,'/api/'))return;if(!user()){http_response_code(401);exit;}header('Content-Type: application/json; charset=utf-8');
+ if($path==='/api/appointment-slots'){
+  try{
+   $integer=static function($key,$default=0){$v=$_GET[$key]??$default;$n=filter_var($v,FILTER_VALIDATE_INT,['options'=>['min_range'=>0,'max_range'=>999999999]]);if($n===false)throw new DomainException('شناسه معتبر نیست.');return $n;};
+   $date=$_GET['from']??date('Y-m-d');$room=$_GET['room']??'';if(!is_string($date)||!is_string($room)||mb_strlen($room)>100)throw new DomainException('ورودی معتبر نیست.');
+   echo json_encode(['slots'=>appointmentSlotSuggestions($integer('pid'),$integer('therapist'),$integer('clinic',1),$date,$integer('duration',30),$room,$integer('days',14),$integer('days',14)===7?700:30)],JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
+  }catch(DomainException $ex){http_response_code(400);echo json_encode(['error'=>$ex->getMessage()],JSON_UNESCAPED_UNICODE);}
+  catch(Throwable $ex){http_response_code(500);error_log('Masiha slots '.get_class($ex));echo '{"error":"جستجوی زمان انجام نشد."}';}exit;
+ }
+ if($path==='/api/visit-timeline'){
+  try{$id=filter_var($_GET['session_id']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);if(!$id)throw new DomainException('شناسه نوبت معتبر نیست.');echo json_encode(workflowTimeline($id),JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);}
+  catch(DomainException $ex){http_response_code(403);echo json_encode(['error'=>$ex->getMessage()],JSON_UNESCAPED_UNICODE);}
+  catch(Throwable $ex){http_response_code(500);error_log('Masiha timeline '.get_class($ex));echo '{"error":"نمایش سابقه انجام نشد."}';}exit;
+ }
  if($path==='/api/patients'){need('patients');$term=mb_substr(MasihaOtp::digits(trim((string)($_GET['q']??''))),0,100);$where='p.active=1 AND '.patientScope();$args=[];if($term!==''){$where.=' AND (CONCAT(p.fname,\' \',p.lname) LIKE ? OR p.national_id LIKE ? OR ('.patientScope('p','contact').' AND p.phone_cell LIKE ?))';$args=array_fill(0,3,'%'.$term.'%');}$rows=q('SELECT p.pid,p.fname,p.lname,p.phone_cell,p.national_id FROM patients p WHERE '.$where.' ORDER BY p.lname LIMIT 15',$args)->fetchAll();$out=[];foreach($rows as $r)$out[]=['id'=>$r['pid'],'name'=>patientName($r),'phone'=>patientAllowed($r['pid'],'contact')?$r['phone_cell']:null,'national_id'=>$r['national_id']];echo json_encode($out,JSON_UNESCAPED_UNICODE);exit;}
  if($path==='/api/booking'){need('appointments');$tid=(int)($_GET['therapist']??0);$pid=(int)($_GET['pid']??0);$eps=[];if($pid){requirePatient($pid);$eps=q("SELECT id,diagnosis FROM physio_episodes WHERE pid=? AND status='active' ORDER BY id DESC",[$pid])->fetchAll();}$services=q('SELECT s.id,s.name,s.duration,s.price FROM services s JOIN service_staff x ON x.service_id=s.id WHERE x.staff_id=? AND s.active=1 AND s.deleted=0 ORDER BY s.name',[$tid])->fetchAll();$tariffs=[];if($services){$ids=array_map('intval',array_column($services,'id'));$ph=implode(',',array_fill(0,count($ids),'?'));foreach(q("SELECT id,service_id,tariff_type,title,contract_name,price_toman,effective_from,effective_to FROM service_tariffs WHERE active=1 AND deleted=0 AND service_id IN ($ph) ORDER BY service_id,tariff_type,effective_from DESC,id DESC",$ids)->fetchAll() as $t)$tariffs[(int)$t['service_id']][]=$t;}echo json_encode(['services'=>$services,'episodes'=>$eps,'tariffs'=>$tariffs],JSON_UNESCAPED_UNICODE);exit;}
  http_response_code(404);echo '{}';exit;
@@ -10,5 +45,5 @@ function adminApi($path):void{global $config;
 function guardPage($path):void{
  if(in_array($path,['/patient','/patients/edit'])){$pid=(int)($_GET['id']??0);requirePatient($pid);if($path==='/patients/edit'){demand('patients.edit');if(!patientAllowed($pid,'contact')){http_response_code(403);exit('برای ویرایش مشخصات کامل، دسترسی تماس لازم است.');}}}
  if($path==='/patients/new')demand('patients.create');
- if($path==='/session'){$id=(int)($_GET['id']??0);$s=q('SELECT s.*,e.pid FROM physio_sessions s JOIN physio_episodes e ON e.id=s.episode_id WHERE s.id=?',[$id])->fetch();if(!$s){http_response_code(404);exit;}requirePatient($s['pid']);if(scope('forms.visit')==='none'||(scope('forms.visit')==='own'&&(int)$s['created_by']!==(int)user()['id'])){http_response_code(403);exit('به این فرم دسترسی ندارید.');}}
+ if($path==='/session'){$id=(int)($_GET['id']??0);$s=q('SELECT s.*,e.pid FROM physio_sessions s JOIN physio_episodes e ON e.id=s.episode_id WHERE s.id=?',[$id])->fetch();if(!$s){http_response_code(404);exit;}requirePatient($s['pid']);if(scope('forms.visit')==='none'||(scope('forms.visit')==='own'&&(int)$s['created_by']!==(int)user()['id']&&(int)$s['therapist_id']!==(int)user()['id'])){http_response_code(403);exit('به این فرم دسترسی ندارید.');}}
 }

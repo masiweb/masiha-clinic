@@ -6,7 +6,7 @@ from parser import record_from_dom,allowed_link,extract_history_summary
 suffix=secrets.token_hex(4);db='masiha_import_test_'+suffix
 sql=lambda s:subprocess.check_output(['mariadb','-N','-e',s],text=True).strip()
 work=pathlib.Path(tempfile.mkdtemp(prefix='masiha-import-test-'));cfg=work/'config.php';env=os.environ.copy();env['MASIHA_CONFIG']=str(cfg)
-config={'dsn':'mysql:host=localhost;dbname='+db+';charset=utf8mb4','user':'root','password':'','secret':secrets.token_hex(32),'storage':str(work)}
+config={'dsn':'mysql:host='+os.environ.get('MASIHA_TEST_DB_HOST','localhost')+';dbname='+db+';charset=utf8mb4','user':'root','password':'','secret':secrets.token_hex(32),'storage':str(work)}
 phpconfig=subprocess.check_output(['php','-r','$c=json_decode(stream_get_contents(STDIN),true);echo "<?php return ".var_export($c,true).";";'],input=json.dumps(config),text=True)
 cfg.write_text(phpconfig);cfg.chmod(0o600)
 def bridge(op,**args):
@@ -16,7 +16,7 @@ def bridge(op,**args):
 def php(code):return subprocess.check_output(['php','-r',"require '"+str(root/'app/bootstrap.php')+"';require '"+str(root/'app/import.php')+"';"+code],env=env,text=True)
 try:
  sql('CREATE DATABASE '+db+' CHARACTER SET utf8mb4')
- for f in ['schema.sql','therapy.sql','admin-v2.sql','import.sql']:
+ for f in ['schema.sql','therapy.sql','portal.sql','admin-v2.sql','import.sql','workflow.sql','history-reconciliation.sql','billing.sql','operations.sql']:
   subprocess.run(['mariadb',db],input=(root/'deploy'/f).read_text(),text=True,check=True)
  key='b'*64
  sql(f"USE {db};INSERT INTO import_runs(account_key,status,hourly_limit,total_limit,storage_mb,created_by) VALUES('{key}','running',2,3,16,1)")
