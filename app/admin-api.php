@@ -29,7 +29,7 @@ function adminApi($path):void{global $config;
   try{
    $integer=static function($key,$default=0){$v=$_GET[$key]??$default;$n=filter_var($v,FILTER_VALIDATE_INT,['options'=>['min_range'=>0,'max_range'=>999999999]]);if($n===false)throw new DomainException('شناسه معتبر نیست.');return $n;};
    $date=$_GET['from']??date('Y-m-d');$room=$_GET['room']??'';if(!is_string($date)||!is_string($room)||mb_strlen($room)>100)throw new DomainException('ورودی معتبر نیست.');
-   echo json_encode(['slots'=>appointmentSlotSuggestions($integer('pid'),$integer('therapist'),$integer('clinic',1),$date,$integer('duration',30),$room)],JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
+   echo json_encode(['slots'=>appointmentSlotSuggestions($integer('pid'),$integer('therapist'),$integer('clinic',1),$date,$integer('duration',30),$room,$integer('days',14),$integer('days',14)===7?700:30)],JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
   }catch(DomainException $ex){http_response_code(400);echo json_encode(['error'=>$ex->getMessage()],JSON_UNESCAPED_UNICODE);}
   catch(Throwable $ex){http_response_code(500);error_log('Masiha slots '.get_class($ex));echo '{"error":"جستجوی زمان انجام نشد."}';}exit;
  }

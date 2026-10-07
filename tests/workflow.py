@@ -193,6 +193,13 @@ try:
     denied(101,"saveTherapistAbsence(102,'2099-03-01 09:00:00','2099-03-01 09:30:00','Booked interval')")
     denied(104,"appointmentSlotSuggestions(901,102,1,'2099-03-01',30)")
     assert json.loads(php(101,"echo json_encode(appointmentSlotSuggestions(901,104,1,'2099-03-02',30,'',1));"))==[]
+    # A seven-day board must not silently stop after thirty slots on day one.
+    for day in ['2099-12-01','2099-12-02']:
+        php(101,"saveTherapistSchedule(['therapist_id'=>104,'clinic_id'=>1,'weekday'=>clinicWeekday('"+day+"'),'start_time'=>'08:00:00','end_time'=>'20:00:00','effective_from'=>'"+day+"','effective_to'=>'"+day+"']);")
+    expanded=json.loads(php(101,"echo json_encode(appointmentSlotSuggestions(901,104,1,'2099-12-01',30,'',7,700));"))
+    assert len(expanded)>30 and any(x['starts_at'].startswith('2099-12-02') for x in expanded)
+    denied(101,"appointmentSlotSuggestions(901,104,1,'2099-12-01',30,'',7,1001)")
+    sql(f"DELETE FROM {database}.therapist_schedules WHERE therapist_id=104 AND effective_from IN ('2099-12-01','2099-12-02')")
     # A concurrent absence waits for a committed booking and then refuses the overlap.
     signal=work/'booking-lock-ready'
     lock_code="require '"+str(root/'app/bootstrap.php')+"';$_SESSION=['uid'=>101];schedulingTransaction(function(){q(\"INSERT INTO physio_sessions(id,episode_id,therapist_id,starts_at,ends_at,room,treatment,notes,created_by) VALUES(711,801,102,'2099-03-01 11:00','2099-03-01 11:30','New room','','',101)\");file_put_contents('"+str(signal)+"','ready');usleep(600000);});"
@@ -554,6 +561,11 @@ try:
         assert slots_response.status_code==200 and slots_response.json()['slots'][0]['starts_at']=='2099-03-01 09:30:00'
         next_page=reception.get(base+'/appointment/new?pid=901&previous=705')
         assert next_page.status_code==200 and 'data-find-slots' in next_page.text and 'ثبت سریع' in next_page.text
+        assert 'data-booking-months' in next_page.text and 'data-week-step="7"' in next_page.text
+        week=reception.get(base+'/api/appointment-slots?pid=901&therapist=102&clinic=1&from=2099-03-01&duration=30&days=7')
+        assert week.status_code==200 and all('2099-03-01'<=x['starts_at'][:10]<='2099-03-07' for x in week.json()['slots'])
+        assert reception.get(base+'/api/appointment-slots?pid=901&therapist=102&days=32').status_code==400
+
         display_csrf=token(reception,'/display')
         response=reception.post(base+'/display',data={'csrf':display_csrf,'action':'display_save','policy':'1','role':'admin'})
         assert 'فقط برای مدیر' in response.text

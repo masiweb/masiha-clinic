@@ -51,10 +51,10 @@ function copyTherapistSchedule(int $source,int $target):int{
   }audit('work_schedule_copy',$target);return $count;
  });
 }
-function appointmentSlotSuggestions(int $pid,int $tid,int $clinic,string $from,int $minutes,string $room='',int $days=14):array{
+function appointmentSlotSuggestions(int $pid,int $tid,int $clinic,string $from,int $minutes,string $room='',int $days=14,int $limit=30):array{
  if(!allowed('appointments')||!patientAllowed($pid)||!q('SELECT pid FROM patients WHERE pid=? AND active=1',[$pid])->fetchColumn())throw new DomainException('به این پرونده دسترسی ندارید.');
  if(!q("SELECT id FROM staff WHERE id=? AND active=1 AND deleted=0 AND role IN ('admin','therapist')",[$tid])->fetchColumn()||!q('SELECT id FROM clinics WHERE id=? AND active=1',[$clinic])->fetchColumn())throw new DomainException('درمانگر و کلینیک فعال انتخاب کنید.');
- $date=DateTimeImmutable::createFromFormat('!Y-m-d',$from);if(!$date||$date->format('Y-m-d')!==$from||$minutes<5||$minutes>480||$days<1||$days>31)throw new DomainException('بازه جستجو معتبر نیست.');
+ $date=DateTimeImmutable::createFromFormat('!Y-m-d',$from);if(!$date||$date->format('Y-m-d')!==$from||$minutes<5||$minutes>480||$days<1||$days>31||$limit<1||$limit>1000)throw new DomainException('بازه جستجو معتبر نیست.');
  if($room!=='')validateResources($room,'');
  $results=[];$seen=[];
  for($day=0;$day<$days;$day++){
@@ -71,7 +71,7 @@ function appointmentSlotSuggestions(int $pid,int $tid,int $clinic,string $from,i
    $candidates[]=['starts_at'=>$start,'ends_at'=>$end,'room'=>$w['room'],'equipment'=>$w['equipment']];
   }
   usort($candidates,static fn($a,$b)=>strcmp($a['starts_at'],$b['starts_at']));
-  foreach($candidates as $candidate){$results[]=$candidate;if(count($results)>=30)return $results;}
+  foreach($candidates as $candidate){$results[]=$candidate;if(count($results)>=$limit)return $results;}
  }
  return $results;
 }
