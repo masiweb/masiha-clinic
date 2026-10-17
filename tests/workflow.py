@@ -36,7 +36,11 @@ def sql(text):
 
 def php(actor, code, patient=False):
     session = "$_SESSION=['" + ('pid' if patient else 'uid') + "'=>" + str(actor) + "];"
-    return subprocess.check_output(['php', '-r', "require '" + str(root / 'app/bootstrap.php') + "';" + session + code], env=env, text=True)
+    try:
+        return subprocess.check_output(['php', '-r', "require '" + str(root / 'app/bootstrap.php') + "';" + session + code], env=env, text=True)
+    except subprocess.CalledProcessError as error:
+        print(error.output)
+        raise
 
 def migrate():
     subprocess.run(['mariadb', database], input=(root / 'deploy/workflow.sql').read_text(), text=True, check=True)
@@ -190,6 +194,21 @@ try:
     slots=json.loads(php(103,"echo json_encode(appointmentSlotSuggestions(901,102,1,'2099-03-01',30,'New room',1));"))
     assert slots[0]['starts_at']=='2099-03-01 09:30:00'
     assert all(x['ends_at']<='2099-03-01 10:00:00' or x['starts_at']>='2099-03-01 11:00:00' for x in slots)
+    board=json.loads(php(103,"echo json_encode(appointmentSlotSuggestions(901,102,1,'2099-03-01',30,'New room',1,700,true));"))
+    assert board[0]['starts_at']=='2099-03-01 09:00:00' and board[0]['booked'] is True
+    assert board[0]['patient_names']==['Test Workflow']
+    # A scoped user can see occupancy without seeing another patient's identity.
+    sql(f"USE {database}; INSERT INTO staff_permissions(staff_id,permissions) VALUES(104,'{{\"appointments\":true,\"profile\":\"related\"}}'); UPDATE patients SET providerID=104 WHERE pid=902;")
+    masked=json.loads(php(104,"echo json_encode(appointmentSlotSuggestions(902,102,1,'2099-03-01',30,'New room',1,700,true));"))
+    assert masked[0]['booked'] and masked[0]['patient_names']==['رزروشده']
+    sql(f"USE {database}; DELETE FROM staff_permissions WHERE staff_id=104; UPDATE patients SET providerID=0 WHERE pid=902;")
+    assert any(not x['booked'] for x in board)
+    assert all(x['ends_at']<='2099-03-01 10:00:00' or x['starts_at']>='2099-03-01 11:00:00' for x in board)
+    php(103,"displaySave(['booking'=>['service_id'=>['visible'=>1],'date'=>['visible'=>1]]]);")
+    booking_prefs=json.loads(php(103,"echo json_encode(displayEffective());"))
+    assert booking_prefs['booking']['service_id']['visible'] and not booking_prefs['booking']['time']['visible']
+    assert json.loads(php(101,"echo json_encode(displayEffective());"))['booking']['time']['visible']
+    php(103,"displaySave([],false,'',true);")
     denied(101,"saveTherapistAbsence(102,'2099-03-01 09:00:00','2099-03-01 09:30:00','Booked interval')")
     denied(104,"appointmentSlotSuggestions(901,102,1,'2099-03-01',30)")
     assert json.loads(php(101,"echo json_encode(appointmentSlotSuggestions(901,104,1,'2099-03-02',30,'',1));"))==[]
@@ -563,6 +582,8 @@ try:
         assert next_page.status_code==200 and 'data-find-slots' in next_page.text and 'ثبت سریع' in next_page.text
         assert 'data-booking-months' in next_page.text and 'data-week-step="7"' in next_page.text
         week=reception.get(base+'/api/appointment-slots?pid=901&therapist=102&clinic=1&from=2099-03-01&duration=30&days=7')
+        occupied=reception.get(base+'/api/appointment-slots?pid=901&therapist=102&clinic=1&from=2099-03-01&duration=30&days=7&board=1')
+        assert occupied.status_code==200 and any(x['booked'] and x['patient_names'] for x in occupied.json()['slots'])
         assert week.status_code==200 and all('2099-03-01'<=x['starts_at'][:10]<='2099-03-07' for x in week.json()['slots'])
         assert reception.get(base+'/api/appointment-slots?pid=901&therapist=102&days=32').status_code==400
 

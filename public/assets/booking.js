@@ -5,6 +5,12 @@
  const output=workspace.querySelector('[data-slot-results]'),status=workspace.querySelector('[data-booking-status]'),summary=workspace.querySelector('[data-booking-summary]');
  const dateFormat=new Intl.DateTimeFormat('fa-IR',{weekday:'long',day:'numeric',month:'long'}),number=new Intl.NumberFormat('fa-IR');
  const dayDate=day=>new Date(day+'T12:00:00Z'),iso=d=>d.toISOString().slice(0,10);
+ // Keep the native select as the canonical value for dependent service loading.
+ const therapist=field('therapist_id'),choices=document.createElement('div');choices.className='booking-therapists';choices.setAttribute('role','radiogroup');choices.setAttribute('aria-label','انتخاب درمانگر');
+ for(const option of therapist.options){if(!option.value)continue;const label=document.createElement('label'),input=document.createElement('input');input.type='radio';input.required=true;input.name='booking_therapist_choice';input.value=option.value;input.checked=option.selected;label.append(input,document.createTextNode(option.textContent));choices.append(label);input.addEventListener('change',()=>{therapist.value=input.value;therapist.dispatchEvent(new Event('change',{bubbles:true}));});}
+ therapist.hidden=true;therapist.required=false;therapist.after(choices);
+ // Hidden manual fields are populated from the board and checked on submit/server.
+ for(const name of ['date','time'])if(field(name).closest('.booking-field')?.hidden)field(name).required=false;
  let request=0,controller,timer,selecting=false;
  const watched=['pid','therapist_id','clinic_id','date','duration','room'];
  const signature=()=>watched.map(name=>field(name)?.value||'').join('|');let lastSignature=signature();
@@ -27,17 +33,18 @@
   if(!Number(field('pid').value)){status.textContent='ابتدا بیمار را انتخاب یا پرونده جدید ثبت کنید.';return;}
   const from=field('date').value,duration=Number(field('duration').value);
   if(!from||!Number.isInteger(duration)||duration<5||duration>480){status.textContent='تاریخ و مدت جلسه معتبر انتخاب کنید.';return;}
-  const params=new URLSearchParams({pid:field('pid').value,therapist:field('therapist_id').value,clinic:field('clinic_id').value,from,duration,room:field('room').value,days:7});
+  const params=new URLSearchParams({pid:field('pid').value,therapist:field('therapist_id').value,clinic:field('clinic_id').value,from,duration,room:field('room').value,days:7,board:1});
   status.textContent='در حال بررسی برنامه حضور و تداخل نوبت‌ها…';output.setAttribute('aria-busy','true');
   try{
    const response=await fetch('/api/appointment-slots?'+params,{signal:controller.signal});const data=await response.json();if(id!==request)return;if(!response.ok)throw Error(data.error||'دریافت زمان‌ها انجام نشد.');
    for(let i=0;i<7;i++){
     const d=dayDate(from);d.setUTCDate(d.getUTCDate()+i);const day=iso(d),slots=data.slots.filter(s=>s.starts_at.startsWith(day));
     const card=document.createElement('section');card.className='booking-day';const h=document.createElement('h3');h.textContent=dateFormat.format(d);card.append(h);
-    const count=document.createElement('small');count.textContent=number.format(slots.length)+' زمان آزاد';card.append(count);
+    const count=document.createElement('small');count.textContent=number.format(slots.filter(s=>!s.booked).length)+' آزاد · '+number.format(slots.filter(s=>s.booked).length)+' رزروشده';card.append(count);
     if(!slots.length){const empty=document.createElement('p');empty.className='booking-empty';empty.textContent='زمان آزادی در برنامه ثبت‌شده نیست';card.append(empty);}
     for(const slot of slots){
      const button=document.createElement('button');button.type='button';button.className='booking-slot';button.setAttribute('aria-pressed','false');button.textContent=slot.starts_at.slice(11,16)+' – '+slot.ends_at.slice(11,16)+(slot.room?' · '+slot.room:'');
+     if(slot.booked){button.classList.add('booked');button.disabled=true;button.setAttribute('aria-label',button.textContent+'، رزروشده');const names=document.createElement('small');names.textContent=(slot.patient_names||[]).join('، ')||'رزروشده';button.append(names);card.append(button);continue;}
      button.addEventListener('click',()=>{
       selecting=true;setDate(day);field('time').value=slot.starts_at.slice(11,16);field('room').value=slot.room;field('equipment').value=slot.equipment;selecting=false;lastSignature=signature();
       output.querySelectorAll('.booking-slot').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});button.classList.add('selected');button.setAttribute('aria-pressed','true');
@@ -53,7 +60,7 @@
  workspace.querySelector('[data-find-slots]').addEventListener('click',()=>{clearTimeout(timer);invalidate();load();});
  workspace.querySelectorAll('[data-week-step]').forEach(b=>b.addEventListener('click',()=>{const d=dayDate(field('date').value||today());d.setUTCDate(d.getUTCDate()+Number(b.dataset.weekStep));setDate(iso(d));}));
  workspace.querySelector('[data-booking-today]').addEventListener('click',()=>setDate(today()));
- form.addEventListener('submit',e=>{if(!Number(field('pid').value)){e.preventDefault();status.textContent='ابتدا بیمار را انتخاب کنید.';status.scrollIntoView({block:'center'});}});
+ form.addEventListener('submit',e=>{if(!therapist.value||!field('date').value||!field('time').value){e.preventDefault();status.textContent='درمانگر و روز و ساعت نوبت را انتخاب کنید.';status.scrollIntoView({block:'center'});}if(!Number(field('pid').value)){e.preventDefault();status.textContent='ابتدا بیمار را انتخاب کنید.';status.scrollIntoView({block:'center'});}});
  document.querySelector('[data-open-quick-patient]')?.addEventListener('click',()=>{const quick=document.querySelector('#quick-patient');quick.open=true;quick.querySelector('input[name=fname]')?.focus();});
  monthButtons();updateSummary();load();
 })();

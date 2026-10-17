@@ -51,7 +51,7 @@ function copyTherapistSchedule(int $source,int $target):int{
   }audit('work_schedule_copy',$target);return $count;
  });
 }
-function appointmentSlotSuggestions(int $pid,int $tid,int $clinic,string $from,int $minutes,string $room='',int $days=14,int $limit=30):array{
+function appointmentSlotSuggestions(int $pid,int $tid,int $clinic,string $from,int $minutes,string $room='',int $days=14,int $limit=30,bool $occupied=false):array{
  if(!allowed('appointments')||!patientAllowed($pid)||!q('SELECT pid FROM patients WHERE pid=? AND active=1',[$pid])->fetchColumn())throw new DomainException('به این پرونده دسترسی ندارید.');
  if(!q("SELECT id FROM staff WHERE id=? AND active=1 AND deleted=0 AND role IN ('admin','therapist')",[$tid])->fetchColumn()||!q('SELECT id FROM clinics WHERE id=? AND active=1',[$clinic])->fetchColumn())throw new DomainException('درمانگر و کلینیک فعال انتخاب کنید.');
  $date=DateTimeImmutable::createFromFormat('!Y-m-d',$from);if(!$date||$date->format('Y-m-d')!==$from||$minutes<5||$minutes>480||$days<1||$days>31||$limit<1||$limit>1000)throw new DomainException('بازه جستجو معتبر نیست.');
@@ -65,10 +65,18 @@ function appointmentSlotSuggestions(int $pid,int $tid,int $clinic,string $from,i
   $candidates=[];
   foreach($windows as $w)for($at=strtotime($w['start']);$at+$minutes*60<=strtotime($w['end']);$at+=15*60){
    if($at<=time())continue;$start=date('Y-m-d H:i:s',$at);$end=date('Y-m-d H:i:s',$at+$minutes*60);$key=$start.'|'.$w['room'].'|'.$w['equipment'];if(isset($seen[$key]))continue;$seen[$key]=true;
-   if(therapistAvailabilityIssue($start,$end,$tid,$clinic)||conflict($start,$end,$tid,$w['room'],$w['equipment'],$pid))continue;
+   if(therapistAvailabilityIssue($start,$end,$tid,$clinic))continue;
+   $busy=conflict($start,$end,$tid,$w['room'],$w['equipment'],$pid);
+   if($busy&&!$occupied)continue;
+   $names=[];
+   if($busy){
+    // Only reveal identities permitted by the current user's patient scope.
+    $rows=q("SELECT CASE WHEN (".patientScope('p').") THEN CONCAT(p.fname,' ',p.lname) ELSE 'رزروشده' END patient_name FROM physio_sessions s JOIN physio_episodes ep ON ep.id=s.episode_id JOIN patients p ON p.pid=ep.pid WHERE s.status IN ('scheduled','done') AND s.starts_at<? AND s.ends_at>? AND (s.therapist_id=? OR (?<>'' AND s.room=?) OR (?<>'' AND s.equipment=?) OR ep.pid=?) ORDER BY s.starts_at",[$end,$start,$tid,$w['room'],$w['room'],$w['equipment'],$w['equipment'],$pid])->fetchAll();
+    $names=array_values(array_unique(array_column($rows,'patient_name')));
+   }
    if($w['room']!==''&&!q("SELECT id FROM resources WHERE name=? AND kind='room' AND active=1",[$w['room']])->fetchColumn())continue;
    if($w['equipment']!==''&&!q("SELECT id FROM resources WHERE name=? AND kind='equipment' AND active=1",[$w['equipment']])->fetchColumn())continue;
-   $candidates[]=['starts_at'=>$start,'ends_at'=>$end,'room'=>$w['room'],'equipment'=>$w['equipment']];
+   $candidates[]=['starts_at'=>$start,'ends_at'=>$end,'room'=>$w['room'],'equipment'=>$w['equipment']]+($occupied?['booked'=>$busy,'patient_names'=>$names]:[]);
   }
   usort($candidates,static fn($a,$b)=>strcmp($a['starts_at'],$b['starts_at']));
   foreach($candidates as $candidate){$results[]=$candidate;if(count($results)>=$limit)return $results;}

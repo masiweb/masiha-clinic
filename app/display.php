@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 function displayOptions():array{return [
+ 'booking'=>['service_id'=>'خدمت','tariff_id'=>'تعرفه','episode_id'=>'دوره درمان','date'=>'ورود دستی تاریخ','time'=>'ورود دستی ساعت'],
  'columns'=>['patient'=>'اطلاعات مراجعه','time'=>'زمان نوبت','therapist'=>'درمانگر','state'=>'وضعیت بیمار','diagnoses'=>'تشخیص‌ها','actions'=>'پکیج‌های درمانی'],
  'panels'=>['filters'=>'فیلترهای نوبت‌ها','stats'=>'آمار نوبت‌ها','labels'=>'هشتگ‌ها','room'=>'اتاق در فهرست نوبت‌ها','shortcuts'=>'میانبرهای نوبت‌ها','timeline'=>'Timeline مراجعه'],
  'sidebar'=>['dashboard'=>'نمای کلی','appointments'=>'نوبت‌ها','patients'=>'بیماران','episodes'=>'دوره‌های درمان','finance'=>'مالی','reports'=>'گزارش‌ها','staff'=>'همکاران','services'=>'خدمات و پکیج‌ها','inventory'=>'انبار','sms'=>'پیامک','labels'=>'لیبل‌ها','forms'=>'فرم‌ها','resources'=>'اتاق‌ها و تجهیزات','imports'=>'انتقال بقراط','settings'=>'تنظیمات']
@@ -66,7 +67,7 @@ function displaySettingsView():void{
   foreach(['admin'=>'مدیر','reception'=>'پذیرش','therapist'=>'درمانگر','finance'=>'مالی'] as $key=>$label)echo '<a class="button secondary" href="/display?policy=1&amp;role='.$key.'">پیش‌فرض '.e($label).'</a>';echo '</div>';
  }
  formstart('display_save');hidden('policy',$admin?1:0);hidden('role',$role);
- foreach(displayOptions() as $group=>$items){echo '<section class="panel form-panel"><h2>'.e(['columns'=>'ستون‌های نوبت‌ها','panels'=>'بخش‌های داشبورد و مراجعه','sidebar'=>'منوی کناری'][$group]).'</h2><div class="table-scroll"><table><thead><tr><th>عنوان</th><th>نمایش</th><th>ترتیب</th>'.($admin?'<th>مجاز برای نقش</th><th>قفل مدیر</th>':'<th>وضعیت</th>').'</tr></thead><tbody>';
+ foreach(displayOptions() as $group=>$items){echo '<section class="panel form-panel"><h2>'.e(['booking'=>'فیلدهای ثبت نوبت','columns'=>'ستون‌های نوبت‌ها','panels'=>'بخش‌های داشبورد و مراجعه','sidebar'=>'منوی کناری'][$group]).'</h2><div class="table-scroll"><table><thead><tr><th>عنوان</th><th>نمایش</th><th>ترتیب</th>'.($admin?'<th>مجاز برای نقش</th><th>قفل مدیر</th>':'<th>وضعیت</th>').'</tr></thead><tbody>';
   foreach($items as $key=>$title){$r=$profile[$group][$key];$disabled=!$admin&&($r['locked']||!$r['allowed']);$prefix='display['.$group.']['.$key.']';
    echo '<tr><td>'.e($title).'</td><td><input aria-label="نمایش '.e($title).'" type="checkbox" name="'.$prefix.'[visible]" '.($r['visible']?'checked ':'').($disabled?'disabled':'').'></td><td><input aria-label="ترتیب '.e($title).'" type="number" min="1" max="100" name="'.$prefix.'[order]" value="'.(int)$r['order'].'" '.($disabled?'disabled':'').'></td>';
    if($admin)foreach(['allowed','locked'] as $prop)echo '<td><input aria-label="'.e($prop==='allowed'?'مجاز':'قفل').' '.e($title).'" type="checkbox" name="'.$prefix.'['.$prop.']" '.($r[$prop]?'checked':'').'></td>';
