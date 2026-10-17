@@ -539,6 +539,11 @@ try:
         assert 'name="room"' in filtered.text and 'form="reception-filters"' in filtered.text
         assert filtered.text.index('reception-summary') < filtered.text.index('reception-list-search') < filtered.text.index('reception-list"')
         assert 'روز قبل' in filtered.text and 'روز بعد' in filtered.text
+        assert 'class="welcome-banner"' in admin.get(base+'/').text
+        staff_home=reception.get(base+'/').text
+        assert 'staff-dashboard' in staff_home and 'class="welcome-banner"' not in staff_home
+        assert 'مدیریت کلینیک فیزیوتراپی</span><h1>' not in staff_home
+        assert 'href="/appointment/new"' in staff_home and 'data-live-search' in staff_home
         # Optional disposable, synthetic render fixtures for developer visual review.
         preview_dir=os.environ.get('MASIHA_UI_PREVIEW_DIR')
         if preview_dir:

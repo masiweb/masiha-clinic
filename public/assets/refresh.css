@@ -23,3 +23,16 @@ thead th{background:#edf6fa;color:#34566a}tbody tr:hover{background:#f4fbf9}.rec
 .booking-day{background:var(--mint);border-color:var(--line)}.booking-day:nth-child(3n+2){background:var(--lavender);border-color:var(--line)}.booking-day:nth-child(3n){background:var(--sky);border-color:var(--line)}
 .preview-menu{background:var(--sidebar-bg);color:var(--sidebar-ink);padding:12px;border-radius:10px;margin:12px 0}.preview-booked{background:var(--booked-bg);color:var(--booked-ink);padding:12px;border-radius:10px}.preview-card>h2,.preview-card>p{color:var(--ink)}.preview-metrics>div:first-child{background:var(--mint)}.preview-metrics>div:last-child{background:var(--lavender)}
 .color-hex{width:100%;max-width:140px;min-height:44px;direction:ltr;text-align:center;font-family:monospace}.color-fields .color-hex{grid-column:auto}
+
+/* Compact landing page for reception, therapists and other non-admin roles. */
+.staff-dashboard .main{padding-top:14px}
+.staff-dashboard .page-heading{justify-content:flex-end;margin-bottom:12px}
+.staff-dashboard .page-heading:empty{display:none}
+.staff-dashboard .panel{margin-bottom:12px}
+.staff-dashboard .form-panel{padding:14px 18px}
+.staff-dashboard .panel-header{padding:12px 18px}
+.staff-dashboard .stats-grid{gap:12px;margin-bottom:12px}
+.staff-dashboard .stat-card{padding:14px 18px;min-height:100px}
+.staff-dashboard .quick-grid{gap:10px}
+.staff-dashboard .quick-grid>a{padding:14px}
+@media(max-width:760px){.staff-dashboard .main{padding-top:12px}.staff-dashboard .form-panel,.staff-dashboard .panel-header{padding:12px}.staff-dashboard .stat-card{padding:12px;min-height:96px}}
