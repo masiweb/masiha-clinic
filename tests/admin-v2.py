@@ -66,7 +66,7 @@ try:
  print('PASS admin-v2 integration complete')
 finally:
  for eid in eids:
-  sql(f'DELETE c FROM financial_changes c JOIN physio_payments x ON x.id=c.payment_id WHERE x.episode_id={eid};DELETE FROM referral_fees WHERE episode_id={eid};DELETE FROM physio_payments WHERE episode_id={eid};DELETE FROM physio_sessions WHERE episode_id={eid};DELETE FROM physio_episodes WHERE id={eid}')
+  sql(f'DELETE c FROM financial_changes c JOIN physio_payments x ON x.id=c.payment_id WHERE x.episode_id={eid};DELETE FROM referral_fees WHERE episode_id={eid};DELETE FROM physio_payments WHERE episode_id={eid};DELETE v FROM visit_events v JOIN physio_sessions s ON s.id=v.session_id WHERE s.episode_id={eid};DELETE v FROM visit_workflows v JOIN physio_sessions s ON s.id=v.session_id WHERE s.episode_id={eid};DELETE FROM physio_sessions WHERE episode_id={eid};DELETE FROM physio_episodes WHERE id={eid}')
  for pid in pids:sql(f'DELETE FROM clinic_forms WHERE pid={pid};DELETE FROM patients WHERE pid={pid}')
  if pack:sql(f'DELETE FROM package_items WHERE package_id={pack};DELETE FROM packages WHERE id={pack}')
  if sid:sql(f'DELETE FROM service_staff WHERE service_id={sid};DELETE FROM services WHERE id={sid}')
