@@ -7,6 +7,7 @@ function adminApi($path):void{global $config;
    $value=setting($key,$fallback);
    $values['{{'.$key.'}}']=preg_match('/^#[0-9a-f]{6}$/iD',$value)?$value:$fallback;
   }
+  foreach(themeExtraColors() as $key=>[$variable,$fallback,$label]){$value=setting($key,$fallback);$values['{{'.$key.'}}']=preg_match('/^#[0-9a-f]{6}$/iD',$value)?$value:$fallback;}
   $contrast=static function(string $hex):string{
    $channels=[];foreach(str_split(substr($hex,1),2) as $part){$c=hexdec($part)/255;$channels[]=$c<=.04045?$c/12.92:(($c+.055)/1.055)**2.4;}
    return $channels[0]*.2126+$channels[1]*.7152+$channels[2]*.0722>.179?'#000000':'#ffffff';

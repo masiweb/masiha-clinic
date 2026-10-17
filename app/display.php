@@ -77,3 +77,19 @@ function displaySettingsView():void{
  }
  echo '<div class="form-actions"><button class="button primary">ذخیره نمایش</button><button class="button secondary" name="reset" value="1">بازنشانی پیش‌فرض</button><a class="button secondary" href="/appointments">نوبت‌ها</a></div></form>';endLayout();
 }
+
+function themeExtraColors():array{return [
+ 'theme_text'=>['ink','#283c52','متن اصلی'],
+ 'theme_muted'=>['muted','#5d7085','متن توضیحات'],
+ 'theme_border'=>['line','#dce8ee','حاشیه‌ها'],
+ 'theme_surface'=>['surface','#ffffff','زمینه کارت‌ها'],
+ 'theme_mint'=>['mint','#e5f7f0','رنگ مکمل اول'],
+ 'theme_lavender'=>['lavender','#f0edff','رنگ مکمل دوم'],
+ 'theme_peach'=>['peach','#fff0e5','رنگ مکمل سوم'],
+ 'theme_sky'=>['sky','#e9f5ff','رنگ مکمل چهارم'],
+ 'theme_rose'=>['rose','#fff0f4','رنگ مکمل پنجم'],
+ 'theme_sidebar'=>['sidebar-bg','#f0fbf7','زمینه منو'],
+ 'theme_sidebar_text'=>['sidebar-ink','#365569','متن منو'],
+ 'theme_booked'=>['booked-bg','#ffeada','زمینه زمان رزروشده'],
+ 'theme_booked_text'=>['booked-ink','#794518','متن زمان رزروشده'],
+];}

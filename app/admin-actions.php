@@ -77,6 +77,7 @@ function adminAction($a):bool{global $db,$config;if(importAction($a))return true
    if(!preg_match('/^#[0-9a-f]{6}$/iD',$color))throw new DomainException('رنگ معتبر انتخاب کنید.');
    $values[$key]=strtolower($color);
   }
+  foreach(themeExtraColors() as $key=>[$variable,$fallback,$label]){if(!array_key_exists($key,$_POST))continue;$color=val($key,7,true);if(!preg_match('/^#[0-9a-f]{6}$/iD',$color))throw new DomainException('کد رنگ معتبر وارد کنید: '.$label);$values[$key]=strtolower($color);}
   foreach(['font_id','heading_font_id'] as $key){
    $font=num($key);
    if($font&&!q('SELECT id FROM custom_fonts WHERE id=?',[$font])->fetchColumn())throw new DomainException('فونت معتبر نیست.');

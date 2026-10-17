@@ -111,6 +111,7 @@ function appearanceView():void{
  field('theme_color','رنگ اصلی دکمه‌ها',setting('theme_color','#087f75'),'color','رنگ دکمه‌های اصلی و بخش انتخاب‌شده در منو.',true);
  field('theme_hover_color','رنگ هاور دکمه‌ها',setting('theme_hover_color','#065f58'),'color','رنگ دکمه وقتی نشانگر روی آن قرار می‌گیرد.',true);
  field('theme_background_color','رنگ پس‌زمینه کلی',setting('theme_background_color','#f3f6fa'),'color','رنگ فضای پشت کارت‌ها و فرم‌های پنل.',true);
+ foreach(themeExtraColors() as $key=>[$variable,$fallback,$label])field($key,$label,setting($key,$fallback),'color','رنگ دلخواه را انتخاب کنید یا کد HEX را وارد کنید.',true,false,'data-theme-variable="'.e($variable).'"');
  ?></div><p class="hint">برای خوانایی بهتر، رنگ دکمه‌ها را تیره و پس‌زمینه را روشن انتخاب کنید.</p>
  <div class="appearance-fonts"><?php
  $fonts=['0'=>'وزیرمتن (پیش‌فرض)']+array_column(q('SELECT * FROM custom_fonts')->fetchAll(),'name','id');
@@ -124,7 +125,7 @@ function appearanceView():void{
  <span class="eyebrow">فضای کاری کلینیک</span><h2>همه‌چیز برای یک روز منظم</h2>
  <p>نوبت‌ها، مراجعین و کارهای امروز در یک نگاه.</p>
  <div class="preview-metrics"><div><strong>۱۲</strong><span>نوبت امروز</span></div><div><strong>۳</strong><span>در انتظار</span></div></div>
- <div class="preview-patient"><span class="mini-avatar">م</span><div><strong>مراجع نمونه</strong><small>ساعت ۱۰:۳۰ · اتاق ۱</small></div><span class="badge scheduled">نوبت دارد</span></div>
+ <div class="preview-menu">نمونه منوی پنل</div><div class="preview-booked">۱۰:۳۰ — رزروشده · مراجعه نمونه</div><div class="preview-patient"><span class="mini-avatar">م</span><div><strong>مراجع نمونه</strong><small>ساعت ۱۰:۳۰ · اتاق ۱</small></div><span class="badge scheduled">نوبت دارد</span></div>
  <div class="preview-buttons"><button type="button" class="button primary">ثبت نوبت</button><button type="button" class="button primary preview-hover">حالت هاور</button><button type="button" class="button secondary">مشاهده پرونده</button></div>
  <p class="hint">این کارت فقط نمونه است و اطلاعات واقعی بیمار ندارد.</p>
  </div></div></aside></div>

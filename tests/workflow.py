@@ -524,6 +524,13 @@ try:
         assert denied_response.status_code==403 and '--primary: #3459a8' in Client().get(base+'/theme.css').text
         denied_response=admin.post(base+'/appearance',data={'csrf':'invalid','action':'appearance',**colors})
         assert denied_response.status_code==403
+        extra={**colors,'theme_surface':'#fef8ea','theme_sidebar':'#e7e0fc','theme_booked':'#ffeedd'}
+        admin.post(base+'/appearance',data={'csrf':token(admin,'/appearance'),'action':'appearance',**extra})
+        custom=Client().get(base+'/theme.css').text
+        assert '--surface: #fef8ea' in custom and '--sidebar-bg: #e7e0fc' in custom and '--booked-bg: #ffeedd' in custom
+        admin.post(base+'/appearance',data={'csrf':token(admin,'/appearance'),'action':'appearance',**extra,'theme_surface':'invalid'})
+        assert '--surface: #fef8ea' in Client().get(base+'/theme.css').text
+        assert 'data-theme-variable="surface"' in admin.get(base+'/appearance').text
         reset={'theme_color':'#087f75','theme_hover_color':'#065f58','theme_background_color':'#f3f6fa','font_id':'0','heading_font_id':'0'}
         admin.post(base+'/appearance',data={'csrf':token(admin,'/appearance'),'action':'appearance',**reset})
         filtered=admin.get(base+'/appointments?presence=present')

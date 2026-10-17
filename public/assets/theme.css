@@ -8,3 +8,19 @@
   --hover-ink: {{hover_ink}};
   --canvas-ink: {{canvas_ink}};
 }
+
+:root {
+ --ink: {{theme_text}};
+ --muted: {{theme_muted}};
+ --line: {{theme_border}};
+ --surface: {{theme_surface}};
+ --mint: {{theme_mint}};
+ --lavender: {{theme_lavender}};
+ --peach: {{theme_peach}};
+ --sky: {{theme_sky}};
+ --rose: {{theme_rose}};
+ --sidebar-bg: {{theme_sidebar}};
+ --sidebar-ink: {{theme_sidebar_text}};
+ --booked-bg: {{theme_booked}};
+ --booked-ink: {{theme_booked_text}};
+}
