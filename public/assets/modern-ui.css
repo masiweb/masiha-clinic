@@ -349,11 +349,11 @@ fieldset legend,.permission-group legend{padding-inline:9px;color:var(--ink);fon
 
 /* Patient photo, hashtag and reception-note placement — visit board v3. */
 .reception-list table{table-layout:fixed;min-width:940px}
-.reception-list th[data-column=patient],.reception-list td[data-column=patient]{width:40%!important}
-.reception-list th[data-column=time],.reception-list td[data-column=time]{width:14%!important}
-.reception-list th[data-column=therapist],.reception-list td[data-column=therapist]{width:16%!important}
+.reception-list th[data-column=patient],.reception-list td[data-column=patient]{width:36%!important}
+.reception-list th[data-column=time],.reception-list td[data-column=time]{width:12%!important}
+.reception-list th[data-column=therapist],.reception-list td[data-column=therapist]{width:14%!important}
 .reception-list th[data-column=state],.reception-list td[data-column=state]{width:12%!important}
-.reception-list th[data-column=diagnoses],.reception-list td[data-column=diagnoses]{width:18%!important}
+.reception-list th[data-column=diagnoses],.reception-list td[data-column=diagnoses]{width:26%!important}
 .reception-list th,.reception-list td{padding-inline:10px!important}
 .reception-patient-heading{gap:9px;align-items:center}
 .reception-list .reception-tag-line{display:flex;flex-direction:row;align-items:center;gap:7px;flex-wrap:wrap;margin-top:8px}
