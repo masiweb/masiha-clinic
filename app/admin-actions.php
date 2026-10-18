@@ -14,7 +14,7 @@ function adminAction($a):bool{global $db,$config;if(importAction($a))return true
   appointmentCatalogSave(val('kind',20,true),num('id'),val('name',255,true),isset($_POST['active']));flash('فهرست ذخیره شد.');go('/appointment/catalogs');
  }
  if($a==='reception_update'){
-  receptionUpdate(num('session_id',1),num('workflow_version'),val('kind',20,true),['selection'=>$_POST['selection']??[],'new_diagnosis'=>val('new_diagnosis',255),'notes'=>val('notes',5000)]);
+  receptionUpdate(num('session_id',1),num('workflow_version'),val('kind',20,true),['selection'=>$_POST['selection']??[],'new_diagnosis'=>val('new_diagnosis',255),'new_hashtag'=>val('new_hashtag',110),'notes'=>val('notes',5000)]);
   flash('اطلاعات مراجعه با ثبت سابقه ذخیره شد.');go('/appointments?'.http_build_query(appointmentFilters($_GET)));
  }
  if($a==='appointment_metadata'){

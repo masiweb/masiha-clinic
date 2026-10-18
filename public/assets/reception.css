@@ -209,3 +209,8 @@
 @media(max-width:760px){.reception-list table{min-width:0}.reception-list th[data-column],.reception-list td[data-column]{width:auto}}
 
 .reception-list .visit-more-action.is-disabled{opacity:.52;cursor:not-allowed;pointer-events:none}
+
+/* The patient/appointment label and visit hashtags are separate fields. */
+.reception-list .visit-patient-label{display:inline-flex;margin:5px 0 0 5px;font-size:11px;border:1px solid var(--line,#dce5ed)}
+.reception-list .visit-hashtag{background:var(--mint,#e5f7f0);color:var(--ink,#365d53);border-color:var(--line,#dce5ed)}
+.reception-list .row-editor.editor-hashtags>summary{background:var(--mint,#e5f7f0)}

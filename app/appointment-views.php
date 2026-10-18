@@ -26,13 +26,14 @@ function appointmentDashboard():void{
   foreach([''=>'همه']+workflowLabels() as $key=>$label)echo '<a class="status-tab '.($f['state']===$key?'selected':'').'" '.($f['state']===$key?'aria-current="true"':'').' href="'.e($url(['state'=>$key])).'">'.e($label).'</a>';
   echo '</div>';
   hidden('state',$f['state']);
-  $advanced=false;foreach(['service','package','label','diagnosis','presence','patient_type','clinic','financial'] as $key)if(!empty($f[$key]))$advanced=true;
+  $advanced=false;foreach(['service','package','label','hashtag','diagnosis','presence','patient_type','clinic','financial'] as $key)if(!empty($f[$key]))$advanced=true;
   if($f['from']!==$f['to'])$advanced=true;
   echo '<details class="advanced-filters" '.($advanced?'open':'').'><summary>تاریخ و فیلترهای بیشتر <span>بازه، خدمت، پکیج و مالی</span></summary><div class="form-grid three">';
   field('from','از تاریخ',$f['from'],'date');field('to','تا تاریخ',$f['to'],'date');
   selectfield('service','خدمت / نوع درمان',['0'=>'همه']+options('services','deleted=0'),$f['service']);
   selectfield('package','پکیج',['0'=>'همه']+options('packages','deleted=0'),$f['package']);
-  selectfield('label','هشتگ',['0'=>'همه']+options('labels','deleted=0'),$f['label']);
+  selectfield('label','لیبل',['0'=>'همه لیبل‌ها']+options('labels','deleted=0'),$f['label']);
+  selectfield('hashtag','هشتگ',['0'=>'همه هشتگ‌ها']+options('hashtags','active=1'),$f['hashtag']);
   if(scope('forms.visit')!=='none')selectfield('diagnosis','تشخیص',['0'=>'همه']+options('diagnoses','active=1'),$f['diagnosis']);
   selectfield('presence','حضور',[''=>'همه','present'=>'وارد شده','not_arrived'=>'ورود ثبت نشده'],$f['presence']);
   selectfield('patient_type','سابقه مراجعه',[''=>'همه','new'=>'بدون جلسه انجام‌شده قبلی','returning'=>'دارای جلسه انجام‌شده قبلی'],$f['patient_type']);
@@ -49,8 +50,8 @@ function appointmentDashboard():void{
  }
  if(displayVisible($display,'panels','labels')){
   echo '<div class="reception-labels" aria-label="هشتگ‌های مراجعین">';
-  foreach(q('SELECT id,name FROM labels WHERE active=1 AND deleted=0 ORDER BY name')->fetchAll() as $l)
-   echo '<a class="badge '.((int)$f['label']===(int)$l['id']?'selected':'').'" href="'.e($url(['label'=>(int)$f['label']===(int)$l['id']?0:$l['id']])).'">#'.e($l['name']).'</a>';
+  foreach(q('SELECT id,name FROM hashtags WHERE active=1 ORDER BY name')->fetchAll() as $tag)
+   echo '<a class="badge '.((int)$f['hashtag']===(int)$tag['id']?'selected':'').'" href="'.e($url(['hashtag'=>(int)$f['hashtag']===(int)$tag['id']?0:$tag['id']])).'">#'.e($tag['name']).'</a>';
   echo '</div>';
  }
  if(displayVisible($display,'panels','filters')){
@@ -97,7 +98,7 @@ function appointmentDetailsView():void{
  selectfield('room','اتاق',[''=>'بدون اتاق اختصاصی']+array_column(q("SELECT name FROM resources WHERE kind='room' AND active=1")->fetchAll(),'name','name')+($s['room']!==''?[$s['room']=>$s['room']]:[]),$s['room']);
  if(allowed('finance.edit'))selectfield('package_id','پکیج',['0'=>'بدون پکیج']+options('packages','(active=1 AND deleted=0) OR id='.(int)$s['package_id']),$s['package_id']??0);
  echo '</div>';
- foreach(['labels'=>['labels','session_labels','label_id','هشتگ‌ها'],'diagnoses'=>['diagnoses','session_diagnoses','diagnosis_id','تشخیص‌ها']] as $key=>[$catalog,$table,$column,$title]){
+ foreach(['hashtags'=>['hashtags','session_hashtags','hashtag_id','هشتگ‌ها'],'diagnoses'=>['diagnoses','session_diagnoses','diagnosis_id','تشخیص‌ها']] as $key=>[$catalog,$table,$column,$title]){
   if($key==='diagnoses'&&((int)$s['therapist_id']!==(int)user()['id']||!can('episodes')))continue;
   $selected=array_map('intval',q("SELECT $column FROM $table WHERE session_id=?",[$id])->fetchAll(PDO::FETCH_COLUMN));
   hidden('set_'.$key,1);echo '<fieldset><legend>'.e($title).'</legend>';
@@ -112,9 +113,14 @@ function appointmentCell(string $key,array $s,array $display):void{
   case 'patient':
    echo '<div class="reception-patient-heading"><a href="/patient?id='.(int)$s['pid'].'">'.e(patientName($s)).'</a>';
    if(can('finance'))echo '<a class="settlement-link" href="/finance?episode='.(int)$s['episode_id'].'" aria-label="تسویه حساب '.e(patientName($s)).'" title="تسویه حساب">$</a>';
-   echo '</div><small>پرونده '.fa($s['pid']).'</small><div class="reception-tag-line"><div class="reception-tag-values">';
-   foreach(q('SELECT l.name FROM labels l WHERE l.id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=? AND sl.label_id=l.id)',[$s['label_id'],$s['id']])->fetchAll() as $label)echo '<span class="badge">#'.e($label['name']).'</span>';
-   echo '</div><div class="patient-row-tools">';receptionEditor($s,'labels','هشتگ‌ها');receptionEditor($s,'notes','یادداشت پذیرش');echo '</div></div>';
+   echo '</div><small>پرونده '.fa($s['pid']).'</small>';
+   // The label is a separate colored classification; it never becomes a hashtag.
+   foreach(q('SELECT DISTINCT l.name,l.color FROM labels l WHERE l.deleted=0 AND (l.id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=? AND sl.label_id=l.id)) ORDER BY l.name',[(int)($s['label_id']??0),(int)$s['id']])->fetchAll() as $label)
+    echo '<span class="badge visit-patient-label" data-label-color="'.e($label['color']).'" title="لیبل مراجعه">'.e($label['name']).'</span>';
+   echo '<div class="reception-tag-line"><div class="reception-tag-values">';
+   foreach(q('SELECT h.name FROM hashtags h JOIN session_hashtags sh ON sh.hashtag_id=h.id WHERE sh.session_id=? ORDER BY h.name',[$s['id']])->fetchAll() as $tag)
+    echo '<span class="badge visit-hashtag">#'.e($tag['name']).'</span>';
+   echo '</div><div class="patient-row-tools">';receptionEditor($s,'hashtags','هشتگ‌های مراجعه');receptionEditor($s,'notes','یادداشت پذیرش');echo '</div></div>';
    if(trim($s['reception_notes']??'')!=='')echo '<div class="reception-admission-note">'.nl2br(e($s['reception_notes'])).'</div>';
    break;
 

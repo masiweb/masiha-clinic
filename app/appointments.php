@@ -11,7 +11,7 @@ function appointmentFilters(array $input):array {
   $f[$k]=$v;
  }
  if($f['to']<$f['from']||strtotime($f['to'])-strtotime($f['from'])>366*86400)throw new DomainException('بازه گزارش باید حداکثر یک سال باشد.');
- foreach(['therapist','clinic','visit_type','service','package','label','diagnosis'] as $k){
+ foreach(['therapist','clinic','visit_type','service','package','label','hashtag','diagnosis'] as $k){
   $v=$input[$k]??'0';if(!is_scalar($v)||!preg_match('/^\d+$/D',(string)$v))throw new DomainException('فیلتر عددی معتبر نیست.');$f[$k]=(int)$v;
  }
  foreach(['q','room','state','presence','patient_type','financial'] as $k){$v=$input[$k]??'';if(!is_string($v)||mb_strlen($v)>100)throw new DomainException('فیلتر معتبر نیست.');$f[$k]=trim(MasihaOtp::digits($v));}
@@ -29,6 +29,7 @@ function appointmentWhere(array $f,bool $withState=true):array{
  if($f['room']!==''){$where[]='s.room=?';$a[]=$f['room'];}
  if($withState&&$f['state']!==''){$where[]='w.state=?';$a[]=$f['state'];}
  if($f['label']){$where[]='(s.label_id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=s.id AND sl.label_id=?))';$a[]=$f['label'];$a[]=$f['label'];}
+ if($f['hashtag']){$where[]='EXISTS(SELECT 1 FROM session_hashtags sh WHERE sh.session_id=s.id AND sh.hashtag_id=?)';$a[]=$f['hashtag'];}
  if($f['diagnosis']){
   $clinical=scope('forms.visit')==='all'?'1=1':'(s.therapist_id='.(int)user()['id'].' OR s.created_by='.(int)user()['id'].')';
   $where[]="($clinical AND EXISTS(SELECT 1 FROM session_diagnoses sd WHERE sd.session_id=s.id AND sd.diagnosis_id=?))";$a[]=$f['diagnosis'];
@@ -83,7 +84,7 @@ function appointmentMetadata(int $id,int $version,array $input):void{
   q('UPDATE physio_sessions SET visit_type_id=?,room=?,package_id=? WHERE id=?',[$type?:null,$room,$package?:null,$id]);
   if(array_key_exists('package_id',$input)&&(int)$s['package_id']!==$package){q('DELETE FROM session_packages WHERE session_id=?',[$id]);if($package)q('INSERT INTO session_packages(session_id,package_id) VALUES(?,?)',[$id,$package]);}
   $event=['before_appointment'=>$before,'after_appointment'=>$after,'actor_name'=>user()['name']];
-  foreach(['diagnoses'=>['session_diagnoses','diagnosis_id','diagnoses'],'labels'=>['session_labels','label_id','labels']] as $key=>[$table,$column,$catalog]){
+  foreach(['diagnoses'=>['session_diagnoses','diagnosis_id','diagnoses'],'labels'=>['session_labels','label_id','labels'],'hashtags'=>['session_hashtags','hashtag_id','hashtags']] as $key=>[$table,$column,$catalog]){
    if(!array_key_exists($key,$input))continue;
    if($key==='diagnoses')workflowAccess($s,true);
    if(!is_array($input[$key])||count($input[$key])>30)throw new DomainException('فهرست انتخابی معتبر نیست.');

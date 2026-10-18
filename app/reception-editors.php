@@ -5,12 +5,12 @@ function receptionDiagnosisEdit(array $s):bool{
  return user()['role']==='admin'||((int)$s['therapist_id']===(int)user()['id']&&can('episodes'));
 }
 function receptionSelections(int $id,string $kind):array{
- [$table,$column]=match($kind){'labels'=>['session_labels','label_id'],'diagnoses'=>['session_diagnoses','diagnosis_id'],'packages'=>['session_packages','package_id'],default=>throw new DomainException('فهرست معتبر نیست.')};
+ [$table,$column]=match($kind){'labels'=>['session_labels','label_id'],'hashtags'=>['session_hashtags','hashtag_id'],'diagnoses'=>['session_diagnoses','diagnosis_id'],'packages'=>['session_packages','package_id'],default=>throw new DomainException('فهرست معتبر نیست.')};
  return array_map('intval',q("SELECT $column FROM $table WHERE session_id=? ORDER BY $column",[$id])->fetchAll(PDO::FETCH_COLUMN));
 }
 function receptionUpdate(int $id,int $version,string $kind,array $input):void{
  global $db;
- if(!in_array($kind,['labels','diagnoses','packages','notes'],true))throw new DomainException('نوع تغییر معتبر نیست.');
+ if(!in_array($kind,['labels','hashtags','diagnoses','packages','notes'],true))throw new DomainException('نوع تغییر معتبر نیست.');
  $db->beginTransaction();
  try{
   $s=q('SELECT * FROM physio_sessions WHERE id=? FOR UPDATE',[$id])->fetch();
@@ -26,11 +26,11 @@ function receptionUpdate(int $id,int $version,string $kind,array $input):void{
    if($event['before_reception_notes']===$event['after_reception_notes']){$db->commit();return;}
    q('UPDATE physio_sessions SET reception_notes=? WHERE id=?',[trim($note),$id]);
   }else{
-   [$table,$column,$catalog]=match($kind){'labels'=>['session_labels','label_id','labels'],'diagnoses'=>['session_diagnoses','diagnosis_id','diagnoses'],'packages'=>['session_packages','package_id','packages']};
+   [$table,$column,$catalog]=match($kind){'labels'=>['session_labels','label_id','labels'],'hashtags'=>['session_hashtags','hashtag_id','hashtags'],'diagnoses'=>['session_diagnoses','diagnosis_id','diagnoses'],'packages'=>['session_packages','package_id','packages']};
    $old=receptionSelections($id,$kind);$values=$input['selection']??[];
    if(!is_array($values)||count($values)>30)throw new DomainException('حداکثر ۳۰ مورد انتخاب کنید.');
    $ids=[];foreach($values as $raw){$n=filter_var($raw,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);if(!$n)throw new DomainException('انتخاب معتبر نیست.');
-    $active='active=1'.($kind==='diagnoses'?'':' AND deleted=0');
+    $active='active=1'.(in_array($kind,['diagnoses','hashtags'],true)?'':' AND deleted=0');
     if(!in_array($n,$old,true)&&!q("SELECT id FROM $catalog WHERE id=? AND $active",[$n])->fetchColumn())throw new DomainException('مورد فعال انتخاب کنید.');$ids[$n]=$n;
    }
    $new=$input['new_diagnosis']??'';if(!is_string($new)||mb_strlen($new)>255)throw new DomainException('عنوان تشخیص معتبر نیست.');$new=trim($new);
@@ -38,6 +38,16 @@ function receptionUpdate(int $id,int $version,string $kind,array $input):void{
     if($kind!=='diagnoses')throw new DomainException('درخواست معتبر نیست.');
     q('INSERT INTO diagnoses(name,active) VALUES(?,1) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)',[$new]);
     $n=(int)q('SELECT id FROM diagnoses WHERE name=? AND active=1',[$new])->fetchColumn();if(!$n)throw new DomainException('این تشخیص غیرفعال است؛ با مدیر هماهنگ کنید.');$ids[$n]=$n;
+   }
+   $tag=$input['new_hashtag']??'';
+   if(!is_string($tag)||mb_strlen($tag)>110)throw new DomainException('هشتگ نامعتبر است.');
+   $tag=preg_replace('/^#+/u','',trim($tag));
+   if($tag!==''){
+    if($kind!=='hashtags'||mb_strlen($tag)>100||preg_match('/\s/u',$tag))throw new DomainException('هشتگ بدون فاصله و حداکثر ۱۰۰ نویسه باشد.');
+    q('INSERT INTO hashtags(name,active) VALUES(?,1) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)',[$tag]);
+    $tagId=(int)q('SELECT id FROM hashtags WHERE name=? AND active=1',[$tag])->fetchColumn();
+    if(!$tagId)throw new DomainException('هشتگ غیرفعال است.');
+    $ids[$tagId]=$tagId;
    }
    if(count($ids)>30)throw new DomainException('حداکثر ۳۰ مورد انتخاب کنید.');
    $sorted=array_values($ids);sort($sorted);if($sorted===$old){$db->commit();return;}
@@ -58,8 +68,8 @@ function receptionEditor(array $s,string $kind,string $title):void{
  $selected=$kind==='notes'?[]:receptionSelections($id,$kind);
  static $catalogs=[];
  if($kind!=='notes'&&!isset($catalogs[$kind])){
-  $catalog=match($kind){'labels'=>'labels','diagnoses'=>'diagnoses','packages'=>'packages'};
-  $catalogs[$kind]=q("SELECT id,name,active".($kind==='diagnoses'?'':',deleted')." FROM $catalog ORDER BY name")->fetchAll();
+  $catalog=match($kind){'labels'=>'labels','hashtags'=>'hashtags','diagnoses'=>'diagnoses','packages'=>'packages'};
+  $catalogs[$kind]=q("SELECT id,name,active".(in_array($kind,['diagnoses','hashtags'],true)?'':',deleted')." FROM $catalog ORDER BY name")->fetchAll();
  }
  $names=[];foreach($catalogs[$kind]??[] as $entry)if(in_array((int)$entry['id'],$selected,true))$names[]=$entry['name'];
  if($kind==='diagnoses'&&!$names&&!empty($s['legacy_diagnosis']))$names[]=$s['legacy_diagnosis'];
@@ -68,7 +78,7 @@ function receptionEditor(array $s,string $kind,string $title):void{
  if($kind==='diagnoses'||$kind==='packages'){
   echo '<ul class="reception-selected-values">';foreach($names as $name)echo '<li>'.e($name).'</li>';echo '</ul>';
  }
- ?><details class="row-editor editor-<?=e($kind)?>" data-row-editor><summary aria-label="<?=e($title)?>" title="<?=e($title.($summary!==''?' — '.$summary:''))?>"><span class="editor-symbol" aria-hidden="true"><?= $kind==='labels'?'#':icon(match($kind){'diagnoses'=>'heart','packages'=>'box',default=>'pen'}) ?></span><?php if($kind!=='notes'&&count($selected)): ?><span class="editor-count"><?=fa(count($selected))?></span><?php elseif($summary!==''): ?><span class="editor-dot" aria-hidden="true">•</span><?php endif; ?></summary>
+ ?><details class="row-editor editor-<?=e($kind)?>" data-row-editor><summary aria-label="<?=e($title)?>" title="<?=e($title.($summary!==''?' — '.$summary:''))?>"><span class="editor-symbol" aria-hidden="true"><?= $kind==='hashtags'?'#':icon(match($kind){'diagnoses'=>'heart','packages'=>'box',default=>'pen'}) ?></span><?php if($kind!=='notes'&&count($selected)): ?><span class="editor-count"><?=fa(count($selected))?></span><?php elseif($summary!==''): ?><span class="editor-dot" aria-hidden="true">•</span><?php endif; ?></summary>
 
  <form method="post" class="row-editor-body">
  <?php csrf();hidden('action','reception_update');hidden('session_id',$id);hidden('workflow_version',(int)($s['workflow_version']??0));hidden('kind',$kind); ?>
@@ -82,6 +92,7 @@ function receptionEditor(array $s,string $kind,string $title):void{
  <label class="choice-option" data-choice-option><input type="checkbox" name="selection[]" value="<?=(int)$entry['id']?>" <?=$checked?'checked':''?>><span><?=e($entry['name'])?><?=!$entry['active']||($entry['deleted']??false)?' (غیرفعال)':''?></span></label>
  <?php endforeach; ?></div><p class="hint" data-choice-empty hidden>موردی با این عبارت پیدا نشد.</p>
  <?php if($kind==='diagnoses'): ?><label for="new-diagnosis-<?=$id?>">تشخیص جدید</label><input id="new-diagnosis-<?=$id?>" name="new_diagnosis" maxlength="255" placeholder="عنوان جدید؛ هم‌زمان ثبت و انتخاب می‌شود"><?php endif; ?>
+ <?php if($kind==='hashtags'): ?><label for="new-hashtag-<?=$id?>">هشتگ جدید</label><input id="new-hashtag-<?=$id?>" name="new_hashtag" maxlength="110" placeholder="مثلاً زانودرد"><p class="hint">هشتگ فقط برای مراجعه است و لیبل را تغییر نمی‌دهد.</p><?php endif; ?>
  <?php if($kind==='packages'): ?><p class="hint">این انتخاب برای برنامه درمان مراجعه است. مبلغ صورتحساب در بخش مالی تعیین می‌شود.</p><?php endif; ?>
  <?php endif; ?><div class="editor-actions"><button type="submit" class="button primary small">ذخیره</button><button type="button" class="button secondary small" data-editor-cancel>انصراف</button></div>
  </form></details><?php
@@ -89,13 +100,13 @@ function receptionEditor(array $s,string $kind,string $title):void{
 
 /** Resolve old ID-only events, while new events retain names at edit time. */
 function receptionNames(string $kind,array $ids):array{
- $table=match($kind){'labels'=>'labels','diagnoses'=>'diagnoses','packages'=>'packages'};
+ $table=match($kind){'labels'=>'labels','hashtags'=>'hashtags','diagnoses'=>'diagnoses','packages'=>'packages'};
  $out=[];foreach($ids as $id)$out[]=q("SELECT name FROM $table WHERE id=?",[(int)$id])->fetchColumn()?:'مورد حذف‌شده #'.(int)$id;
  return $out;
 }
 function receptionEventChanges(array $d):array{
  $changes=[];
- foreach(['labels'=>'هشتگ','diagnoses'=>'تشخیص','packages'=>'پکیج درمانی'] as $kind=>$caption){
+ foreach(['labels'=>'لیبل','hashtags'=>'هشتگ','diagnoses'=>'تشخیص','packages'=>'پکیج درمانی'] as $kind=>$caption){
   if(!array_key_exists('after_'.$kind,$d))continue;
   $before=$d['before_'.$kind]??[];$after=$d['after_'.$kind];
   $bn=$d['before_'.$kind.'_names']??receptionNames($kind,$before);$an=$d['after_'.$kind.'_names']??receptionNames($kind,$after);
@@ -109,6 +120,6 @@ function receptionEventChanges(array $d):array{
  }
  return $changes;
 }
-function patientVisitLabels(int $pid):array{
- return q('SELECT DISTINCT l.id,l.name FROM labels l WHERE l.id=(SELECT label_id FROM patients WHERE pid=?) OR EXISTS(SELECT 1 FROM physio_episodes e JOIN physio_sessions s ON s.episode_id=e.id LEFT JOIN session_labels sl ON sl.session_id=s.id WHERE e.pid=? AND (sl.label_id=l.id OR s.label_id=l.id)) ORDER BY l.name',[$pid,$pid])->fetchAll();
+function patientVisitHashtags(int $pid):array{
+ return q('SELECT DISTINCT h.id,h.name FROM hashtags h JOIN session_hashtags sh ON sh.hashtag_id=h.id JOIN physio_sessions s ON s.id=sh.session_id JOIN physio_episodes ep ON ep.id=s.episode_id WHERE ep.pid=? ORDER BY h.name',[$pid])->fetchAll();
 }
