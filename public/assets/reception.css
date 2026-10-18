@@ -190,3 +190,6 @@
 .reception-list .visit-more-links>a:hover,.reception-list .visit-more-action:hover{background:var(--mint,#e5f7f0)}
 .reception-list .visit-step-back-form{margin:0}
 @media(max-width:760px){.reception-list td[data-column]{min-width:0}.reception-list .visit-quick-actions .row-action-icon{min-width:44px;min-height:44px}.reception-list .visit-more-links{position:relative;inset:auto;max-width:100%;width:100%}}
+
+/* Keep the more menu inside the scrollable table instead of clipping its popup. */
+.reception-list .visit-more-links{position:static;inset:auto;width:min(250px,100%);min-width:0;max-width:100%;margin-top:7px}
