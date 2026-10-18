@@ -1,0 +1,6 @@
+@font-face {
+  font-family: clinicBody;
+  src: url('/font?id={{font_id}}');
+  font-display: swap;
+}
+body, input, select, textarea, button { font-family: clinicBody, Vazir, sans-serif; }
