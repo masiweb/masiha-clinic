@@ -57,7 +57,9 @@ function aiSettingsView():void{
   echo '<p class="hint">'.(!empty($row['api_key_encrypted'])?'کلید قبلاً ثبت شده است.':'کلیدی ثبت نشده است.').'</p>';
   check('enabled','فعال',(bool)($row['enabled']??false));
   echo '<label class="switch-row"><input type="checkbox" name="use_default" '.(setting('ai_active_provider')===$id?'checked':'').'> مدل اصلی استخراج فرم</label>';
-  echo '<button class="button primary" type="submit">ذخیره تنظیمات</button></form></section>';
+  echo '<button class="button primary" type="submit">ذخیره تنظیمات</button></form>';
+  formstart('ai_provider_test');hidden('provider',$id);
+  echo '<button class="button secondary small" type="submit">آزمایش اتصال API</button></form></section>';
  }
  echo '</div></section><section class="info-card"><p>پردازش داده‌های مراجعه فقط پس از تأیید کارکنان انجام می‌شود. صدا و متن استخراج‌شده در سامانه ذخیره نخواهند شد. مرورگر برای ضبط به اتصال HTTPS نیاز دارد.</p></section>';
  endLayout();
@@ -131,7 +133,8 @@ function aiExtractFields(string $providerName,string $transcript,string $mode):a
   if(!in_array($key,$allowed,true)||!is_string($value))continue;
   $value=trim($value);
   if($value===''||mb_strlen($value)>1000)continue;
-  if(in_array($key,['date','DOB'],true)&&!preg_match('/^20\d{2}-\d{2}-\d{2}$/D',$value))continue;
+  if($key==='date'&&!preg_match('/^20\d{2}-\d{2}-\d{2}$/D',$value))continue;
+  if($key==='DOB'&&!preg_match('/^(?:19|20)\d{2}-\d{2}-\d{2}$/D',$value))continue;
   if($key==='time'&&!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D',$value))continue;
   if($key==='duration'&&(!ctype_digit($value)||(int)$value<5||(int)$value>480))continue;
   if($key==='sex'&&!in_array($value,['female','male','other'],true))continue;
@@ -183,4 +186,26 @@ function aiVoiceWidget(string $mode):void{
  echo '<label class="ai-transcript-label">ورود متنی جایگزین<textarea data-ai-transcript rows="3" maxlength="6000" placeholder="برای نمونه: نام بیمار علی رضایی است و برای درد زانو مراجعه کرده..."></textarea></label>';
  echo '<button type="button" class="button secondary small" data-ai-text>تحلیل متن واردشده</button><p class="ai-voice-status" role="status" aria-live="polite"></p>';
  echo '<div class="ai-voice-results" hidden><h4>پیشنهادهای استخراج‌شده</h4><p class="hint">فقط فیلدهای صحیح را انتخاب کنید؛ هیچ داده‌ای بدون تأیید شما ذخیره نمی‌شود.</p><div data-ai-fields></div><button type="button" class="button primary" data-ai-apply>اعمال مقادیر انتخاب‌شده</button></div></section>';
+}
+
+/** Explicit connection check with a synthetic harmless prompt. */
+function aiTestProvider():never{
+ if((user()['role']??'')!=='admin'){http_response_code(403);exit;}
+ $name=val('provider',20,true);$cfg=aiProvider($name);$catalog=aiCatalog();
+ if(!isset($catalog[$name])||!$cfg||!$cfg['enabled']||empty($cfg['api_key_encrypted']))
+  throw new DomainException('ابتدا کلید سرویس را ذخیره و آن را فعال کنید.');
+ $key=aiSecretDecrypt($cfg['api_key_encrypted']);
+ if($name==='claude'){
+  $headers=['x-api-key: '.$key,'anthropic-version: 2023-06-01'];
+  $fields=['model'=>$cfg['model'],'max_tokens'=>20,'messages'=>[['role'=>'user','content'=>'Reply with OK only.']]];
+ }else{
+  $headers=['Authorization: Bearer '.$key];
+  $fields=['model'=>$cfg['model'],'max_tokens'=>20,'messages'=>[['role'=>'user','content'=>'Reply with OK only.']]];
+ }
+ $data=aiHttp($catalog[$name]['endpoint'],$headers,$fields);
+ if(!is_array($data)||(empty($data['choices'][0]['message']['content'])&&empty($data['content'][0]['text'])))
+  throw new DomainException('سرویس پاسخ معتبر نداد.');
+ audit('ai_provider_connection_test');
+ flash('اتصال به '. $catalog[$name]['title'].' با موفقیت آزمایش شد.');
+ go('/ai/settings');
 }
