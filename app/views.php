@@ -39,8 +39,10 @@ function patientView():void{
  if(allowed('appointments')){echo '<section class="panel patient-visit-labels"><h2>هشتگ‌های مراجعات</h2>';foreach(patientVisitHashtags($pid) as $tag)echo '<span class="badge">#'.e($tag['name']).'</span>';echo '</section>';}?>
  <?php if(scope('forms.visit')!=='none')echo '<a class="button secondary" href="/progress?pid='.$pid.'">گزارش پیشرفت درمان</a>';patientExtras($pid,$p);if(allowed('appointments')||can('episodes'))echo '<a class="button secondary" href="/visit-history?pid='.$pid.'">تطبیق جلسات انجام‌شده</a>';?>
  <div class="patient-overview panel">
-  <div class="person"><span class="large-avatar"><?=e(mb_substr($p['fname'],0,1))?></span><div><h2><?=e(patientName($p))?></h2><p class="muted">شماره پرونده: <?=fa($pid)?> · کد ملی: <?=fa($p['national_id']?:'—')?> · تولد: <?=jd($p['DOB'])?></p></div></div>
-  <div class="actions"><?php if(allowed('patients.edit')&&$contactAllowed):?><a class="button secondary" href="/patients/edit?id=<?=$pid?>">ویرایش مشخصات</a><?php endif;?><?php if(can('episodes')):?><a class="button primary" href="/episodes/new?pid=<?=$pid?>"><?=icon('plus')?> دوره درمان جدید</a><?php endif;?></div>
+  <div class="person"><?=patientPhotoAvatar($p,true)?><div><h2><?=e(patientName($p))?></h2><p class="muted">شماره پرونده: <?=fa($pid)?> · کد ملی: <?=fa($p['national_id']?:'—')?> · تولد: <?=jd($p['DOB'])?></p></div></div>
+  <div class="actions"><?php if(allowed('patients.edit')&&$contactAllowed):?>
+   <form method="post" enctype="multipart/form-data" class="patient-photo-upload"><?php csrf();hidden('action','patient_photo');hidden('pid',$pid);?><label>عکس پروفایل <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required></label><button class="button secondary small" type="submit">ثبت عکس</button></form>
+  <?php endif; ?><?php if(allowed('patients.edit')&&$contactAllowed):?><a class="button secondary" href="/patients/edit?id=<?=$pid?>">ویرایش مشخصات</a><?php endif;?><?php if(can('episodes')):?><a class="button primary" href="/episodes/new?pid=<?=$pid?>"><?=icon('plus')?> دوره درمان جدید</a><?php endif;?></div>
  </div>
 
  <div class="dashboard-grid">
