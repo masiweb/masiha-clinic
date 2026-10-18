@@ -2,6 +2,7 @@
 require __DIR__.'/../app/bootstrap.php';require __DIR__.'/../app/ui.php';require __DIR__.'/../app/actions.php';require __DIR__.'/../app/views.php';require __DIR__.'/../app/admin-actions.php';require __DIR__.'/../app/admin-views.php';require __DIR__.'/../app/admin-api.php';require __DIR__.'/../app/import.php';
 require __DIR__.'/../app/appointment-views.php';
 $path=parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH);$error='';adminApi($path);
+if($path==='/patient-photo')servePatientPhoto();
 if($path==='/logo'){$f=$config['storage'].'/logo.png';if(is_file($f)){header('Content-Type: image/png');readfile($f);}else{header('Content-Type: image/svg+xml');echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>';}exit;}
 if(str_starts_with($path,'/patient/')){require __DIR__.'/../app/portal.php';exit;}
 if($path==='/health'){header('Content-Type: application/json');echo json_encode(['ok'=>(int)q('SELECT 1')->fetchColumn()===1,'app'=>'masiha-clinic','version'=>'1.2.0','release'=>is_file(__DIR__.'/../deploy/release.json')?(json_decode(file_get_contents(__DIR__.'/../deploy/release.json'),true)['commit']??null):null]);exit;}

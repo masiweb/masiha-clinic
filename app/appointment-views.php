@@ -111,17 +111,21 @@ function appointmentDetailsView():void{
 function appointmentCell(string $key,array $s,array $display):void{
  switch($key){
   case 'patient':
-   echo '<div class="reception-patient-heading"><a href="/patient?id='.(int)$s['pid'].'">'.e(patientName($s)).'</a>';
+   echo '<div class="reception-patient-heading">'.patientPhotoAvatar($s).'<a href="/patient?id='.(int)$s['pid'].'">'.e(patientName($s)).'</a>';
    if(can('finance'))echo '<a class="settlement-link" href="/finance?episode='.(int)$s['episode_id'].'" aria-label="تسویه حساب '.e(patientName($s)).'" title="تسویه حساب">$</a>';
    echo '</div><small>پرونده '.fa($s['pid']).'</small>';
    // The label is a separate colored classification; it never becomes a hashtag.
    foreach(q('SELECT DISTINCT l.name,l.color FROM labels l WHERE l.deleted=0 AND (l.id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=? AND sl.label_id=l.id)) ORDER BY l.name',[(int)($s['label_id']??0),(int)$s['id']])->fetchAll() as $label)
     echo '<span class="badge visit-patient-label" data-label-color="'.e($label['color']).'" title="لیبل مراجعه">'.e($label['name']).'</span>';
-   echo '<div class="reception-tag-line"><div class="reception-tag-values">';
+   echo '<div class="reception-tag-line">';
+   receptionEditor($s,'hashtags','هشتگ‌های مراجعه');
+   echo '<div class="reception-tag-values">';
    foreach(q('SELECT h.name FROM hashtags h JOIN session_hashtags sh ON sh.hashtag_id=h.id WHERE sh.session_id=? ORDER BY h.name',[$s['id']])->fetchAll() as $tag)
     echo '<span class="badge visit-hashtag">#'.e($tag['name']).'</span>';
-   echo '</div><div class="patient-row-tools">';receptionEditor($s,'hashtags','هشتگ‌های مراجعه');receptionEditor($s,'notes','یادداشت پذیرش');echo '</div></div>';
-   if(trim($s['reception_notes']??'')!=='')echo '<div class="reception-admission-note">'.nl2br(e($s['reception_notes'])).'</div>';
+   echo '</div></div>';
+   echo '<div class="reception-admission-note">';
+   receptionEditor($s,'notes','ویرایش توضیح پذیرش');
+   echo '<div class="reception-admission-text">'.(trim($s['reception_notes']??'')!==''?nl2br(e($s['reception_notes'])):'توضیح پذیرش ثبت نشده').'</div></div>';
    break;
 
   case 'time': $minutes=max(0,(int)ceil((strtotime($s['ends_at'])-strtotime($s['starts_at']))/60));echo '<strong class="reception-time">'.jd($s['starts_at'],'HH:mm').'</strong><small class="reception-duration">مدت ویزیت: '.fa($minutes).' دقیقه</small><small>'.jd($s['starts_at'],'yyyy/MM/dd').'</small>';break;

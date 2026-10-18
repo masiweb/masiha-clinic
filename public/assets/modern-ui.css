@@ -345,3 +345,35 @@ fieldset legend,.permission-group legend{padding-inline:9px;color:var(--ink);fon
  .reception-list td{padding:8px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}}
+
+
+/* Patient photo, hashtag and reception-note placement — visit board v3. */
+.reception-list table{table-layout:fixed;min-width:940px}
+.reception-list th[data-column=patient],.reception-list td[data-column=patient]{width:40%!important}
+.reception-list th[data-column=time],.reception-list td[data-column=time]{width:14%!important}
+.reception-list th[data-column=therapist],.reception-list td[data-column=therapist]{width:16%!important}
+.reception-list th[data-column=state],.reception-list td[data-column=state]{width:12%!important}
+.reception-list th[data-column=diagnoses],.reception-list td[data-column=diagnoses]{width:18%!important}
+.reception-list th,.reception-list td{padding-inline:10px!important}
+.reception-patient-heading{gap:9px;align-items:center}
+.reception-list .reception-tag-line{display:flex;flex-direction:row;align-items:center;gap:7px;flex-wrap:wrap;margin-top:8px}
+.reception-list .reception-tag-values{display:flex;gap:5px;flex-wrap:wrap;align-items:center;min-width:0}
+.reception-list td .reception-tag-line .row-editor{margin:0;max-width:100%;flex:0 0 auto}
+.reception-list .reception-admission-note{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;max-width:none}
+.reception-list .reception-admission-note .row-editor{margin:0;flex:0 0 auto;max-width:100%}
+.reception-list .reception-admission-text{min-width:0;flex:1;color:#745723;font-size:11px;line-height:1.7;overflow-wrap:anywhere;padding-top:3px}
+.patient-avatar,.profile-avatar{width:43px;height:43px;display:grid;place-items:center;border-radius:14px;border:1px solid #d9e9f3;background:#eaf3fc;color:#275b88;flex:0 0 auto;overflow:hidden;padding:0;cursor:default}
+.profile-avatar{width:67px;height:67px;border-radius:18px}
+.patient-avatar svg,.profile-avatar svg{width:24px;height:24px}
+.patient-avatar img,.profile-avatar img{width:100%;height:100%;object-fit:cover}
+.photo-preview-trigger{cursor:zoom-in}
+.photo-preview-trigger:hover{box-shadow:0 0 0 3px #a7d7e6}
+.patient-photo-upload{display:flex;gap:9px;flex-wrap:wrap;align-items:end}
+.patient-photo-upload label{font-size:12px;display:flex;flex-direction:column;gap:5px;color:#365777}
+.patient-photo-upload input{max-width:205px;font-size:12px}
+.patient-photo-dialog{border:0;border-radius:20px;background:#fff;padding:14px;max-width:min(92vw,800px);max-height:92vh;box-shadow:0 30px 70px #001c3955}
+.patient-photo-dialog::backdrop{background:rgba(9,25,49,.76)}
+.patient-photo-dialog img{display:block;max-width:100%;max-height:75vh;object-fit:contain;border-radius:13px}
+.patient-photo-close{display:block;margin:0 0 10px;padding:6px 14px;border:1px solid #d9e5f3;border-radius:10px;background:#f6faff;color:#214b76}
+@media(max-width:1000px){.reception-list table{min-width:850px}}
+@media(max-width:760px){.reception-list table{min-width:0;table-layout:auto}.reception-list td[data-column]{width:auto!important}}

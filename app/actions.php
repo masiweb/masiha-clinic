@@ -10,6 +10,7 @@ function handlePost():never{
   session_regenerate_id(true);$_SESSION=['uid'=>(int)$u['id'],'csrf'=>bin2hex(random_bytes(32)),'last_seen'=>time()];q('DELETE FROM login_limits WHERE bucket=?',[$bucket]);audit('staff_login');go('/');
  }
  if($action==='logout'){$_SESSION=[];session_regenerate_id(true);go('/login');}
+ if($action==='patient_photo'){need('patients');$pid=num('pid',1);savePatientPhoto($pid);flash('تصویر پروفایل بیمار ذخیره شد.');go('/patient?id='.$pid);}
  if($action==='patient'){
   need('patients');$id=num('pid');$isNewPatient=$id===0;$mobile=val('phone_cell',20);$mobile=$mobile!==''?(MasihaOtp::mobile($mobile)??throw new DomainException('شماره همراه معتبر وارد کنید.')):null;
   $national=MasihaOtp::digits(val('national_id',20));if($national!==''&&!preg_match('/^\d{10}$/D',$national))throw new DomainException('کد ملی باید ۱۰ رقم باشد.');
