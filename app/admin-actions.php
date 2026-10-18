@@ -1,5 +1,6 @@
 <?php
 function adminAction($a):bool{global $db,$config;if(importAction($a))return true;
+ if($a==='ai_provider_save')aiSaveProvider();
  if($a==='document_classify'){classifyDocument(num('document_id',1),num('document_type_id'));go('/document-classify?id='.num('document_id',1));}
  if($a==='document_type_save'){documentTypeSave(num('id'),val('name',160,true),isset($_POST['active']));go('/document-types');}
  if($a==='billing_save'){billingSave(num('episode_id',1),num('version'),val('mode',20,true),num('base_toman'),num('discount_id'),num('package_id'),val('reason',1000,true));flash('صورتحساب با حفظ تاریخچه ذخیره شد.');go('/billing?episode='.num('episode_id',1));}

@@ -377,3 +377,30 @@ fieldset legend,.permission-group legend{padding-inline:9px;color:var(--ink);fon
 .patient-photo-close{display:block;margin:0 0 10px;padding:6px 14px;border:1px solid #d9e5f3;border-radius:10px;background:#f6faff;color:#214b76}
 @media(max-width:1000px){.reception-list table{min-width:850px}}
 @media(max-width:760px){.reception-list table{min-width:0;table-layout:auto}.reception-list td[data-column]{width:auto!important}}
+
+
+/* AI providers and consent-based, review-before-apply voice helper. */
+.ai-provider-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:15px;margin-top:16px}
+.ai-provider-card{border:1px solid #d9e8f3;border-radius:15px;padding:20px;background:#fafdff;min-width:0}
+.ai-provider-card h3{font-size:16px;color:#1b4569;margin-bottom:5px}
+.ai-provider-card>p{font-size:11px;overflow-wrap:anywhere;margin-bottom:12px}
+.ai-provider-card .field{margin-block:12px}
+.ai-provider-card .edit-form .button{margin-top:12px}
+.ai-voice-panel{border:1px solid #b8ddd9;padding:18px;background:linear-gradient(120deg,#f0faf8,#f5faff);margin-bottom:18px}
+.ai-voice-heading{display:flex;gap:13px;align-items:center;margin-bottom:12px}
+.ai-voice-heading h3{font-size:16px;color:#175d65}
+.ai-voice-heading p{color:#667f96;font-size:12px}
+.ai-voice-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;background:#dbf6f0;color:#0d8276}
+.ai-consent{display:flex;align-items:flex-start;gap:9px;font-size:12px;color:#3c647d;margin-bottom:12px}
+.ai-consent input{flex:0 0 auto;margin-top:7px}
+.ai-voice-actions{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:13px}
+.ai-transcript-label{font-size:12px;color:#4b6580;display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.ai-transcript-label textarea{width:100%;max-width:780px;border:1px solid #d8e6f2;border-radius:12px;padding:10px;background:#fff;font:inherit}
+.ai-voice-status{font-size:12px;line-height:1.7;color:#176c79;margin-top:11px}
+.ai-voice-results{background:#fff;border:1px solid #d9e7f0;border-radius:14px;padding:14px;margin-top:14px}
+.ai-voice-results h4{color:#244e72;font-size:14px;margin-bottom:4px}
+.ai-suggested-field{display:flex;flex-wrap:wrap;align-items:center;gap:9px;padding:9px 11px;border-bottom:1px solid #eef3f7;font-size:12px}
+.ai-suggested-field strong{min-width:110px}
+.ai-suggested-field span{flex:1;overflow-wrap:anywhere;color:#4d647d}
+.ai-voice-results button{margin-top:12px}
+@media(max-width:700px){.ai-provider-grid{grid-template-columns:1fr}.ai-voice-panel{padding:12px}.ai-voice-actions>*{flex:1 1 auto}}
