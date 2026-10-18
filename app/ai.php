@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/ai-normalization.php';
 function aiCatalog():array{
  return [
   'openai'=>['title'=>'OpenAI','model'=>'gpt-4o-mini','endpoint'=>'https://api.openai.com/v1/chat/completions'],
@@ -101,7 +102,7 @@ function aiTranscribe(array $file):string{
   'audio/mpeg'=>'mp3','audio/wav','audio/x-wav'=>'wav','audio/mp4'=>'m4a',default=>null
  };
  if($ext===null)throw new DomainException('فرمت صدای ضبط‌شده قابل پردازش نیست.');
- $data=['file'=>new CURLFile($file['tmp_name'],$mime,'clinic-input.'.$ext),'model'=>'gpt-4o-mini-transcribe','language'=>'fa'];
+ $data=['file'=>new CURLFile($file['tmp_name'],$mime,'clinic-input.'.$ext),'model'=>'gpt-4o-mini-transcribe','language'=>'fa','prompt'=>'گفتار فارسی برای پذیرش کلینیک: اعداد و صفرها را دقیق پیاده کن. «دو صفر» و «دو تا صفر» یعنی دو رقم ۰۰ و نه ۲۰. «صفر دو» یعنی ۰۲. تاریخ‌ها شمسی‌اند؛ مثل «چهارده دی شصت و هشت» یا «چهارده ده شصت و هشت». چیزی حدس نزن.'];
  $json=aiHttp('https://api.openai.com/v1/audio/transcriptions',['Authorization: Bearer '.aiSecretDecrypt($provider['api_key_encrypted'])],$data,true);
  $transcript=trim((string)($json['text']??''));
  if($transcript===''||mb_strlen($transcript)>6000)throw new DomainException('صدای قابل تبدیل به متن دریافت نشد.');
@@ -114,7 +115,7 @@ function aiExtractFields(string $providerName,string $transcript,string $mode):a
  $allowed=$mode==='patient'
   ?['fname','lname','phone_cell','phone_home','national_id','father_name','DOB','sex','marital_status','referral_source','occupation','education','email','address','medical_conditions','notes','emergency_name','emergency_phone']
   :['notes','date','time','duration','room'];
- $instructions='Extract only explicitly stated data from Persian spoken clinic intake. Return a single JSON object with a "fields" object mapping these keys to strings: '.implode(', ',$allowed).'. Omit uncertain or absent data. Never guess diagnoses, personal details, or dates. date and DOB must be Gregorian YYYY-MM-DD only when clearly stated. time must be HH:MM 24-hour. duration must be integer minutes. Do not add explanations.';
+ $instructions='Extract only explicitly stated clinic intake facts. Return exactly one JSON object with a fields object containing string values. Allowed keys: '.implode(', ',$allowed).'. The user speaks Persian and birth dates in the Iranian JALALI calendar. For DOB/date return a Jalali string J:YYYY-MM-DD, never convert calendar dates yourself. Example: «چهارده ده شصت و هشت» is J:1368-10-14, NOT 1968-10-14. For national_id, phone_cell and phone_home, use a DIGIT STRING. «دو صفر»/«دو تا صفر» mean "00", not "20"; «سه صفر» means "000"; «صفر دو» is "02"; «بیست» is "20". Preserve all leading zeros and repeated zeros; do not use arithmetic to decode identifier digits. Omit ambiguous values. No guessed dates or details, no explanations.';
  $key=aiSecretDecrypt($p['api_key_encrypted']);
  if($providerName==='claude'){
   $headers=['x-api-key: '.$key,'anthropic-version: 2023-06-01'];
@@ -133,12 +134,23 @@ function aiExtractFields(string $providerName,string $transcript,string $mode):a
   if(!in_array($key,$allowed,true)||!is_string($value))continue;
   $value=trim($value);
   if($value===''||mb_strlen($value)>1000)continue;
+  if(in_array($key,['DOB','date','national_id','phone_cell','phone_home'],true)){
+   $normalized=aiSafeFieldValue($key,$value,$transcript);
+   if($normalized===null)continue;
+   $value=$normalized;
+  }
   if($key==='date'&&!preg_match('/^20\d{2}-\d{2}-\d{2}$/D',$value))continue;
   if($key==='DOB'&&!preg_match('/^(?:19|20)\d{2}-\d{2}-\d{2}$/D',$value))continue;
   if($key==='time'&&!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D',$value))continue;
   if($key==='duration'&&(!ctype_digit($value)||(int)$value<5||(int)$value>480))continue;
   if($key==='sex'&&!in_array($value,['female','male','other'],true))continue;
   $clean[$key]=mb_substr($value,0,300);
+ }
+ // Recover exact date and identifiers from unambiguous spoken text if the model omitted them.
+ foreach(['DOB','date','national_id','phone_cell','phone_home'] as $name){
+  if(!in_array($name,$allowed,true)||isset($clean[$name]))continue;
+  $normalized=aiSafeFieldValue($name,'',$transcript);
+  if($normalized!==null)$clean[$name]=$normalized;
  }
  return $clean;
 }

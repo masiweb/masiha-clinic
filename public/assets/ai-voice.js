@@ -22,7 +22,11 @@ document.querySelectorAll('[data-ai-voice]').forEach(box=>{
     const row=document.createElement('label');row.className='ai-suggested-field';
     const tick=document.createElement('input');tick.type='checkbox';tick.checked=true;tick.dataset.aiField=key;
     const heading=document.createElement('strong');heading.textContent=target.closest('.field')?.querySelector('label')?.textContent?.trim()||key;
-    const suggestion=document.createElement('span');suggestion.textContent=value;
+    const suggestion=document.createElement('span');
+    const dateField=(key==='DOB'||key==='date')&&/^\d{4}-\d{2}-\d{2}$/.test(value);
+    const jalali=dateField&&window.MasihaDate?.jal?.(value);
+    suggestion.textContent=jalali?('تاریخ شمسی: '+jalali):value;
+    if(jalali)suggestion.title='معادل میلادی برای ذخیره: '+value;
     row.append(tick,heading,suggestion);container.append(row);found++;
    }
    if(!found){show('فیلد قابل‌اعمال از متن استخراج نشد.');return;}
