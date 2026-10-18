@@ -56,7 +56,8 @@ function appointmentDashboard():void{
  if(displayVisible($display,'panels','filters')){
   echo '<div class="reception-list-search"><label for="reception-search">'.icon('search').' جستجو در نوبت‌ها</label><input id="reception-search" name="q" type="search" form="reception-filters" value="'.e($f['q']).'" placeholder="نام، موبایل یا کد پرونده"><button type="submit" form="reception-filters" class="button secondary small">جستجو</button><a class="text-link" href="/appointments">پاک‌کردن فیلترها</a></div>';
  }
- $columns=array_values(array_filter(['patient','time','therapist','state','diagnoses'],static fn($key)=>displayVisible($display,'columns',$key)));
+ // The /appointments reception list always displays the five requested columns.
+ $columns=['patient','time','therapist','state','diagnoses'];
  echo '<section class="panel reception-list"><div class="panel-header"><h2>فهرست مراجعه</h2><span>'.fa($r['count']).' نوبت</span></div>';
  if(!$columns)echo '<p class="notice">ستونی برای نمایش انتخاب نشده است. از تنظیم نمایش ستون‌ها را انتخاب کنید.</p>';
  echo '<div class="table-scroll"><table><thead><tr>';
@@ -129,7 +130,7 @@ function appointmentCell(string $key,array $s,array $display):void{
    echo '<a class="text-link" href="/visit?id='.(int)$s['id'].'">تاریخچه و گردش مراجعه</a></details>';break;
   case 'diagnoses':
    if(appointmentClinicalAllowed($s)){receptionEditor($s,'diagnoses','تشخیص اولیه');}
-   else echo '<span class="row-selection-text">بدون دسترسی به تشخیص</span>';
+   else echo '<span class="row-selection-text">—</span>';
    appointmentQuickActions($s);
    break;
   case 'actions': appointmentQuickActions($s);break;
@@ -153,12 +154,14 @@ function appointmentQuickActions(array $s):void{
   echo '<button type="submit" class="row-action-icon is-danger" title="حذف نوبت (لغو با حفظ سابقه)" aria-label="حذف نوبت"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 14h10l1-14M10 11v6m4-6v6"/></svg></button></form>';
  }else echo '<span class="row-action-icon is-disabled" title="این نوبت قابل حذف نیست" aria-label="حذف نوبت غیرفعال"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 14h10l1-14M10 11v6m4-6v6"/></svg></span>';
  if(allowed('inventory')||allowed('inventory.consume'))echo '<a class="row-action-icon" title="ثبت کالاهای مصرفی" aria-label="ثبت کالاهای مصرفی" href="/visit?id='.$id.'#stock-consumption">'.icon('box').'</a>';
+ else echo '<span class="row-action-icon is-disabled" title="مجوز ثبت کالاهای مصرفی ندارید" aria-label="ثبت کالاهای مصرفی غیرفعال">'.icon('box').'</span>';
  if(appointmentClinicalAllowed($s)&&can('episodes'))echo '<a class="row-action-icon" title="ثبت توضیحات درمانگر" aria-label="ثبت توضیحات درمانگر" href="/session?id='.$id.'">'.icon('pen').'</a>';
+ else echo '<span class="row-action-icon is-disabled" title="مجوز ثبت توضیحات درمانگر ندارید" aria-label="توضیحات درمانگر غیرفعال">'.icon('pen').'</span>';
  echo '<details class="visit-more-menu"><summary class="row-action-icon" title="بیشتر" aria-label="عملیات بیشتر">'.icon('menu').'</summary><div class="visit-more-links">';
  if(allowed('appointments.reverse')&&in_array($state,['referred','waiting','in_service'],true)){
   echo '<form method="post" class="visit-step-back-form">';csrf();hidden('action','visit_step_back');hidden('session_id',$id);hidden('workflow_version',$version);
   echo '<button type="submit" class="visit-more-action">یک مرحله قبل (فقط وضعیت بیمار)</button></form>';
- }
+ }else echo '<span class="visit-more-action is-disabled" title="مرحله قبلی در این وضعیت قابل بازگشت نیست">یک مرحله قبل (فقط وضعیت بیمار)</span>';
  echo '<a href="/patient?id='.$pid.'">اطلاعات کامل و مدارک</a><a href="/appointment/details?id='.$id.'">مشخصات مراجعه</a>';
  if(allowed('patients.edit')&&patientAllowed($pid,'contact'))echo '<a href="/patients/edit?id='.$pid.'">ویرایش مراجعه‌کننده</a>';
  if(appointmentClinicalAllowed($s))echo '<a href="/session?id='.$id.'">فرم ویزیت و توضیحات درمانگر</a>';

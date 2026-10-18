@@ -193,3 +193,19 @@
 
 /* Keep the more menu inside the scrollable table instead of clipping its popup. */
 .reception-list .visit-more-links{position:static;inset:auto;width:min(250px,100%);min-width:0;max-width:100%;margin-top:7px}
+
+/* Fixed five-column reception board on /appointments. */
+.reception-list .table-scroll{overflow-x:auto}
+.reception-list table{width:100%;min-width:860px;table-layout:auto}
+.reception-list th[data-column=patient],.reception-list td[data-column=patient]{width:29%}
+.reception-list th[data-column=time],.reception-list td[data-column=time]{width:15%}
+.reception-list th[data-column=therapist],.reception-list td[data-column=therapist]{width:17%}
+.reception-list th[data-column=state],.reception-list td[data-column=state]{width:15%}
+.reception-list th[data-column=diagnoses],.reception-list td[data-column=diagnoses]{width:24%}
+.reception-list .reception-tag-line{display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+.reception-list .reception-admission-note{margin-top:3px;font-size:11px;line-height:1.65}
+.reception-list .reception-duration{font-size:11px;font-weight:400;display:block}
+.reception-list .visit-quick-actions{margin-top:9px;padding-top:5px;border-top:1px solid var(--line,#dce5ed)}
+@media(max-width:760px){.reception-list table{min-width:0}.reception-list th[data-column],.reception-list td[data-column]{width:auto}}
+
+.reception-list .visit-more-action.is-disabled{opacity:.52;cursor:not-allowed;pointer-events:none}
