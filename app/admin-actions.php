@@ -20,7 +20,7 @@ function adminAction($a):bool{global $db,$config;if(importAction($a))return true
  if($a==='appointment_metadata'){
   $id=num('session_id',1);$input=['visit_type_id'=>num('visit_type_id'),'room'=>val('room',100)];
   if(isset($_POST['package_id']))$input['package_id']=num('package_id');
-  foreach(['diagnoses','labels'] as $key)if(isset($_POST['set_'.$key]))$input[$key]=$_POST[$key]??[];
+  foreach(['diagnoses','labels','hashtags'] as $key)if(isset($_POST['set_'.$key]))$input[$key]=$_POST[$key]??[];
   appointmentMetadata($id,num('workflow_version'),$input);flash('مشخصات مراجعه با ثبت سابقه ذخیره شد.');go('/visit?id='.$id);
  }
  if($a==='permissions'){
