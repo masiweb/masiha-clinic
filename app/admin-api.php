@@ -3,7 +3,7 @@ function adminApi($path):void{global $config;
  if($path==='/theme.css'){
   header('Content-Type: text/css; charset=utf-8');
   $values=[];
-  foreach(['theme_color'=>'#087f75','theme_hover_color'=>'#065f58','theme_background_color'=>'#f3f6fa'] as $key=>$fallback){
+  foreach(['theme_color'=>'#0b827c','theme_hover_color'=>'#086a68','theme_background_color'=>'#f4f7fc'] as $key=>$fallback){
    $value=setting($key,$fallback);
    $values['{{'.$key.'}}']=preg_match('/^#[0-9a-f]{6}$/iD',$value)?$value:$fallback;
   }

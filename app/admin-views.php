@@ -108,9 +108,9 @@ function appearanceView():void{
  <button type="button" class="palette-choice palette-violet" data-palette="#7254a4,#513778,#f6f3fa"><span></span>بنفش ملایم</button>
  </div><div class="color-fields">
  <?php
- field('theme_color','رنگ اصلی دکمه‌ها',setting('theme_color','#087f75'),'color','رنگ دکمه‌های اصلی و بخش انتخاب‌شده در منو.',true);
- field('theme_hover_color','رنگ هاور دکمه‌ها',setting('theme_hover_color','#065f58'),'color','رنگ دکمه وقتی نشانگر روی آن قرار می‌گیرد.',true);
- field('theme_background_color','رنگ پس‌زمینه کلی',setting('theme_background_color','#f3f6fa'),'color','رنگ فضای پشت کارت‌ها و فرم‌های پنل.',true);
+ field('theme_color','رنگ اصلی دکمه‌ها',setting('theme_color','#0b827c'),'color','رنگ دکمه‌های اصلی و بخش انتخاب‌شده در منو.',true);
+ field('theme_hover_color','رنگ هاور دکمه‌ها',setting('theme_hover_color','#086a68'),'color','رنگ دکمه وقتی نشانگر روی آن قرار می‌گیرد.',true);
+ field('theme_background_color','رنگ پس‌زمینه کلی',setting('theme_background_color','#f4f7fc'),'color','رنگ فضای پشت کارت‌ها و فرم‌های پنل.',true);
  foreach(themeExtraColors() as $key=>[$variable,$fallback,$label])field($key,$label,setting($key,$fallback),'color','رنگ دلخواه را انتخاب کنید یا کد HEX را وارد کنید.',true,false,'data-theme-variable="'.e($variable).'"');
  ?></div><p class="hint">برای خوانایی بهتر، رنگ دکمه‌ها را تیره و پس‌زمینه را روشن انتخاب کنید.</p>
  <div class="appearance-fonts"><?php
