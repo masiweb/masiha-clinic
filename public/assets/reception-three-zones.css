@@ -18,3 +18,10 @@
 .patient-therapist-add h3{width:100%;font-size:13px}
 .patient-therapist-add .field{flex:1;min-width:200px}
 @media(max-width:900px){.reception-mode .reception-list table{min-width:1050px!important}}
+
+/* Three aligned horizontal zones, regardless of short therapist/status text. */
+.reception-mode .reception-visit-upper{min-height:133px;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.reception-mode .reception-visit-zone{margin-top:0;min-height:155px}
+.reception-mode .reception-visit-upper .visit-state-stack{width:100%}
+.reception-mode .reception-visit-upper .visit-time-label{width:100%}
+@media(max-width:900px){.reception-mode .reception-visit-upper{min-height:125px}}

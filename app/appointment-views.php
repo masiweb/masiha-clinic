@@ -136,16 +136,17 @@ function appointmentCell(string $key,array $s,array $display):void{
    echo '<div class="reception-admission-text">'.(trim($s['reception_notes']??'')!==''?nl2br(e($s['reception_notes'])):'توضیح پذیرش ثبت نشده').'</div></div>';
    break;
 
-  case 'time': $minutes=max(0,(int)ceil((strtotime($s['ends_at'])-strtotime($s['starts_at']))/60));echo '<strong class="reception-time">'.jd($s['starts_at'],'HH:mm').'</strong><small class="reception-duration">مدت ویزیت: '.fa($minutes).' دقیقه</small><small>'.jd($s['starts_at'],'yyyy/MM/dd').'</small>';appointmentInlineLabel($s);receptionVisitZone($s,'diagnoses');break;
-  case 'therapist': echo '<span class="reception-therapist">'.icon('users').e($s['therapist_name']).'</span>';if(displayVisible($display,'panels','room'))echo '<small>'.e($s['room']?:'بدون اتاق اختصاصی').'</small>';receptionVisitZone($s,'treatment');break;
+  case 'time': echo '<div class="reception-visit-upper">';$minutes=max(0,(int)ceil((strtotime($s['ends_at'])-strtotime($s['starts_at']))/60));echo '<strong class="reception-time">'.jd($s['starts_at'],'HH:mm').'</strong><small class="reception-duration">مدت ویزیت: '.fa($minutes).' دقیقه</small><small>'.jd($s['starts_at'],'yyyy/MM/dd').'</small>';appointmentInlineLabel($s);echo '</div>';receptionVisitZone($s,'diagnoses');break;
+  case 'therapist': echo '<div class="reception-visit-upper"><span class="reception-therapist">'.icon('users').e($s['therapist_name']).'</span>';if(displayVisible($display,'panels','room'))echo '<small>'.e($s['room']?:'بدون اتاق اختصاصی').'</small>';echo '</div>';receptionVisitZone($s,'treatment');break;
   case 'state':
+   echo '<div class="reception-visit-upper">';
    $state=$s['workflow_state']??workflowInitialState($s);$next=array_values(array_diff(workflowNextStates()[$state],['visited']));
    echo '<div class="visit-state-stack"><span class="visit-state state-'.e($state).'">'.e(workflowLabels()[$state]).'</span>';
    if($next&&allowed('appointments')&&(user()['role']!=='therapist'||(int)$s['therapist_id']===(int)user()['id'])){
     echo '<form method="post" class="visit-select-form">';csrf();hidden('action','visit_state');hidden('session_id',$s['id']);hidden('workflow_version',$s['workflow_version']);hidden('return_appointments',1);hidden('clinic_id',0);
     selectfield('state','',[$state=>workflowLabels()[$state]]+array_intersect_key(workflowLabels(),array_flip($next)),$state);echo '</form>';
    }
-   echo '<a class="text-link" href="/visit?id='.(int)$s['id'].'">تاریخچه و گردش مراجعه</a></div>';receptionVisitZone($s,'therapist');break;
+   echo '<a class="text-link" href="/visit?id='.(int)$s['id'].'">تاریخچه و گردش مراجعه</a></div></div>';receptionVisitZone($s,'therapist');break;
   case 'diagnoses':
    if(appointmentClinicalAllowed($s)){receptionDiagnosisSummary($s);}
    else echo '<span class="row-selection-text">—</span>';

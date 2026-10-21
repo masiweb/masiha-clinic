@@ -6,7 +6,13 @@ function receptionDiagnosisEdit(array $s):bool{
 }
 function receptionSelections(int $id,string $kind):array{
  [$table,$column]=match($kind){'labels'=>['session_labels','label_id'],'hashtags'=>['session_hashtags','hashtag_id'],'diagnoses'=>['session_diagnoses','diagnosis_id'],'packages'=>['session_packages','package_id'],'programs'=>['session_treatment_programs','program_id'],default=>throw new DomainException('فهرست معتبر نیست.')};
- return array_map('intval',q("SELECT $column FROM $table WHERE session_id=? ORDER BY $column",[$id])->fetchAll(PDO::FETCH_COLUMN));
+ $result=array_map('intval',q("SELECT $column FROM $table WHERE session_id=? ORDER BY $column",[$id])->fetchAll(PDO::FETCH_COLUMN));
+ if($kind==='packages'){
+  $main=(int)q('SELECT package_id FROM physio_sessions WHERE id=?',[$id])->fetchColumn();
+  if($main&&!in_array($main,$result,true))$result[]=$main;
+  sort($result);
+ }
+ return $result;
 }
 function receptionUpdate(int $id,int $version,string $kind,array $input):void{
  global $db;
