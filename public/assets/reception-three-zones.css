@@ -25,3 +25,39 @@
 .reception-mode .reception-visit-upper .visit-state-stack{width:100%}
 .reception-mode .reception-visit-upper .visit-time-label{width:100%}
 @media(max-width:900px){.reception-mode .reception-visit-upper{min-height:125px}}
+
+
+/* Visit rows v3: uninterrupted blue horizontal rules, floating vertical dividers,
+   gentle alternating row backgrounds, keeping every existing action intact. */
+.reception-mode .reception-list table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+.reception-mode .reception-list tbody tr.visit-row > td {
+  position: relative;
+  border-inline-end: 0 !important;
+  border-bottom: 2px solid #98cfe3 !important;
+  background: #ffffff !important;
+  background-clip: padding-box;
+  transition: background-color .15s ease;
+}
+.reception-mode .reception-list tbody tr.visit-row:nth-child(even) > td {
+  background: #f4f7fb !important;
+}
+.reception-mode .reception-list tbody tr.visit-row:hover > td {
+  background: #eaf4fa !important;
+}
+.reception-mode .reception-list tbody tr.visit-row > td:not(:last-child)::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset-inline-end: 0;
+  top: 15px;
+  bottom: 16px;
+  width: 1px;
+  background: #d5e0eb;
+  z-index: 1;
+}
+.reception-mode .reception-list tbody tr.visit-row > td:last-child::before {
+  content: none !important;
+}
