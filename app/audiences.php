@@ -3,6 +3,7 @@
 function audiencePersonalizedMessage(string $body,int $pid,array $filters):string{
  $ctx=MasihaSms::context($pid)??[];
  if(!$ctx)throw new DomainException('مشخصات گیرنده پیدا نشد.');
+ $ctx['date']=jd($filters['from'],'yyyy/MM/dd');
  $ctx['start_date']=jd($filters['from'],'yyyy/MM/dd');
  $ctx['end_date']=jd($filters['to'],'yyyy/MM/dd');
  if(!empty($filters['therapist'])){
@@ -10,6 +11,7 @@ function audiencePersonalizedMessage(string $body,int $pid,array $filters):strin
   $ctx['therapist']=$doctor;$ctx['doctor_name']=$doctor;
  }else{
   $ctx['doctor_name']='پزشکان و درمانگران';
+  $ctx['therapist']=$ctx['doctor_name'];
  }
  if(!empty($filters['clinic'])){
   $clinic=(string)q('SELECT name FROM clinics WHERE id=?',[$filters['clinic']])->fetchColumn();

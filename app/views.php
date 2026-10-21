@@ -340,7 +340,7 @@ function visitTimelineView():void{
   if($event['from_state']!==$event['to_state'])echo '<p>'.e($labels[$event['from_state']]??'شروع').' ← '.e($labels[$event['to_state']]??$event['to_state']).'</p>';
   foreach($changes as $change)echo '<p><strong>'.e($change['title']).': </strong>'.nl2br(e($change['value'])).'</p>';
   if(!empty($event['details']['reason']))echo '<p>'.nl2br(e($event['details']['reason'])).'</p>';
-  foreach(['before_appointment'=>'مشخصات پیش از تغییر','after_appointment'=>'مشخصات ثبت‌شده'] as $key=>$title)if(isset($event['details'][$key])){echo '<details><summary>'.e($title).'</summary><dl>';foreach(['room'=>'اتاق','visit_type_id'=>'شناسه نوع ویزیت','package_id'=>'شناسه پکیج'] as $field=>$caption)echo '<dt>'.e($caption).'</dt><dd>'.e($event['details'][$key][$field]??'—').'</dd>';echo '</dl></details>';}
+  foreach(['before_appointment'=>'مشخصات پیش از تغییر','after_appointment'=>'مشخصات ثبت‌شده'] as $key=>$title)if(isset($event['details'][$key])){echo '<details><summary>'.e($title).'</summary><dl>';foreach(['room'=>'اتاق','package_id'=>'شناسه پکیج'] as $field=>$caption)echo '<dt>'.e($caption).'</dt><dd>'.e($event['details'][$key][$field]??'—').'</dd>';echo '</dl></details>';}
   if($event['event_type']==='legacy_snapshot')echo '<p class="muted">زمان واقعی ورود و خروج در سابقه قبلی ثبت نشده است.</p>';
   foreach(['before_result'=>'نتیجه پیش از اصلاح','after_result'=>'نتیجه ثبت‌شده'] as $key=>$title)if(isset($event['details'][$key])){
    echo '<details><summary>'.e($title).'</summary><dl>';
