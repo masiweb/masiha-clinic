@@ -94,7 +94,12 @@ function workflowTransition(int $id,string $target,array $details=[],?int $expec
   $legacy=match($target){'visited','discharged'=>'done','absent'=>'absent','cancelled'=>'cancelled',default=>'scheduled'};
   $turn=match($target){'referred'=>'called','waiting'=>'waiting','in_service'=>'in_service','visited','discharged','absent','cancelled'=>'done',default=>'none'};
   q('UPDATE physio_sessions SET status=?,turn_state=?,turn_updated_at=NOW() WHERE id=?',[$legacy,$turn,$id]);
-  billingSyncVisit((int)$s['episode_id'],$id);if($result!==null&&in_array($target,['visited','discharged'],true))clinicAfterTreatmentLabel($id);
+  billingSyncVisit((int)$s['episode_id'],$id);
+  if($result!==null&&in_array($target,['visited','discharged'],true)){
+   clinicAfterTreatmentLabel($id);
+   $patientId=(int)q('SELECT pid FROM physio_episodes WHERE id=?',[$s['episode_id']])->fetchColumn();
+   clinicRefreshOpenAppointmentLabels($patientId,$id);
+  }
   $stamp=$from===$target?null:match($target){'waiting'=>'arrived_at','referred'=>'called_at','in_service'=>'treatment_started_at','visited'=>'treatment_finished_at','discharged'=>'departed_at',default=>null};
   $extra=$stamp?",$stamp=COALESCE($stamp,NOW())":'';
   // Sending a patient directly into treatment is also an observed arrival.

@@ -88,3 +88,29 @@ function clinicHashtagColor(string $name):string{
  }
  return $best;
 }
+
+
+/** Recheck future, automatically labelled appointments after a recorded clinical outcome.
+ *  Manual session/patient labels are never overwritten.
+ */
+function clinicRefreshOpenAppointmentLabels(int $pid,int $excludeSession=0):void{
+ $today=date('Y-m-d');
+ $rows=q("SELECT s.id,s.service_id,s.label_id,s.starts_at,m.booking_source
+  FROM physio_sessions s JOIN physio_episodes ep ON ep.id=s.episode_id
+  JOIN session_label_modes m ON m.session_id=s.id
+  WHERE ep.pid=? AND s.id<>? AND s.status='scheduled' AND DATE(s.starts_at)>=?
+  AND m.selection_mode='auto' ORDER BY s.starts_at,s.id",[$pid,$excludeSession,$today])->fetchAll();
+ $patientLabel=null;
+ foreach($rows as $s){
+  [$name,$reason]=clinicAutoLabelName($pid,(int)($s['service_id']??0),substr($s['starts_at'],0,10),$s['booking_source']);
+  $label=clinicFindLabelId($name);
+  if($patientLabel===null)$patientLabel=$label;
+  if((int)$s['label_id']===$label)continue;
+  q('UPDATE physio_sessions SET label_id=? WHERE id=?',[$label,$s['id']]);
+  q('DELETE FROM session_labels WHERE session_id=?',[$s['id']]);
+  q('INSERT INTO session_labels(session_id,label_id) VALUES(?,?)',[$s['id'],$label]);
+  q('UPDATE session_label_modes SET explanation=? WHERE session_id=?',[$reason,$s['id']]);
+  audit('future_appointment_auto_label_refreshed',(int)$s['id']);
+ }
+ if($patientLabel!==null)clinicAssignPatientLabel($pid,$patientLabel,false);
+}
