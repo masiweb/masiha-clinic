@@ -1,0 +1,535 @@
+/* Reception measurements v4 — compact clinical desk modeled on the supplied Boghrat reference.
+   Only layout, form-control dimensions and surface shapes change. */
+@media screen {
+  body.reception-mode {
+    --reception-gap: 9px;
+    --reception-radius: 8px;
+    --reception-control-height: 37px;
+    font-size: 12.5px;
+  }
+
+  /* Frame: keep the right edge of reception close to its navigation. */
+  .reception-mode .sidebar {
+    width: 242px !important;
+    padding-inline: 10px !important;
+  }
+  .reception-mode .sidebar .brand {
+    min-height: 60px !important;
+    padding: 9px 11px !important;
+  }
+  .reception-mode .sidebar nav {
+    gap: 2px !important;
+  }
+  .reception-mode .sidebar nav a {
+    min-height: 39px !important;
+    padding: 7px 11px !important;
+    border-radius: 7px !important;
+    gap: 9px !important;
+    font-size: 12px !important;
+  }
+  .reception-mode .sidebar nav a svg {
+    width: 17px !important;
+    height: 17px !important;
+  }
+  .reception-mode .workspace {
+    margin-right: 242px !important;
+    min-width: 0;
+  }
+  .reception-mode .topbar {
+    min-height: 53px !important;
+    height: auto !important;
+    padding: 7px 17px !important;
+  }
+  .reception-mode .topbar .breadcrumb {
+    font-size: 12px !important;
+  }
+  .reception-mode .top-actions {
+    gap: 9px !important;
+  }
+  .reception-mode .top-actions .avatar {
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .reception-mode .main {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 9px 10px 22px !important;
+  }
+  .reception-mode .page-heading {
+    padding: 0 2px 7px !important;
+    margin-bottom: 6px !important;
+  }
+  .reception-mode .page-heading h1 {
+    font-size: 17px !important;
+    line-height: 1.4 !important;
+  }
+  .reception-mode .page-heading .button {
+    min-height: 34px !important;
+    padding: 6px 11px !important;
+    border-radius: 7px !important;
+    font-size: 11px !important;
+  }
+
+  /* Action bar: connected rectangular tool group rather than oversized pills. */
+  .reception-mode .reception-toolbar {
+    min-height: 55px !important;
+    padding: 8px 11px !important;
+    margin-bottom: 8px !important;
+    border-radius: 9px !important;
+    column-gap: 7px !important;
+    row-gap: 7px !important;
+    align-items: center !important;
+  }
+  .reception-mode .reception-toolbar .button {
+    min-height: 37px !important;
+    height: auto;
+    padding: 7px 11px !important;
+    border-radius: 7px !important;
+    font-size: 11.5px !important;
+    line-height: 1.45 !important;
+    box-shadow: none !important;
+    white-space: normal;
+  }
+  .reception-mode .reception-toolbar .button svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+  .reception-mode .reception-toolbar .refresh-link {
+    margin-inline-start: auto !important;
+  }
+
+  /* Date navigator: one narrow line, Jalali picker remains fully functional. */
+  .reception-mode .reception-datebar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 9px !important;
+    min-height: 49px !important;
+    padding: 7px 10px !important;
+    border-radius: 9px !important;
+    margin-bottom: 9px !important;
+  }
+  .reception-mode .reception-datebar > strong {
+    font-size: 13px !important;
+    white-space: nowrap;
+  }
+  .reception-mode .reception-days {
+    display: flex;
+    align-items: center;
+    gap: 5px !important;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .reception-mode .reception-date-jump {
+    min-height: 35px !important;
+    border-radius: 7px !important;
+    gap: 5px !important;
+    padding: 3px 7px !important;
+  }
+  .reception-mode .reception-date-jump label {
+    font-size: 11px !important;
+  }
+  .reception-mode .reception-date-jump input[type="date"] {
+    width: 132px;
+    height: 30px !important;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+  }
+  .reception-mode .reception-days .button.secondary,
+  .reception-mode .reception-date-apply {
+    min-height: 32px !important;
+    border-radius: 7px !important;
+    padding: 5px 9px !important;
+    font-size: 11px !important;
+  }
+  .reception-mode .reception-datebar > .button {
+    min-height: 32px !important;
+    border-radius: 7px !important;
+    margin-inline-start: auto !important;
+    font-size: 11px !important;
+  }
+
+  /* Clinic filters: compact fields and distinct status tabs. */
+  .reception-mode .reception-filters {
+    padding: 11px 12px 9px !important;
+    margin-bottom: 8px !important;
+    border-radius: 9px !important;
+    box-shadow: none !important;
+  }
+  .reception-mode .reception-primary-filters {
+    display: grid !important;
+    grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) auto !important;
+    gap: 9px !important;
+    align-items: end !important;
+  }
+  .reception-mode .reception-primary-filters .field {
+    margin: 0 !important;
+    min-width: 0 !important;
+  }
+  .reception-mode .reception-primary-filters label {
+    margin-bottom: 4px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+  }
+  .reception-mode .reception-primary-filters select {
+    height: 37px !important;
+    min-height: 37px !important;
+    width: 100%;
+    padding: 5px 10px !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+  }
+  .reception-mode .reception-primary-filters .button.primary {
+    min-height: 37px !important;
+    height: 37px !important;
+    padding: 6px 16px !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    white-space: nowrap;
+  }
+  .reception-mode .reception-status-tabs {
+    min-height: 43px;
+    gap: 5px !important;
+    margin-top: 9px !important;
+    padding: 6px !important;
+    border-radius: 7px !important;
+    align-items: center;
+  }
+  .reception-mode .reception-status-tabs .status-tab {
+    min-height: 30px !important;
+    padding: 5px 10px !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+  }
+  .reception-mode .reception-filters .advanced-filters {
+    margin-top: 7px !important;
+    padding-top: 7px !important;
+  }
+  .reception-mode .reception-filters .advanced-filters summary {
+    min-height: 28px !important;
+    padding: 4px 3px !important;
+    font-size: 11px !important;
+  }
+  .reception-mode .reception-filters .advanced-filters .form-grid {
+    gap: 8px !important;
+  }
+
+  /* Counting ribbon: small, squared cards in one tightly grouped row. */
+  .reception-mode .reception-summary {
+    gap: 6px !important;
+    min-height: 51px !important;
+    padding: 8px 10px !important;
+    border-radius: 8px !important;
+    margin-bottom: 8px !important;
+    align-items: center;
+  }
+  .reception-mode .reception-summary .summary-chip {
+    min-height: 31px !important;
+    border-radius: 6px !important;
+    padding: 4px 8px !important;
+    font-size: 11.5px !important;
+    line-height: 1.25 !important;
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+  .reception-mode .reception-summary .summary-chip strong {
+    height: 22px !important;
+    min-width: 22px !important;
+    border-radius: 5px !important;
+    font-size: 11px !important;
+    padding: 2px 5px !important;
+  }
+  .reception-mode .reception-label-stats {
+    min-height: 47px !important;
+    padding: 8px 10px !important;
+    gap: 6px !important;
+    margin-bottom: 8px !important;
+    border-radius: 8px !important;
+  }
+  .reception-mode .reception-label-stats .reception-label-stat {
+    min-height: 31px !important;
+    border-radius: 6px !important;
+    font-size: 11.5px !important;
+    padding: 5px 9px !important;
+  }
+  .reception-mode .reception-label-stats .reception-label-stat strong {
+    border-radius: 4px !important;
+  }
+  .reception-mode .reception-labels {
+    gap: 5px !important;
+    padding-bottom: 5px !important;
+    margin-bottom: 7px !important;
+  }
+  .reception-mode .reception-labels .badge {
+    border-radius: 6px !important;
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+  }
+
+  /* Search and table: pale blue header, appropriately-sized patient cells. */
+  .reception-mode .reception-list-search {
+    min-height: 47px !important;
+    gap: 8px !important;
+    padding: 6px 9px !important;
+    margin: 0 0 8px !important;
+    border-radius: 8px !important;
+  }
+  .reception-mode .reception-list-search label {
+    font-size: 11.5px !important;
+    white-space: nowrap;
+  }
+  .reception-mode .reception-list-search input[type="search"] {
+    min-height: 33px !important;
+    height: 33px !important;
+    padding: 5px 11px !important;
+    border-radius: 7px !important;
+    font-size: 11.5px !important;
+  }
+  .reception-mode .reception-list-search button {
+    min-height: 33px !important;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+  }
+  .reception-mode .reception-list {
+    border-radius: 9px !important;
+    margin-bottom: 10px !important;
+    box-shadow: 0 2px 7px #312d3510 !important;
+    overflow: visible;
+  }
+  .reception-mode .reception-list .panel-header {
+    min-height: 43px !important;
+    padding: 9px 13px !important;
+    border-radius: 8px 8px 0 0 !important;
+  }
+  .reception-mode .reception-list .panel-header h2 {
+    font-size: 14px !important;
+  }
+  .reception-mode .reception-list .panel-header > span {
+    border-radius: 6px !important;
+    padding: 3px 8px !important;
+    font-size: 11px !important;
+  }
+  .reception-mode .reception-list .table-scroll {
+    border-radius: 0 0 8px 8px !important;
+  }
+  .reception-mode .reception-list table {
+    min-width: 1060px !important;
+    table-layout: fixed !important;
+  }
+  .reception-mode .reception-list :is(th,td)[data-column="patient"] {width:30% !important;}
+  .reception-mode .reception-list :is(th,td)[data-column="time"] {width:16% !important;}
+  .reception-mode .reception-list :is(th,td)[data-column="therapist"] {width:19% !important;}
+  .reception-mode .reception-list :is(th,td)[data-column="state"] {width:16% !important;}
+  .reception-mode .reception-list :is(th,td)[data-column="diagnoses"] {width:19% !important;}
+  .reception-mode .reception-list thead th {
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 8px 10px !important;
+    font-size: 11.5px !important;
+    line-height: 1.45 !important;
+    font-weight: 800 !important;
+    white-space: normal;
+  }
+  .reception-mode .reception-list tbody tr.visit-row > td {
+    padding: 10px 9px 13px !important;
+    font-size: 12px !important;
+    line-height: 1.55 !important;
+  }
+  .reception-mode .reception-list tbody tr.visit-row > td:not(:last-child)::before {
+    top: 12px !important;
+    bottom: 13px !important;
+  }
+  .reception-mode .reception-list .reception-patient-heading {
+    min-height: 38px !important;
+    gap: 7px !important;
+    align-items: center;
+  }
+  .reception-mode .reception-list .reception-patient-heading a[href^="/patient"] {
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    line-height: 1.45 !important;
+  }
+  .reception-mode .reception-list .patient-avatar {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0;
+    font-size: 14px !important;
+  }
+  .reception-mode .reception-list .settlement-link {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 7px !important;
+    font-size: 16px !important;
+  }
+  .reception-mode .reception-list .reception-admission-note {
+    border-radius: 6px !important;
+    padding: 5px 7px !important;
+    line-height: 1.55 !important;
+    font-size: 11px !important;
+    margin-top: 5px !important;
+  }
+  .reception-mode .reception-list .reception-tag-line {
+    margin-top: 6px !important;
+    gap: 5px !important;
+  }
+  .reception-mode .reception-list .reception-tag-values .badge {
+    border-radius: 6px !important;
+    padding: 3px 6px !important;
+    font-size: 10.5px !important;
+  }
+  .reception-mode .reception-list .reception-visit-upper {
+    min-height: 123px !important;
+    gap: 4px !important;
+  }
+  .reception-mode .reception-list .reception-time {
+    font-size: 16px !important;
+    font-weight: 850 !important;
+    line-height: 1.35 !important;
+  }
+  .reception-mode .reception-list .reception-duration,
+  .reception-mode .reception-list .reception-therapist,
+  .reception-mode .reception-list .reception-visit-upper small {
+    font-size: 11px !important;
+    line-height: 1.6 !important;
+  }
+  .reception-mode .reception-list .visit-time-label {
+    margin-top: 5px !important;
+    width: 100%;
+  }
+  .reception-mode .reception-list .visit-inline-label,
+  .reception-mode .reception-list .visit-state-stack select[name="state"] {
+    min-height: 34px !important;
+    height: 34px !important;
+    max-width: 100% !important;
+    width: 100%;
+    padding: 5px 8px !important;
+    font-size: 11px !important;
+    border-radius: 6px !important;
+    line-height: 1.4 !important;
+  }
+  .reception-mode .reception-list .visit-state-stack {
+    gap: 7px !important;
+    width: 100% !important;
+  }
+  .reception-mode .reception-list .visit-state {
+    min-height: 30px !important;
+    padding: 5px 8px !important;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+  }
+  .reception-mode .reception-list .visit-state-history,
+  .reception-mode .reception-list .visit-state-stack > .text-link {
+    font-size: 10.5px !important;
+    line-height: 1.6 !important;
+  }
+  .reception-mode .reception-list .reception-visit-zone {
+    min-height: 133px !important;
+    padding: 9px 5px 8px !important;
+    margin-top: 0 !important;
+    border-radius: 0 0 6px 6px !important;
+  }
+  .reception-mode .reception-list .reception-zone-heading {
+    margin-bottom: 7px !important;
+    padding-inline-start: 6px !important;
+    font-size: 11px !important;
+  }
+  .reception-mode .reception-list .reception-therapist-notes,
+  .reception-mode .reception-list .reception-plan-summary {
+    max-height: 115px;
+    font-size: 11px !important;
+  }
+  .reception-mode .reception-list .reception-therapist-edit {
+    min-height: 30px !important;
+    padding: 5px 8px !important;
+    border-radius: 6px !important;
+    font-size: 10.5px !important;
+  }
+  .reception-mode .reception-list .visit-quick-actions {
+    gap: 4px !important;
+    margin-top: 8px !important;
+    padding-top: 8px !important;
+  }
+  .reception-mode .reception-list .visit-quick-actions .row-action-icon {
+    width: 33px !important;
+    height: 33px !important;
+    border-radius: 6px !important;
+    padding: 6px !important;
+  }
+  .reception-mode .reception-list .visit-quick-actions .row-action-icon svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  .reception-mode .reception-list .visit-more-links {
+    min-width: 220px !important;
+    border-radius: 7px !important;
+    padding: 5px !important;
+  }
+  .reception-mode .reception-tools {
+    margin-top: 8px !important;
+    gap: 8px !important;
+  }
+  .reception-mode .reception-tools .panel {
+    padding: 10px 12px !important;
+    border-radius: 8px !important;
+  }
+
+  /* Keep target sizes usable on touch devices while retaining the same look. */
+  @media (max-width: 1050px) {
+    .reception-mode .reception-primary-filters {
+      grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto !important;
+    }
+    .reception-mode .reception-list table {min-width: 1040px !important;}
+  }
+  @media (max-width: 1000px) {
+    .reception-mode .sidebar {
+      width: min(310px,87vw) !important;
+      visibility: hidden;
+      transform: translateX(100%);
+    }
+    .reception-mode.menu-open .sidebar {
+      visibility: visible;
+      transform: none;
+    }
+    .reception-mode .workspace { margin-right: 0 !important; }
+    .reception-mode .menu-toggle {
+      display: grid !important;
+      place-items: center;
+      min-height: 42px !important;
+      min-width: 42px !important;
+    }
+    .reception-mode .sidebar nav a {min-height: 44px !important;}
+  }
+  @media (max-width: 760px) {
+    .reception-mode .sidebar {width: min(310px,87vw) !important;}
+    .reception-mode .workspace {margin-right: 0 !important;}
+    .reception-mode .main {padding-inline: 9px !important;}
+    .reception-mode .reception-toolbar {gap: 5px !important;}
+    .reception-mode .reception-toolbar .button {
+      flex: 1 1 auto !important;
+      min-height: 40px !important;
+    }
+    .reception-mode .reception-primary-filters {
+      grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important;
+    }
+    .reception-mode .reception-primary-filters .button {grid-column: 1/-1;}
+    .reception-mode .reception-summary {gap: 5px !important;}
+    .reception-mode .reception-list table {min-width: 1020px !important;}
+    .reception-mode .reception-list .visit-quick-actions .row-action-icon {
+      min-width: 40px !important;
+      min-height: 40px !important;
+    }
+  }
+  @media (max-width: 480px) {
+    .reception-mode .reception-primary-filters {
+      grid-template-columns: minmax(0,1fr) !important;
+    }
+    .reception-mode .reception-datebar > strong {width: 100%;}
+    .reception-mode .reception-list-search label {width: 100%;}
+  }
+}
+@media print {
+  .reception-mode .reception-list .visit-quick-actions {display: none !important;}
+}
