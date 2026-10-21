@@ -79,7 +79,19 @@
  function updateSummary(){
   const patient=identityState==='existing'?statusTitle.textContent:(identityState==='new'?'بیمار جدید: '+[field('fname').value,field('lname').value].join(' '):'منتظر شناسایی بیمار'),therapist=field('therapist_id').selectedOptions[0]?.textContent||'';
   const date=field('date').value,time=field('time').value;
-  summary.textContent=patient+' · '+therapist+(date?' · '+dateFormat.format(dayDate(date)):'')+(time?' · ساعت '+time+' · '+number.format(Number(field('duration').value))+' دقیقه':' · ساعت انتخاب نشده');
+  const parts=[
+   ['بیمار',patient],
+   ['درمانگر',therapist],
+   ['تاریخ',date?dateFormat.format(dayDate(date)):'انتخاب نشده'],
+   ['ساعت / مدت',time?time+' · '+number.format(Number(field('duration').value))+' دقیقه':'انتخاب نشده']
+  ];
+  summary.replaceChildren();
+  for(const [label,value] of parts){
+   const cell=document.createElement('span');cell.className='booking-summary-item';
+   const caption=document.createElement('small');caption.textContent=label;
+   const content=document.createElement('strong');content.textContent=value;content.title=value;
+   cell.append(caption,content);summary.append(cell);
+  }
  }
  function invalidate(){request++;controller?.abort();field('time').value='';field('equipment').value='';output.replaceChildren();updateSummary();}
  function setDate(day){field('date').value=day;field('date').dispatchEvent(new Event('change',{bubbles:true}));}

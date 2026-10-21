@@ -1,0 +1,97 @@
+/* Compact appointment registration — 4-column identity, single-row details, sticky horizontal summary. */
+body:has([data-booking-workspace]) .main{max-width:1900px;padding:13px 22px 30px}
+body:has([data-booking-workspace]) .page-heading{margin-bottom:9px;min-height:0}
+body:has([data-booking-workspace]) .page-heading h1{font-size:clamp(20px,1.8vw,27px)}
+body:has([data-booking-workspace]) .page-heading p{font-size:12px;line-height:1.45;margin-top:2px}
+body:has([data-booking-workspace]) .edit-form{min-width:0}
+.booking-shell{display:flex!important;flex-direction:column;gap:12px;width:100%;max-width:none}
+.booking-side{order:-1;position:sticky!important;top:5px;z-index:42;width:100%;align-self:stretch;min-width:0}
+.booking-main{order:0;display:flex;flex-direction:column;gap:12px;min-width:0;width:100%}
+.booking-summary{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px;background:#faffff;border:1px solid #b9ddd8;border-radius:15px;box-shadow:0 5px 15px #1a535013;padding:10px 15px}
+.booking-summary h2{font-size:14px;margin:0;white-space:nowrap;color:#0a7169}
+.booking-summary [data-booking-summary]{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;min-width:0;line-height:normal;margin:0;align-items:center}
+.booking-summary-item{min-width:0;border-inline-start:1px solid #d7e9e7;padding-inline:12px 8px}
+.booking-summary-item small{display:block;font-size:10px;line-height:1.6;color:#637f85}
+.booking-summary-item strong{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#234b51;font-weight:700;line-height:1.7}
+.booking-summary-help{margin:0!important;padding:0!important;border:0!important;white-space:normal;max-width:220px;align-self:center;position:relative}
+.booking-summary-help summary{font-size:11px;cursor:pointer;color:#147a73;white-space:nowrap;list-style:none;border:1px solid #bcded9;border-radius:9px;padding:7px 10px;background:#effaf8}
+.booking-summary-help summary::-webkit-details-marker{display:none}
+.booking-summary-help p{font-size:11px;line-height:1.9;margin:4px 0;position:absolute;top:100%;inset-inline-end:0;width:240px;padding:10px 12px;border:1px solid #d6e5ef;background:#fff;border-radius:11px;box-shadow:0 12px 28px #1b34471b;white-space:normal}
+.booking-panel,.booking-shell .booking-schedule{padding:13px 17px!important;border-radius:14px}
+.booking-section-heading{gap:9px;margin-bottom:10px}
+.booking-section-heading h2{font-size:15px}
+.booking-section-heading p{font-size:11px;line-height:1.6;margin-top:0}
+.booking-step{width:27px;height:27px;border-radius:9px;font-size:13px}
+.booking-identity-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;overflow:visible}
+.booking-shell .field{min-width:0}
+.booking-shell .field label{font-size:11px;margin:0 0 4px}
+.booking-shell .field input:not([type=radio]),.booking-shell .field select{min-height:38px;height:38px;border-radius:9px;font-size:12px;padding-inline:9px}
+.booking-shell .field textarea{min-height:52px;border-radius:9px;padding:8px;font-size:12px}
+.booking-patient-state{margin-top:10px;min-height:0;padding:8px 11px;gap:9px;border-radius:11px;align-items:center}
+.booking-patient-state .booking-status-dot{margin-top:0;width:8px;height:8px}
+.booking-patient-state strong{font-size:12px}
+.booking-patient-state p{margin:2px 0 0;font-size:11px;line-height:1.55}
+.booking-identity-hint{font-size:10px;margin:5px 0 0;line-height:1.6}
+.booking-therapist-row{margin-bottom:10px}
+.booking-therapist-row>.field{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center}
+.booking-therapist-row>.field>label{font-size:12px;margin:0;white-space:nowrap}
+.booking-therapist-row select[hidden]{display:none!important}
+.booking-therapist-row .booking-therapists{display:flex!important;flex-wrap:nowrap!important;gap:8px;overflow-x:auto;min-width:0;width:100%;padding:2px 2px 6px;scrollbar-width:thin}
+.booking-therapists label{flex:0 0 auto;display:flex;gap:7px;min-height:36px;align-items:center;padding:5px 12px!important;border-radius:10px;font-size:12px;white-space:nowrap;line-height:1.4}
+.booking-therapists input{width:15px;height:15px}
+.booking-detail-fields{display:grid!important;grid-auto-flow:column;grid-auto-columns:minmax(145px,1fr);grid-template-rows:minmax(0,auto);gap:10px;overflow-x:auto;overflow-y:hidden;width:100%;padding:2px 2px 11px;scrollbar-width:thin;scrollbar-color:#b5d2d9 #edf3f5;scroll-snap-type:x proximity;direction:rtl}
+.booking-detail-fields>.field,.booking-detail-fields>.booking-field{min-width:145px;width:100%;scroll-snap-align:start}
+.booking-detail-fields>.field.wide,.booking-detail-fields>.booking-field .field.wide{grid-column:auto}
+.booking-detail-fields>.booking-field[hidden]{display:none!important}
+.booking-detail-fields .field,.booking-detail-fields .booking-field{margin:0}
+.booking-notes-row{margin-top:7px}
+.booking-notes-row .field textarea{height:53px;min-height:53px;resize:vertical}
+.booking-shell .booking-schedule{margin-top:0}
+.booking-shell .booking-months{margin:7px 0}
+.booking-shell .booking-week-nav{padding:6px 9px;margin:7px 0}
+.booking-shell .booking-week-nav button{min-height:35px;font-size:12px}
+.booking-shell .booking-days{padding:5px 2px 8px;gap:7px}
+.booking-shell .booking-day{min-height:140px}
+.booking-shell .booking-day>small{margin-bottom:7px}
+.booking-shell .booking-live-status{min-height:18px;margin:3px 0}
+.booking-ai-toggle{order:2;border:1px solid #c9e5e1;border-radius:12px;background:#f8fcfb;padding:0}
+.booking-ai-toggle>summary{font-size:12px;font-weight:700;cursor:pointer;color:#147b73;padding:10px 15px}
+.booking-ai-toggle:not([open]){min-height:0}
+.booking-ai-toggle .ai-voice-panel{margin:0!important;border:0!important;box-shadow:none!important}
+body:has([data-booking-workspace]) .form-actions{margin-top:9px;padding:8px 12px}
+body:has([data-booking-workspace]) .form-actions button{min-height:41px;font-size:13px;padding:0 15px}
+@media(max-width:1100px){
+ .booking-summary{grid-template-columns:1fr auto;gap:6px 12px}
+ .booking-summary [data-booking-summary]{grid-column:1/-1;grid-row:2}
+ .booking-summary-help{grid-column:2;grid-row:1}
+ .booking-identity-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+ .booking-shell .booking-days{grid-template-columns:repeat(7,145px)}
+}
+@media(max-width:760px){
+ body:has([data-booking-workspace]) .main{padding:9px 10px 25px}
+ .booking-side{top:2px}
+ .booking-summary{padding:8px 10px;gap:5px 8px}
+ .booking-summary [data-booking-summary]{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 0}
+ .booking-summary-item{padding-inline:7px}
+ .booking-summary-item small{font-size:10px}
+ .booking-summary-item strong{font-size:11px}
+ .booking-identity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .booking-therapist-row>.field{grid-template-columns:1fr;gap:5px}
+ .booking-therapist-row .booking-therapists{display:flex!important;overflow-x:auto}
+ .booking-detail-fields{grid-auto-columns:160px;gap:9px}
+ .booking-panel,.booking-shell .booking-schedule{padding:11px!important}
+ .booking-section-heading p{display:none}
+ .booking-summary-help p{max-width:min(80vw,240px)}
+}
+@media(max-width:410px){
+ .booking-identity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .booking-summary [data-booking-summary]{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* Keep the compact AI toggle accessible before the patient section. */
+.booking-ai-toggle{order:-1}
+
+/* Let the Jalali calendar popup escape the horizontally scrolling detail row. */
+.booking-details{position:relative}
+.booking-detail-fields:has(.masiha-datepicker:not([hidden])){overflow:visible!important;position:relative;z-index:12}
+.booking-details:has(.masiha-datepicker:not([hidden])){z-index:21}

@@ -149,8 +149,13 @@ function bookingView():void{
   catch(DomainException $ex){http_response_code(403);echo e($ex->getMessage());return;}
  }
  layout('appointments','ثبت مراجعه و نوبت‌دهی','شناسایی هوشمند بیمار و ثبت مراجعه در یک مرحله');
- formstart('book_v2');aiVoiceWidget('appointment');
- echo '<div class="booking-shell" data-booking-workspace data-can-create="'.(allowed('patients.create')?'1':'0').'"><div class="booking-main">';
+ formstart('book_v2');
+ echo '<div class="booking-shell" data-booking-workspace data-can-create="'.(allowed('patients.create')?'1':'0').'">';
+ echo '<aside class="booking-side"><section class="panel booking-summary"><h2>خلاصه نوبت</h2><p data-booking-summary role="status">پس از تکمیل مشخصات، خلاصه نوبت اینجا نمایش داده می‌شود.</p><details class="booking-summary-help"><summary>ثبت یکپارچه و امن</summary><p>ابتدا پرونده موجود شناسایی می‌شود. برای بیمار جدید، پرونده و نوبت فقط پس از تأیید نهایی با هم ثبت می‌شوند.</p></details></section></aside>';
+ echo '<div class="booking-main">';
+ echo '<details class="booking-ai-toggle"><summary>ورود هوشمند اطلاعات با هوش مصنوعی (اختیاری)</summary>';
+ aiVoiceWidget('appointment');
+ echo '</details>';
  echo '<section class="panel booking-panel booking-identity"><div class="booking-section-heading"><span class="booking-step">۱</span><div><h2>اطلاعات مراجعه‌کننده</h2><p>با کد ملی یا شماره موبایل، پرونده قبلی بررسی می‌شود؛ در صورت جدیدبودن بیمار، همراه نوبت پرونده تشکیل می‌شود.</p></div></div>';
  hidden('pid',$pid);
  echo '<div class="booking-identity-grid">';
@@ -162,8 +167,9 @@ function bookingView():void{
  echo '<p class="booking-identity-hint">برای بیمار جدید نام و نام خانوادگی الزامی است. برای پرونده موجود، اطلاعات هویتی به‌صورت خودکار تغییر نمی‌کند. <a href="/patients">جستجوی پرونده بیماران</a></p>';
  echo '</section>';
  $bookingDisplay=displayEffective();
- echo '<section class="panel booking-panel"><div class="booking-section-heading"><span class="booking-step">۲</span><div><h2>جزئیات نوبت</h2><p>درمانگر، خدمت، مدت و محل مراجعه را تعیین کنید.</p></div></div><div class="form-grid">';
+ echo '<section class="panel booking-panel booking-details"><div class="booking-section-heading"><span class="booking-step">۲</span><div><h2>جزئیات نوبت</h2><p>درمانگر را انتخاب کنید و مشخصات نوبت را در ردیف زیر تکمیل کنید.</p></div></div><div class="booking-therapist-row">';
  selectfield('therapist_id','دکتر / درمانگر',therapists(),$defaults['therapist_id']??'','درمانگر ارائه‌دهنده خدمت.',true);
+ echo '</div><div class="booking-detail-fields" role="group" tabindex="0" aria-label="مشخصات نوبت؛ برای نمایش همه فیلدها به صورت افقی حرکت کنید">';
  selectfield('visit_type_id','نوع ویزیت',['0'=>'تعیین نشده']+options('visit_types','active=1'),$defaults['visit_type_id']??0);
  echo '<div class="booking-field"'.(displayVisible($bookingDisplay,'booking','service_id')?'':' hidden').'>';
  selectfield('service_id','خدمت',['0'=>'ویزیت بدون خدمت مشخص'],'0');echo '</div>';
@@ -179,13 +185,15 @@ function bookingView():void{
  echo '<div class="booking-field"'.(displayVisible($bookingDisplay,'booking','time')?'':' hidden').'>';
  field('time','ساعت شروع','','time','ساعت را از زمان‌های آزاد انتخاب کنید.',true,false,'step="60"');echo '</div>';
  selectfield('room','اتاق',[''=>'بدون اتاق اختصاصی']+array_column(q("SELECT name FROM resources WHERE kind='room' AND active=1")->fetchAll(),'name','name'),$defaults['room']??'','اختیاری');
+ echo '</div><div class="booking-notes-row">';
  field('notes','توضیحات پذیرش','','textarea','توضیحات این نوبت؛ قابل ویرایش در فهرست مراجعه.',false,true);
+ echo '</div>';
  hidden('equipment',$defaults['equipment']??'');hidden('preferred_service',$defaults['service_id']??0);hidden('preferred_episode',$defaults['episode_id']??0);
- echo '</div></section>';
+ echo '</section>';
  echo '<section class="panel booking-panel booking-schedule"><div class="booking-section-heading"><span class="booking-step">۳</span><div><h2>انتخاب تاریخ و ساعت آزاد</h2><p>زمان‌های آزاد براساس برنامه حضور، منابع و مدت ویزیت بررسی می‌شوند.</p></div><button class="button secondary small" type="button" data-find-slots>به‌روزرسانی</button></div>';
  echo '<div class="booking-months" data-booking-months aria-label="انتخاب ماه"></div><div class="booking-week-nav"><button type="button" class="button secondary" data-week-step="-7">هفته قبل</button><button type="button" class="button secondary" data-booking-today>امروز</button><button type="button" class="button secondary" data-week-step="7">هفته بعد</button></div>';
  echo '<p data-booking-status class="booking-live-status" role="status" aria-live="polite"></p><div class="booking-days" data-slot-results></div></section>';
- echo '</div><aside class="booking-side"><section class="panel booking-summary"><h2>خلاصه نوبت</h2><p data-booking-summary role="status">پس از تکمیل مشخصات، خلاصه نوبت اینجا نمایش داده می‌شود.</p><div class="booking-summary-help"><strong>ثبت یکپارچه و امن</strong><p>ابتدا پرونده موجود شناسایی می‌شود. برای بیمار جدید، پرونده و نوبت فقط پس از تأیید نهایی با هم ثبت می‌شوند.</p></div></section></aside></div>';
+ echo '</div></div>';
  formend('ثبت نهایی نوبت','/appointments');
  endLayout();
 }
