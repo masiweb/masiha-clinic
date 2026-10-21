@@ -114,7 +114,7 @@ function aiExtractFields(string $providerName,string $transcript,string $mode):a
  $catalog=aiCatalog();
  $allowed=$mode==='patient'
   ?['fname','lname','phone_cell','phone_home','national_id','father_name','DOB','sex','marital_status','referral_source','occupation','education','email','address','medical_conditions','notes','emergency_name','emergency_phone']
-  :['notes','date','time','duration','room'];
+  :['fname','lname','national_id','phone_cell','notes','date','time','duration','room'];
  $instructions='Extract only explicitly stated clinic intake facts. Return exactly one JSON object with a fields object containing string values. Allowed keys: '.implode(', ',$allowed).'. The user speaks Persian and birth dates in the Iranian JALALI calendar. For DOB/date return a Jalali string J:YYYY-MM-DD, never convert calendar dates yourself. Example: «چهارده ده شصت و هشت» is J:1368-10-14, NOT 1968-10-14. For national_id, phone_cell and phone_home, use a DIGIT STRING. «دو صفر»/«دو تا صفر» mean "00", not "20"; «سه صفر» means "000"; «صفر دو» is "02"; «بیست» is "20". Preserve all leading zeros and repeated zeros; do not use arithmetic to decode identifier digits. Omit ambiguous values. No guessed dates or details, no explanations.';
  $key=aiSecretDecrypt($p['api_key_encrypted']);
  if($providerName==='claude'){

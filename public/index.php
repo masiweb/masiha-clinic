@@ -1,5 +1,5 @@
 <?php
-require __DIR__.'/../app/bootstrap.php';require __DIR__.'/../app/ui.php';require __DIR__.'/../app/actions.php';require __DIR__.'/../app/views.php';require __DIR__.'/../app/admin-actions.php';require __DIR__.'/../app/admin-views.php';require __DIR__.'/../app/admin-api.php';require __DIR__.'/../app/import.php';
+require __DIR__.'/../app/bootstrap.php';require __DIR__.'/../app/booking-patient.php';require __DIR__.'/../app/ui.php';require __DIR__.'/../app/actions.php';require __DIR__.'/../app/views.php';require __DIR__.'/../app/admin-actions.php';require __DIR__.'/../app/admin-views.php';require __DIR__.'/../app/admin-api.php';require __DIR__.'/../app/import.php';
 require __DIR__.'/../app/appointment-views.php';
 $path=parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH);$error='';if($path==='/api/ai/form-fill')aiHandleApi();adminApi($path);
 if($path==='/patient-photo')servePatientPhoto();

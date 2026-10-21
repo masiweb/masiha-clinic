@@ -52,7 +52,7 @@ function copyTherapistSchedule(int $source,int $target):int{
  });
 }
 function appointmentSlotSuggestions(int $pid,int $tid,int $clinic,string $from,int $minutes,string $room='',int $days=14,int $limit=30,bool $occupied=false):array{
- if(!allowed('appointments')||!patientAllowed($pid)||!q('SELECT pid FROM patients WHERE pid=? AND active=1',[$pid])->fetchColumn())throw new DomainException('به این پرونده دسترسی ندارید.');
+ if(!allowed('appointments')||($pid===0?!allowed('patients.create'):(!patientAllowed($pid)||!q('SELECT pid FROM patients WHERE pid=? AND active=1',[$pid])->fetchColumn())))throw new DomainException('برای بررسی زمان‌ها، پرونده مجاز یا دسترسی تشکیل پرونده لازم است.');
  if(!q("SELECT id FROM staff WHERE id=? AND active=1 AND deleted=0 AND role IN ('admin','therapist')",[$tid])->fetchColumn()||!q('SELECT id FROM clinics WHERE id=? AND active=1',[$clinic])->fetchColumn())throw new DomainException('درمانگر و کلینیک فعال انتخاب کنید.');
  $date=DateTimeImmutable::createFromFormat('!Y-m-d',$from);if(!$date||$date->format('Y-m-d')!==$from||$minutes<5||$minutes>480||$days<1||$days>31||$limit<1||$limit>1000)throw new DomainException('بازه جستجو معتبر نیست.');
  if($room!=='')validateResources($room,'');

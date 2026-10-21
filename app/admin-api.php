@@ -26,6 +26,16 @@ function adminApi($path):void{global $config;
  }
  if($path==='/font'){$r=q('SELECT * FROM custom_fonts WHERE id=?',[(int)($_GET['id']??0)])->fetch();if(!$r){http_response_code(404);exit;}$f=$config['storage'].'/fonts/'.basename($r['filename']);if(!is_file($f)){http_response_code(404);exit;}header('Content-Type: font/'.$r['format']);readfile($f);exit;}
  if(!str_starts_with($path,'/api/'))return;if(!user()){http_response_code(401);exit;}header('Content-Type: application/json; charset=utf-8');
+ if($path==='/api/booking-patient-lookup'){
+  try{
+   demand('appointments');
+   $result=bookingLookupResponse((string)($_GET['national_id']??''),(string)($_GET['phone_cell']??''));
+   header('Cache-Control: no-store, private');
+   echo json_encode($result,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
+  }catch(DomainException $ex){http_response_code(422);echo json_encode(['error'=>$ex->getMessage()],JSON_UNESCAPED_UNICODE);}
+  catch(Throwable $ex){http_response_code(500);error_log('Booking identity '.get_class($ex));echo '{"error":"بررسی پرونده انجام نشد."}';}
+  exit;
+ }
  if($path==='/api/appointment-slots'){
   try{
    $integer=static function($key,$default=0){$v=$_GET[$key]??$default;$n=filter_var($v,FILTER_VALIDATE_INT,['options'=>['min_range'=>0,'max_range'=>999999999]]);if($n===false)throw new DomainException('شناسه معتبر نیست.');return $n;};

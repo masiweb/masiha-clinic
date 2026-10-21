@@ -15,3 +15,58 @@
 @media(max-width:900px){.booking-workspace .form-layout{grid-template-columns:1fr}.booking-schedule{padding:12px}.booking-days{grid-template-columns:repeat(7,160px)}}
 
 .booking-field[hidden]{display:none!important}.booking-field>.field{height:100%}.booking-therapists{display:flex;flex-wrap:wrap;gap:.65rem}.booking-therapists label{display:flex;align-items:center;gap:.5rem;padding:.7rem 1rem;border:1px solid #cbd5e1;border-radius:12px;cursor:pointer}.booking-therapists label:has(input:checked){background:#e0f2ef;border-color:#087f75;color:#065f58}.booking-therapists input{width:18px;height:18px;accent-color:#087f75}.booking-slot.booked,.booking-slot.booked:disabled{background:#fff1e6;border:1px solid #d98b46;color:#793f13;opacity:1;cursor:not-allowed}.booking-slot.booked small{display:block;font-size:.75rem;line-height:1.6;margin-top:.3rem;white-space:normal}
+
+/* Integrated appointment registration — clear, accessible RTL clinic workflow. */
+body:has([data-booking-workspace]) .main{max-width:1580px;padding-block:24px 48px}
+body:has([data-booking-workspace]) .page-heading{margin-bottom:22px}
+body:has([data-booking-workspace]) .page-heading h1{font-size:clamp(24px,2.2vw,32px);letter-spacing:-.5px}
+body:has([data-booking-workspace]) .page-heading>.button{display:none}
+body:has([data-booking-workspace]) .ai-voice-panel{margin-bottom:22px;border:1px solid #c8e4e4;border-radius:18px;background:linear-gradient(110deg,#f2fcfa,#f7f9ff);box-shadow:0 5px 16px #16396009}
+.booking-shell{display:grid;grid-template-columns:minmax(0,1fr) 280px;align-items:start;gap:22px;width:100%;max-width:none}
+.booking-main{display:flex;flex-direction:column;gap:20px;min-width:0}
+.booking-panel{padding:24px 26px;border:1px solid #dce9f2;border-radius:20px;background:#fff;box-shadow:0 7px 28px #1a42600c;min-width:0}
+.booking-section-heading{display:flex;align-items:center;gap:13px;margin-bottom:22px}
+.booking-section-heading>div{min-width:0;flex:1}
+.booking-section-heading h2{margin:0;color:#1a405b;font-size:19px;line-height:1.6}
+.booking-section-heading p{margin:4px 0 0;color:#61788d;font-size:12px;line-height:1.9}
+.booking-step{display:grid;place-items:center;width:38px;height:38px;flex:none;background:#e5f6f3;color:#0b796e;border-radius:13px;font-weight:800;font-size:19px}
+.booking-identity{background:linear-gradient(148deg,#fff 20%,#f6fefa 100%);border-color:#cde6de}
+.booking-identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 20px}
+.booking-shell .field{min-width:0}
+.booking-shell .field label{font-size:13px;font-weight:700;color:#314c66;margin-bottom:7px}
+.booking-shell .field input:not([type=radio]),.booking-shell .field select,.booking-shell .field textarea{min-height:46px;border-radius:11px;border:1px solid #d2e0ee;background:#fff;font-size:14px;padding-inline:12px;transition:border-color .2s,box-shadow .2s;width:100%}
+.booking-shell .field input:focus-visible,.booking-shell .field select:focus-visible,.booking-shell .field textarea:focus-visible{outline:2px solid #b3e1df;outline-offset:1px;border-color:#168c89}
+.booking-shell .field textarea{min-height:76px}
+.booking-shell .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px 20px}
+.booking-shell .field.wide{grid-column:1/-1}
+.booking-patient-state{margin-top:19px;display:flex;gap:12px;align-items:flex-start;background:#f2f7fc;border:1px solid #dce9f3;padding:15px 17px;border-radius:14px;min-height:77px}
+.booking-patient-state[data-state=existing]{background:#eefaf3;border-color:#bce8cd}
+.booking-patient-state[data-state=new]{background:#eaf5ff;border-color:#c2dffb}
+.booking-patient-state[data-state=conflict]{background:#fff5ef;border-color:#f0cebb}
+.booking-patient-state[data-state=pending]{background:#f8f9fe;border-color:#dfe3f2}
+.booking-patient-state .booking-status-dot{display:block;margin-top:7px;width:10px;height:10px;flex:none;border-radius:50%;background:#95adbd}
+.booking-patient-state[data-state=existing] .booking-status-dot{background:#269866}
+.booking-patient-state[data-state=new] .booking-status-dot{background:#478bde}
+.booking-patient-state[data-state=conflict] .booking-status-dot{background:#d67951}
+.booking-patient-state strong{display:block;color:#294660;font-size:14px}
+.booking-patient-state p{font-size:12px;color:#587188;margin:5px 0 0;line-height:1.8}
+.booking-identity-hint{font-size:12px;line-height:2;color:#6a7d90;margin:11px 3px 0}
+.booking-identity-hint a{color:#0b779b;text-decoration:underline}
+.booking-shell .booking-schedule{margin-top:0;padding:24px 26px}
+.booking-shell .booking-months{gap:9px;margin:12px 0}
+.booking-shell .booking-week-nav{background:#f4f8fc;border-radius:12px;padding:10px 12px;margin:14px 0}
+.booking-shell .booking-week-nav button{min-height:40px}
+.booking-shell .booking-days{grid-template-columns:repeat(7,minmax(150px,1fr));overflow-x:auto;scrollbar-width:thin;padding:12px 4px 18px}
+.booking-shell .booking-day{border-radius:13px;min-height:185px}
+.booking-shell .booking-live-status{font-size:13px;line-height:1.8}
+.booking-side{min-width:0;position:sticky;top:18px}
+.booking-summary{padding:22px;border:1px solid #dce8f3;border-radius:19px;background:#fff;box-shadow:0 10px 25px #102d480d}
+.booking-summary h2{font-size:17px;color:#21425b;margin:0 0 12px}
+.booking-summary [data-booking-summary]{font-size:13px;line-height:2.2;overflow-wrap:anywhere}
+.booking-summary-help{margin-top:19px;border-top:1px solid #e8edf4;padding-top:17px;color:#456c7b}
+.booking-summary-help strong{color:#187d73;font-size:13px}
+.booking-summary-help p{font-size:12px;line-height:2.1;margin:8px 0 0}
+body:has([data-booking-workspace]) .form-actions{display:flex;justify-content:flex-start;gap:12px;position:sticky;bottom:0;z-index:20;background:#fffffff2;border:1px solid #deebf1;border-radius:14px;padding:13px 18px;margin-top:18px;backdrop-filter:blur(12px);box-shadow:0 -5px 24px #152f4515}
+body:has([data-booking-workspace]) .form-actions button{min-height:48px;padding:0 25px;font-size:15px;font-weight:700}
+@media(max-width:1130px){.booking-shell{grid-template-columns:minmax(0,1fr)}.booking-side{position:static}.booking-summary{display:block}.booking-shell .booking-days{grid-template-columns:repeat(7,155px)}}
+@media(max-width:700px){.booking-panel,.booking-shell .booking-schedule{padding:16px 14px;border-radius:15px}.booking-section-heading h2{font-size:17px}.booking-identity-grid,.booking-shell .form-grid{grid-template-columns:1fr;gap:13px}.booking-step{width:34px;height:34px;font-size:16px}.booking-shell{gap:14px}.booking-main{gap:14px}body:has([data-booking-workspace]) .form-actions{margin:12px 0;position:static}body:has([data-booking-workspace]) .form-actions>*{flex:1;justify-content:center}.booking-shell .booking-days{grid-template-columns:repeat(7,145px)}}
