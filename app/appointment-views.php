@@ -120,8 +120,8 @@ function appointmentCell(string $key,array $s,array $display):void{
    echo '<div class="reception-tag-line">';
    receptionEditor($s,'hashtags','هشتگ‌های مراجعه');
    echo '<div class="reception-tag-values">';
-   foreach(q('SELECT h.name FROM hashtags h JOIN session_hashtags sh ON sh.hashtag_id=h.id WHERE sh.session_id=? ORDER BY h.name',[$s['id']])->fetchAll() as $tag)
-    echo '<span class="badge visit-hashtag">#'.e($tag['name']).'</span>';
+   foreach(q('SELECT h.name,h.color FROM hashtags h JOIN session_hashtags sh ON sh.hashtag_id=h.id WHERE sh.session_id=? ORDER BY h.name',[$s['id']])->fetchAll() as $tag)
+    echo '<span class="badge visit-hashtag" data-hashtag-color="'.e($tag['color']).'">#'.e($tag['name']).'</span>';
    echo '</div></div>';
    echo '<div class="reception-admission-note">';
    receptionEditor($s,'notes','ویرایش توضیح پذیرش');

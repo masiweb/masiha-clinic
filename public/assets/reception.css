@@ -214,3 +214,23 @@
 .reception-list .visit-patient-label{display:inline-flex;margin:5px 0 0 5px;font-size:11px;border:1px solid var(--line,#dce5ed)}
 .reception-list .visit-hashtag{background:var(--mint,#e5f7f0);color:var(--ink,#365d53);border-color:var(--line,#dce5ed)}
 .reception-list .row-editor.editor-hashtags>summary{background:var(--mint,#e5f7f0)}
+
+/* Each hashtag uses its own persisted accent instead of the generic hashtag blue. */
+.visit-hashtag,.reception-list .visit-hashtag,.reception-list .reception-tag-values .visit-hashtag{
+ color:var(--hashtag-color,#2563eb)!important;
+ background:color-mix(in srgb,var(--hashtag-color,#2563eb) 12%,white)!important;
+ border:1px solid color-mix(in srgb,var(--hashtag-color,#2563eb) 38%,white)!important;
+ border-radius:9px;
+}
+.hashtag-choice-color{color:var(--hashtag-color,#2563eb);font-weight:700}
+.visit-patient-label{background:color-mix(in srgb,currentColor 8%,white)!important}
+
+.hashtag-colors-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px}
+.hashtag-color-card{display:flex;align-items:center;flex-wrap:wrap;gap:9px;background:#f8fbfe;border:1px solid #dce9f2;border-radius:13px;padding:12px}
+.hashtag-color-card label{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+.hashtag-color-card input[type=color]{width:42px;height:32px;border:1px solid #d5e1ec;border-radius:7px;padding:2px;background:white}
+.booking-label-suggestion{display:flex;align-items:center;gap:8px;min-height:43px;background:#f6fbff;border:1px solid #dceaf7;border-radius:10px;padding:8px 12px;margin:8px 0;font-size:12px}
+.booking-label-indicator{display:block;width:12px;height:12px;flex:none;border-radius:4px;background:#7c8ca2}
+.booking-label-description{display:flex;align-items:baseline;flex-wrap:wrap;gap:7px}
+.booking-label-description strong{color:#234963;font-size:12px}
+.booking-label-description small{font-size:11px;color:#64748b}

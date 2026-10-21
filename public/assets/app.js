@@ -25,3 +25,9 @@ document.querySelectorAll('.reception-list table').forEach(table=>{
  const headers=[...table.querySelectorAll('thead th')].map(th=>th.textContent.trim());
  table.querySelectorAll('tbody tr').forEach(row=>[...row.cells].forEach((cell,i)=>{if(cell.colSpan===1&&headers[i])cell.dataset.columnLabel=headers[i];}));
 });
+
+// Dedicated hashtag accent, distinct from the patient's label color.
+document.querySelectorAll('[data-hashtag-color]').forEach(el=>{
+ const color=el.dataset.hashtagColor;
+ if(/^#[0-9a-f]{6}$/i.test(color))el.style.setProperty('--hashtag-color',color);
+});

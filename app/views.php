@@ -36,7 +36,7 @@ function patientView():void{
  $allocationsBy=[];foreach($sourceAllocations as $x)$allocationsBy[(int)$x['transaction_id']][]=$x;
  $formsBy=[];foreach($formRows as $x){$k=(int)$x['submission_id'];$formsBy[$k]['name']=$x['title'];$formsBy[$k]['submitted_jalali']=$x['source_submitted_jalali'];if($x['label']!==null)$formsBy[$k]['fields'][]=['field_name'=>$x['label'],'field_value'=>$x['value_text'],'field_type'=>$x['field_type']];}
  layout('patients',patientName($p),'پرونده شماره '.fa($pid).' · '.($p['phone_cell']?fa($p['phone_cell']):'شماره همراه ثبت نشده'));
- if(allowed('appointments')){echo '<section class="panel patient-visit-labels"><h2>هشتگ‌های مراجعات</h2>';foreach(patientVisitHashtags($pid) as $tag)echo '<span class="badge">#'.e($tag['name']).'</span>';echo '</section>';}?>
+ if(allowed('appointments')){echo '<section class="panel patient-visit-labels"><h2>هشتگ‌های مراجعات</h2>';foreach(patientVisitHashtags($pid) as $tag)echo '<span class="badge visit-hashtag" data-hashtag-color="'.e($tag['color']).'">#'.e($tag['name']).'</span>';echo '</section>';}?>
  <?php if(scope('forms.visit')!=='none')echo '<a class="button secondary" href="/progress?pid='.$pid.'">گزارش پیشرفت درمان</a>';patientExtras($pid,$p);if(allowed('appointments')||can('episodes'))echo '<a class="button secondary" href="/visit-history?pid='.$pid.'">تطبیق جلسات انجام‌شده</a>';?>
  <div class="patient-overview panel">
   <div class="person"><?=patientPhotoAvatar($p,true)?><div><h2><?=e(patientName($p))?></h2><p class="muted">شماره پرونده: <?=fa($pid)?> · کد ملی: <?=fa($p['national_id']?:'—')?> · تولد: <?=jd($p['DOB'])?></p></div></div>
