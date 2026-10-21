@@ -91,13 +91,19 @@ function receptionEditor(array $s,string $kind,string $title):void{
  <?php if($kind==='notes'): ?>
  <label for="reception-notes-<?=$id?>">توضیحات پذیرش</label><textarea id="reception-notes-<?=$id?>" name="notes" rows="4" maxlength="5000" placeholder="توضیح موردنیاز پذیرش را بنویسید…"><?=e($s['reception_notes']??'')?></textarea><p class="hint">ویرایش‌ها با حفظ سابقه ذخیره می‌شوند.</p>
  <?php else: ?>
+ <?php if($kind==='hashtags'): ?>
+ <label for="reception-hashtag-<?=$id?>">جستجو یا ایجاد هشتگ</label>
+ <input type="search" id="reception-hashtag-<?=$id?>" name="new_hashtag" maxlength="110" data-choice-search data-smart-hashtag aria-label="هشتگ؛ انتخاب مورد موجود یا ساخت مورد جدید" placeholder="نام هشتگ را بنویسید…" autocomplete="off">
+ <small class="smart-hashtag-feedback" data-smart-hashtag-feedback role="status">از موارد موجود انتخاب کنید یا برای ساخت هشتگ جدید نامی بنویسید و ذخیره کنید.</small>
+ <?php else: ?>
  <input type="search" data-choice-search aria-label="جستجو در <?=e($title)?>" placeholder="جستجو در <?=e($title)?>…" autocomplete="off">
+ <?php endif; ?>
  <span class="choice-counter" data-choice-counter role="status"></span><div class="choice-list">
  <?php foreach($catalogs[$kind] as $entry):$checked=in_array((int)$entry['id'],$selected,true);if((!$entry['active']||($entry['deleted']??false))&&!$checked)continue; ?>
  <label class="choice-option" data-choice-option><input type="checkbox" name="selection[]" value="<?=(int)$entry['id']?>" <?=$checked?'checked':''?>><span <?php if($kind==='hashtags'): ?>class="hashtag-choice-color" data-hashtag-color="<?=e($entry['color']??'#2563eb')?>"<?php endif; ?>><?=e($entry['name'])?><?=!$entry['active']||($entry['deleted']??false)?' (غیرفعال)':''?></span></label>
  <?php endforeach; ?></div><p class="hint" data-choice-empty hidden>موردی با این عبارت پیدا نشد.</p>
  <?php if($kind==='diagnoses'): ?><label for="new-diagnosis-<?=$id?>">تشخیص جدید</label><input id="new-diagnosis-<?=$id?>" name="new_diagnosis" maxlength="255" placeholder="عنوان جدید؛ هم‌زمان ثبت و انتخاب می‌شود"><?php endif; ?>
- <?php if($kind==='hashtags'): ?><label for="new-hashtag-<?=$id?>">هشتگ جدید</label><input id="new-hashtag-<?=$id?>" name="new_hashtag" maxlength="110" placeholder="مثلاً زانودرد"><p class="hint">هشتگ فقط برای مراجعه است و لیبل را تغییر نمی‌دهد.</p><?php endif; ?>
+
  <?php if($kind==='packages'): ?><p class="hint">این انتخاب برای برنامه درمان مراجعه است. مبلغ صورتحساب در بخش مالی تعیین می‌شود.</p><?php endif; ?>
  <?php endif; ?><div class="editor-actions"><button type="submit" class="button primary small">ذخیره</button><button type="button" class="button secondary small" data-editor-cancel>انصراف</button></div>
  </form></details><?php

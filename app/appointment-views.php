@@ -12,7 +12,15 @@ function appointmentDashboard():void{
  echo '<div class="reception-datebar"><strong>برنامه مراجعین</strong><div class="reception-days">';
  foreach([-1=>'روز قبل',1=>'روز بعد'] as $step=>$label){
   $next=['from'=>date('Y-m-d',strtotime($f['from'].' '.($step>0?'+':'').$step.' day')),'to'=>date('Y-m-d',strtotime($f['to'].' '.($step>0?'+':'').$step.' day'))];
-  if($step===1)echo '<span class="reception-current-date">'.icon('calendar').jd($f['from'],'EEEE، d MMMM yyyy').($f['to']!==$f['from']?' تا '.jd($f['to']):'').'</span>';
+  if($step===1){
+   echo '<form method="get" action="/appointments" class="reception-date-jump" data-reception-date-jump>';
+   foreach($f as $k=>$value)if(!in_array($k,['from','to'],true))hidden($k,(string)$value);
+   hidden('to',$f['from']);
+   echo '<label for="reception-jump-date">'.icon('calendar').' انتخاب تاریخ مراجعه</label>';
+   echo '<input id="reception-jump-date" type="date" name="from" value="'.e($f['from']).'" required aria-label="انتخاب تاریخ دلخواه از تقویم شمسی">';
+   echo '<button type="submit" class="button secondary small reception-date-apply">نمایش نوبت‌ها</button>';
+   echo '</form>';
+  }
   echo '<a class="button secondary small" href="'.e($url($next)).'">'.$label.'</a>';
  }
  echo '<a class="text-link" href="'.e($url(['from'=>date('Y-m-d'),'to'=>date('Y-m-d')])).'">امروز</a></div><a class="button secondary small" href="/display">'.icon('settings').' تنظیم نمایش</a></div>';
@@ -64,7 +72,7 @@ function appointmentDashboard():void{
  echo '<div class="table-scroll"><table><thead><tr>';
  foreach($columns as $key)echo '<th data-column="'.e($key).'">'.e(displayOptions()['columns'][$key]).'</th>';
  echo '</tr></thead><tbody>';
- foreach($r['rows'] as $s){$state=$s['workflow_state']??workflowInitialState($s);echo '<tr class="visit-row state-'.e($state).'">';foreach($columns as $key){echo '<td data-column="'.e($key).'">';appointmentCell($key,$s,$display);echo '</td>';}echo '</tr>';}
+ foreach($r['rows'] as $s){$state=$s['workflow_state']??workflowInitialState($s);echo '<tr class="visit-row state-'.e($state).'" data-session-id="'.(int)$s['id'].'">';foreach($columns as $key){echo '<td data-column="'.e($key).'">';appointmentCell($key,$s,$display);echo '</td>';}echo '</tr>';}
  echo '</tbody></table></div>';if(!$r['rows'])emptyState('نوبتی با این فیلترها پیدا نشد','بازه تاریخ یا فیلترها را تغییر دهید.');echo '<div class="form-actions">';
  if($r['page']>1)echo '<a class="button secondary" href="'.e('/appointments?'.http_build_query($f+['p'=>$r['page']-1])).'">صفحه قبل</a>';
  echo '<span>صفحه '.fa($r['page']).'</span>';

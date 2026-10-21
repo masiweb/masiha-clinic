@@ -26,6 +26,7 @@ function adminApi($path):void{global $config;
  }
  if($path==='/font'){$r=q('SELECT * FROM custom_fonts WHERE id=?',[(int)($_GET['id']??0)])->fetch();if(!$r){http_response_code(404);exit;}$f=$config['storage'].'/fonts/'.basename($r['filename']);if(!is_file($f)){http_response_code(404);exit;}header('Content-Type: font/'.$r['format']);readfile($f);exit;}
  if(!str_starts_with($path,'/api/'))return;if(!user()){http_response_code(401);exit;}header('Content-Type: application/json; charset=utf-8');
+ receptionLiveApi($path);
  if($path==='/api/booking-auto-label'){
   try{
    demand('appointments');

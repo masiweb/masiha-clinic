@@ -1,7 +1,9 @@
 'use strict';
 (() => {
   const normalize = value => value.normalize('NFKC').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[\u200c\u200e\u200f]/g, ' ').toLocaleLowerCase().trim();
-  document.querySelectorAll('[data-row-editor]').forEach(editor => {
+  const initializeEditors = (root = document) => root.querySelectorAll('[data-row-editor]').forEach(editor => {
+    if(editor.dataset.receptionInitialized === '1')return;
+    editor.dataset.receptionInitialized = '1';
     const form = editor.querySelector('form');
     const search = editor.querySelector('[data-choice-search]');
     const options = [...editor.querySelectorAll('[data-choice-option]')];
@@ -32,6 +34,8 @@
     });
     refresh();
   });
+  window.MasihaInitReceptionEditors = initializeEditors;
+  initializeEditors();
 })();
 
 // Confirm destructive-looking actions before submitting. Records remain auditable.

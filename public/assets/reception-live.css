@@ -1,0 +1,33 @@
+
+/* Appointment live updates, one-field smart hashtags, compact Jalali date chooser. */
+.reception-date-jump {
+ display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;
+ border:1px solid #d5e3ed;border-radius:11px;background:#fff;padding:4px 8px;
+ font-size:12px;color:#32577a;max-width:100%;
+}
+.reception-date-jump > label{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;white-space:nowrap}
+.reception-date-jump > label svg{width:16px;height:16px}
+.reception-date-jump input[type=date]{max-width:170px;min-width:125px;height:32px;border:1px solid #d9e5ef;border-radius:8px;padding:4px}
+.reception-date-jump .masiha-date-wrap{display:inline-flex;align-items:center;flex-wrap:nowrap;gap:4px;max-width:250px}
+.reception-date-jump .masiha-jalali-input{width:112px!important;min-width:95px;cursor:pointer;text-align:center;font-size:12px;padding:5px}
+.reception-date-jump .masiha-date-button{min-width:38px;font-size:11px;border:1px solid #d8e8f1;background:#edf8f9;border-radius:8px;padding:6px}
+.reception-date-jump .masiha-datepicker{z-index:90;direction:rtl}
+.reception-date-jump .reception-date-apply{font-size:11px;min-height:32px}
+.reception-list .editor-hashtags [data-smart-hashtag]{width:100%;min-height:40px;margin:0 0 6px;border:1px solid #b9dcd9;border-radius:9px}
+.reception-list .editor-hashtags .smart-hashtag-feedback{font-size:11px;color:#547487;line-height:1.7;margin-bottom:7px;display:block}
+.reception-list .editor-hashtags .choice-list{max-height:180px;overflow-y:auto;overscroll-behavior:contain}
+#reception-live-alert{
+ position:fixed;bottom:24px;left:24px;z-index:10000;
+ padding:11px 16px;max-width:min(380px,calc(100vw - 30px));
+ border-radius:12px;background:#e4f8f0;color:#106346;
+ border:1px solid #9bdec5;box-shadow:0 12px 28px #183d5430;
+ font-size:13px;font-weight:600;direction:rtl
+}
+#reception-live-alert[data-bad="1"]{background:#fff3ed;color:#8d3e22;border-color:#edc1ac}
+#reception-live-alert[hidden]{display:none}
+.reception-list form[aria-busy="true"]{opacity:.65;pointer-events:none}
+@media(max-width:700px){
+ .reception-date-jump{width:100%;justify-content:flex-start}
+ .reception-date-jump .reception-date-apply{margin-inline-start:auto}
+ #reception-live-alert{left:12px;right:12px;bottom:12px;max-width:none}
+}
