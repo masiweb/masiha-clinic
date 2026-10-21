@@ -69,7 +69,7 @@ function bulkAppointmentApply(array $input):never{
  if((user()['role']??'')!=='admin'||!allowed('appointments'))throw new DomainException('دسترسی لغو گروهی ندارید.');
  $p=$_SESSION['clinic_bulk_cancel']??null;
  if(!is_array($p)||($p['actor']??0)!==(int)user()['id']||time()-($p['created']??0)>600||!hash_equals((string)($p['id']??''),(string)($input['preview_key']??'')))throw new DomainException('پیش‌نمایش منقضی یا نامعتبر است.');
- if(($input['confirm_cancel']??'')!=='yes')throw new DomainException('برای لغو نوبت‌ها تأیید صریح لازم است.');
+ if(!isset($input['confirm_cancel']))throw new DomainException('برای لغو نوبت‌ها تأیید صریح لازم است.');
  if(!empty($p['send_sms'])&&(!allowed('sms')||!MasihaSms::enabled()))throw new DomainException('امکان ارسال پیامک فعال نیست.');
  $f=bulkAppointmentCriteria($p['filter']);
  $rows=bulkAppointmentCandidates($f);
