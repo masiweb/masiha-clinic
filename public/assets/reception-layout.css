@@ -149,3 +149,20 @@
 @media print {
   .visit-state-popup{display:none!important}
 }
+
+.reception-mode .reception-list :is(th,td)[data-column=patient]{width:29%!important}
+.reception-mode .reception-list :is(th,td)[data-column=time]{width:18%!important}
+.reception-mode .reception-list :is(th,td)[data-column=therapist]{width:17%!important}
+.reception-mode .reception-list :is(th,td)[data-column=state]{width:15%!important}
+.reception-mode .reception-list :is(th,td)[data-column=diagnoses]{width:21%!important}
+.reception-mode .reception-list table{min-width:930px!important}
+.visit-time-label{margin-top:8px}
+.visit-select-form{margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;background:transparent!important}
+.reception-list .visit-inline-label{width:100%;max-width:165px;min-height:34px;padding:5px 8px;border:1px solid #b7dcd8;border-radius:9px;background:#edf9f5;color:#08776f;font-size:11px;font-weight:700;cursor:pointer}
+.reception-list .visit-state-stack{display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-width:0}
+.reception-list .visit-state-stack:has(form)>span.visit-state{display:none}
+.reception-list .visit-state-stack .field{width:100%;margin:0}
+.reception-list .visit-state-stack .field>label{display:none}
+.reception-list .visit-state-stack select[name=state]{width:100%;min-height:37px;padding:6px 8px;background:var(--state-bg,#f1f5f9);color:var(--state,#456078);border:1px solid #cbdce5;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer}
+.reception-list .visit-state-stack .text-link{font-size:11px;color:#276b92;text-decoration:none;display:block;margin:0}
+@media(max-width:1000px){.reception-mode .reception-list table{min-width:900px!important}}

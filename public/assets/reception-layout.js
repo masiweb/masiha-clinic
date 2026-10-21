@@ -44,3 +44,5 @@
     items.forEach(menu => { if (menu.matches(':popover-open')) place(menu); });
   }, true);
 })();
+
+document.addEventListener("change", function(e){if(e.target.matches("select[data-auto-save-select], .visit-state-stack select[name=state]"))e.target.form?.requestSubmit();});

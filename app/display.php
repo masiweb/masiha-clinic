@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 function displayOptions():array{return [
  'booking'=>['service_id'=>'خدمت','tariff_id'=>'تعرفه','episode_id'=>'دوره درمان','date'=>'ورود دستی تاریخ','time'=>'ورود دستی ساعت'],
- 'columns'=>['patient'=>'اطلاعات مراجعه','label'=>'لیبل','time'=>'زمان نوبت','therapist'=>'دکتر / درمانگر','state'=>'وضعیت بیمار','diagnoses'=>'تشخیص اولیه'],
+ 'columns'=>['patient'=>'اطلاعات مراجعه','time'=>'زمان نوبت','therapist'=>'دکتر / درمانگر','state'=>'وضعیت بیمار','diagnoses'=>'تشخیص اولیه'],
  'panels'=>['filters'=>'فیلترهای نوبت‌ها','stats'=>'آمار نوبت‌ها','labels'=>'هشتگ‌ها','room'=>'اتاق در فهرست نوبت‌ها','shortcuts'=>'میانبرهای نوبت‌ها','timeline'=>'Timeline مراجعه'],
  'sidebar'=>['dashboard'=>'نمای کلی','appointments'=>'نوبت‌ها','patients'=>'بیماران','episodes'=>'دوره‌های درمان','finance'=>'مالی','reports'=>'گزارش‌ها','staff'=>'همکاران','services'=>'خدمات و پکیج‌ها','inventory'=>'انبار','sms'=>'پیامک','labels'=>'لیبل‌ها','forms'=>'فرم‌ها','resources'=>'اتاق‌ها و تجهیزات','imports'=>'انتقال بقراط','settings'=>'تنظیمات']
 ];}

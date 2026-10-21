@@ -58,7 +58,7 @@ function appointmentDashboard():void{
   echo '<div class="reception-list-search"><label for="reception-search">'.icon('search').' جستجو در نوبت‌ها</label><input id="reception-search" name="q" type="search" form="reception-filters" value="'.e($f['q']).'" placeholder="نام، موبایل یا کد پرونده"><button type="submit" form="reception-filters" class="button secondary small">جستجو</button><a class="text-link" href="/appointments">پاک‌کردن فیلترها</a></div>';
  }
  // The /appointments reception list always displays the five requested columns.
- $columns=['patient','label','time','therapist','state','diagnoses'];
+ $columns=['patient','time','therapist','state','diagnoses'];
  echo '<section class="panel reception-list"><div class="panel-header"><h2>فهرست مراجعه</h2><span>'.fa($r['count']).' نوبت</span></div>';
  if(!$columns)echo '<p class="notice">ستونی برای نمایش انتخاب نشده است. از تنظیم نمایش ستون‌ها را انتخاب کنید.</p>';
  echo '<div class="table-scroll"><table><thead><tr>';
@@ -114,6 +114,9 @@ function appointmentCell(string $key,array $s,array $display):void{
    echo '<div class="reception-patient-heading">'.patientPhotoAvatar($s).'<a href="/patient?id='.(int)$s['pid'].'">'.e(patientName($s)).'</a>';
    if(can('finance'))echo '<a class="settlement-link" href="/finance?episode='.(int)$s['episode_id'].'" aria-label="تسویه حساب '.e(patientName($s)).'" title="تسویه حساب">$</a>';
    echo '</div><small>پرونده '.fa($s['pid']).'</small>';
+   // The label is a separate colored classification; it never becomes a hashtag.
+   foreach(q('SELECT DISTINCT l.name,l.color FROM labels l WHERE l.deleted=0 AND (l.id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=? AND sl.label_id=l.id)) ORDER BY l.name',[(int)($s['label_id']??0),(int)$s['id']])->fetchAll() as $label)
+    echo '<span class="badge visit-patient-label" data-label-color="'.e($label['color']).'" title="لیبل مراجعه">'.e($label['name']).'</span>';
    echo '<div class="reception-tag-line">';
    receptionEditor($s,'hashtags','هشتگ‌های مراجعه');
    echo '<div class="reception-tag-values">';
@@ -124,32 +127,17 @@ function appointmentCell(string $key,array $s,array $display):void{
    receptionEditor($s,'notes','ویرایش توضیح پذیرش');
    echo '<div class="reception-admission-text">'.(trim($s['reception_notes']??'')!==''?nl2br(e($s['reception_notes'])):'توضیح پذیرش ثبت نشده').'</div></div>';
    break;
-  case 'label':
-   echo '<div class="visit-label-cell">';
-   $labels=q('SELECT DISTINCT l.id,l.name,l.color FROM labels l WHERE l.deleted=0 AND (l.id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=? AND sl.label_id=l.id)) ORDER BY l.name',[(int)($s['label_id']??0),(int)$s['id']])->fetchAll();
-   foreach($labels as $label)
-    echo '<span class="badge visit-patient-label" data-label-color="'.e($label['color']).'" title="لیبل مراجعه">'.e($label['name']).'</span>';
-   if(!$labels)echo '<small class="visit-label-empty">لیبلی ثبت نشده</small>';
-   if(allowed('appointments')&&(user()['role']!=='therapist'||(int)$s['therapist_id']===(int)user()['id']))
-    receptionEditor($s,'labels','تغییر لیبل مراجعه');
-   echo '</div>';
-   break;
-  case 'time': $minutes=max(0,(int)ceil((strtotime($s['ends_at'])-strtotime($s['starts_at']))/60));echo '<strong class="reception-time">'.jd($s['starts_at'],'HH:mm').'</strong><small class="reception-duration">مدت ویزیت: '.fa($minutes).' دقیقه</small><small>'.jd($s['starts_at'],'yyyy/MM/dd').'</small>';break;
+
+  case 'time': $minutes=max(0,(int)ceil((strtotime($s['ends_at'])-strtotime($s['starts_at']))/60));echo '<strong class="reception-time">'.jd($s['starts_at'],'HH:mm').'</strong><small class="reception-duration">مدت ویزیت: '.fa($minutes).' دقیقه</small><small>'.jd($s['starts_at'],'yyyy/MM/dd').'</small>';appointmentInlineLabel($s);break;
   case 'therapist': echo '<span class="reception-therapist">'.icon('users').e($s['therapist_name']).'</span>';if(displayVisible($display,'panels','room'))echo '<small>'.e($s['room']?:'بدون اتاق اختصاصی').'</small>';break;
   case 'state':
    $state=$s['workflow_state']??workflowInitialState($s);$next=array_values(array_diff(workflowNextStates()[$state],['visited']));
-   $id=(int)$s['id'];$popoverId='visit-state-popup-'.$id;
-   $permitted=allowed('appointments')&&(user()['role']!=='therapist'||(int)$s['therapist_id']===(int)user()['id']);
-   echo '<button type="button" class="visit-state state-'.e($state).' visit-state-trigger" popovertarget="'.e($popoverId).'" aria-label="وضعیت بیمار: '.e(workflowLabels()[$state]).'. تغییر وضعیت" aria-haspopup="dialog">'.e(workflowLabels()[$state]).' <span aria-hidden="true">⌄</span></button>';
-   echo '<div id="'.e($popoverId).'" popover="auto" class="visit-state-popup" role="dialog" aria-label="تغییر وضعیت بیمار" data-state-popup>';
-   echo '<strong class="visit-state-popup-title">وضعیت مراجعه</strong><small class="visit-state-current">وضعیت فعلی: '.e(workflowLabels()[$state]).'</small>';
-   if($next&&$permitted){
-    echo '<form method="post" class="visit-state-popup-form">';csrf();hidden('action','visit_state');hidden('session_id',$id);hidden('workflow_version',(int)($s['workflow_version']??0));hidden('return_appointments',1);hidden('clinic_id',0);
-    selectfield('state','مرحله بعد',array_intersect_key(workflowLabels(),array_flip($next)),$next[0]);
-    echo '<button type="submit" class="button primary small">ثبت وضعیت</button></form>';
-   }elseif($permitted)echo '<small class="visit-state-none">تغییر مرحله در این وضعیت امکان‌پذیر نیست.</small>';
-   echo '<a class="text-link" href="/visit?id='.$id.'">تاریخچه و گردش مراجعه</a></div>';
-   break;
+   echo '<div class="visit-state-stack"><span class="visit-state state-'.e($state).'">'.e(workflowLabels()[$state]).'</span>';
+   if($next&&allowed('appointments')&&(user()['role']!=='therapist'||(int)$s['therapist_id']===(int)user()['id'])){
+    echo '<form method="post" class="visit-select-form">';csrf();hidden('action','visit_state');hidden('session_id',$s['id']);hidden('workflow_version',$s['workflow_version']);hidden('return_appointments',1);hidden('clinic_id',0);
+    selectfield('state','',[$state=>workflowLabels()[$state]]+array_intersect_key(workflowLabels(),array_flip($next)),$state);echo '</form>';
+   }
+   echo '<a class="text-link" href="/visit?id='.(int)$s['id'].'">تاریخچه و گردش مراجعه</a></div>';break;
   case 'diagnoses':
    if(appointmentClinicalAllowed($s)){receptionEditor($s,'diagnoses','تشخیص اولیه');}
    else echo '<span class="row-selection-text">—</span>';
@@ -194,4 +182,26 @@ function appointmentQuickActions(array $s):void{
  echo '<a href="/appointment/new?pid='.$pid.'&amp;previous='.$id.'">نوبت بعدی</a>';
  echo '<a href="/visit?id='.$id.'">تاریخچه، اصلاح مرحله و چاپ</a>';
  echo '</div></details></div>';
+}
+
+
+function appointmentInlineLabel(array $s):void{
+ $id=(int)$s['id'];$current=(int)($s['label_id']??0);
+ if(!$current)$current=(int)q('SELECT label_id FROM session_labels WHERE session_id=? ORDER BY label_id LIMIT 1',[$id])->fetchColumn();
+ static $choices=null;
+ if($choices===null)$choices=q('SELECT id,name,color FROM labels WHERE active=1 AND deleted=0 ORDER BY name')->fetchAll();
+ $editable=allowed('appointments')&&(user()['role']!=='therapist'||(int)$s['therapist_id']===(int)user()['id']);
+ echo '<div class="visit-time-label">';
+ if($editable&&$choices){
+  echo '<form method="post" class="visit-select-form">';
+  csrf();hidden('action','reception_update');hidden('kind','labels');hidden('session_id',$id);hidden('workflow_version',(int)($s['workflow_version']??0));
+  echo '<select name="selection[]" class="visit-inline-label" data-auto-save-select aria-label="لیبل مراجعه">';
+  if(!$current)echo '<option selected disabled value="">انتخاب لیبل</option>';
+  foreach($choices as $choice)echo '<option value="'.(int)$choice['id'].'" '.((int)$choice['id']===$current?'selected':'').'>'.e($choice['name']).'</option>';
+  echo '</select></form>';
+ }else{
+  $name=(string)q('SELECT name FROM labels WHERE id=?',[$current])->fetchColumn();
+  echo '<span class="visit-label-static">'.e($name?:'لیبل انتخاب نشده').'</span>';
+ }
+ echo '</div>';
 }
