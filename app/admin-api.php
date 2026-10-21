@@ -26,6 +26,23 @@ function adminApi($path):void{global $config;
  }
  if($path==='/font'){$r=q('SELECT * FROM custom_fonts WHERE id=?',[(int)($_GET['id']??0)])->fetch();if(!$r){http_response_code(404);exit;}$f=$config['storage'].'/fonts/'.basename($r['filename']);if(!is_file($f)){http_response_code(404);exit;}header('Content-Type: font/'.$r['format']);readfile($f);exit;}
  if(!str_starts_with($path,'/api/'))return;if(!user()){http_response_code(401);exit;}header('Content-Type: application/json; charset=utf-8');
+ if($path==='/api/booking-auto-label'){
+  try{
+   demand('appointments');
+   $pid=filter_var($_GET['pid']??0,FILTER_VALIDATE_INT,['options'=>['min_range'=>0]]);
+   $service=filter_var($_GET['service_id']??0,FILTER_VALIDATE_INT,['options'=>['min_range'=>0]]);
+   $date=(string)($_GET['date']??date('Y-m-d'));
+   $source=(string)($_GET['booking_source']??'scheduled');
+   if($pid===false||$service===false||!preg_match('/^\d{4}-\d{2}-\d{2}$/D',$date)||!in_array($source,['scheduled','walkin'],true))throw new DomainException('ورودی انتخاب لیبل معتبر نیست.');
+   if($pid)requirePatient($pid);
+   [$name,$explanation]=clinicAutoLabelName($pid,$service,$date,$source);
+   $label=q('SELECT id,color FROM labels WHERE name=? AND active=1 AND deleted=0 ORDER BY id DESC LIMIT 1',[$name])->fetch();
+   header('Cache-Control: private, no-store');
+   echo json_encode(['name'=>$name,'explanation'=>$explanation,'color'=>$label['color']??'#64748b','id'=>(int)($label['id']??0)],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+  }catch(DomainException $ex){http_response_code(422);echo json_encode(['error'=>$ex->getMessage()],JSON_UNESCAPED_UNICODE);}
+  catch(Throwable $ex){http_response_code(500);error_log('Auto label '.get_class($ex));echo '{"error":"پیشنهاد لیبل در دسترس نیست."}';}
+  exit;
+ }
  if($path==='/api/booking-patient-lookup'){
   try{
    demand('appointments');

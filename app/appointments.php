@@ -91,7 +91,11 @@ function appointmentMetadata(int $id,int $version,array $input):void{
    $old=q("SELECT $column FROM $table WHERE session_id=? ORDER BY $column",[$id])->fetchAll(PDO::FETCH_COLUMN);
    $ids=[];foreach($input[$key] as $raw){$n=filter_var($raw,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);if($n===false||(!in_array($n,array_map('intval',$old),true)&&!q("SELECT id FROM $catalog WHERE id=? AND active=1",[$n])->fetchColumn()))throw new DomainException('مورد فعال انتخاب کنید.');$ids[$n]=$n;}
    q("DELETE FROM $table WHERE session_id=?",[$id]);foreach($ids as $n)q("INSERT INTO $table(session_id,$column) VALUES(?,?)",[$id,$n]);
-   if($key==='labels')q('UPDATE physio_sessions SET label_id=? WHERE id=?',[array_values($ids)[0]??null,$id]);
+   if($key==='labels'){
+    q('UPDATE physio_sessions SET label_id=? WHERE id=?',[array_values($ids)[0]??null,$id]);
+    q("INSERT INTO session_label_modes(session_id,selection_mode,booking_source,explanation) VALUES(?,'manual','scheduled','انتخاب دستی از جزئیات نوبت') ON DUPLICATE KEY UPDATE selection_mode='manual',explanation='انتخاب دستی از جزئیات نوبت'",[$id]);
+    clinicAssignPatientLabel($pid,(int)(array_values($ids)[0]??0),true);
+   }
    $event['before_'.$key]=$old;$event['after_'.$key]=array_values($ids);
   }
   q('UPDATE visit_workflows SET version=version+1,updated_at=NOW() WHERE session_id=?',[$id]);
