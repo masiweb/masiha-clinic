@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS sms_templates (
 INSERT INTO sms_templates(event_key,title,enabled,message_template,send_offset_minutes)
 VALUES
  ('welcome','خوش‌آمدگویی',0,'{patient_name} عزیز، پرونده شما در {clinic_name} ثبت شد.',0),
- ('appointment_created','ثبت نوبت',0,'{patient_name} عزیز، نوبت شما در {clinic_name} برای {date} ساعت {time} با {therapist} ثبت شد.',0),
+ ('appointment_created','ثبت نوبت',0,'{first_name} {last_name} عزیز، نوبت شما در تاریخ {date} در کلینیک {clinic_name} با {doctor_name} ثبت شد.',0),
  ('appointment_reminder','یادآوری نوبت',0,'یادآوری {clinic_name}: نوبت شما {date} ساعت {time} با {therapist} است.',1440),
  ('absence','عدم مراجعه',0,'{patient_name} عزیز، عدم مراجعه شما برای نوبت {date} ساعت {time} در {clinic_name} ثبت شد.',0),
  ('birthday','تبریک تولد',0,'{patient_name} عزیز، تولدتان مبارک. با آرزوی سلامتی از طرف {clinic_name}.',0)

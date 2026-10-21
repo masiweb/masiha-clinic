@@ -8,6 +8,7 @@ function appointmentDashboard():void{
  echo '<div class="reception-toolbar"><a class="button primary" href="/appointment/new">'.icon('plus').' ثبت / نوبت‌دهی</a>';
  if(can('patients'))echo '<a class="button secondary" href="/patients">'.icon('users').' تمامی مراجعین</a>';
  if(displayVisible($display,'panels','filters'))echo '<a class="button secondary" href="#reception-search">'.icon('search').' جستجوی سریع</a>';
+ if((user()['role']??'')==='admin'&&allowed('sms'))echo '<a class="button secondary" href="/sms/appointment-notices">اعلان یا لغو گروهی نوبت‌ها</a>';
  echo '<a class="button secondary refresh-link" href="'.e($url([])).'">بارگذاری مجدد</a></div>';
  echo '<div class="reception-datebar"><strong>برنامه مراجعین</strong><div class="reception-days">';
  foreach([-1=>'روز قبل',1=>'روز بعد'] as $step=>$label){
@@ -56,6 +57,26 @@ function appointmentDashboard():void{
   echo '</section>';
  }
  if(displayVisible($display,'panels','labels')){
+  $labelFilters=$f;$labelFilters['label']=0;
+  [$labelWhere,$labelArgs]=appointmentWhere($labelFilters,false);
+  $labelCounts=q("SELECT l.id,l.name,l.color,COUNT(*) n
+    FROM labels l JOIN physio_sessions s ON s.label_id=l.id
+    JOIN physio_episodes ep ON ep.id=s.episode_id
+    JOIN patients p ON p.pid=ep.pid LEFT JOIN visit_workflows w ON w.session_id=s.id
+    WHERE l.active=1 AND l.deleted=0 AND ".$labelWhere."
+    GROUP BY l.id,l.name,l.color ORDER BY n DESC,l.name",$labelArgs)->fetchAll();
+  if($labelCounts){
+   echo '<nav class="reception-label-stats" aria-label="آمار لیبل نوبت‌ها">';
+   foreach($labelCounts as $row){
+    $selected=(int)$f['label']===(int)$row['id'];
+    echo '<a class="reception-label-stat '.($selected?'selected':'').'" style="--label-color:'.e($row['color']).'"
+      href="'.e($url(['label'=>$selected?0:(int)$row['id']])).'">'
+      .e($row['name']).' <strong>'.fa($row['n']).'</strong></a>';
+   }
+   echo '</nav>';
+  }
+ }
+ if(displayVisible($display,'panels','labels')){
   echo '<div class="reception-labels" aria-label="هشتگ‌های مراجعین">';
   foreach(q('SELECT id,name FROM hashtags WHERE active=1 ORDER BY name')->fetchAll() as $tag)
    echo '<a class="badge '.((int)$f['hashtag']===(int)$tag['id']?'selected':'').'" href="'.e($url(['hashtag'=>(int)$f['hashtag']===(int)$tag['id']?0:$tag['id']])).'">#'.e($tag['name']).'</a>';
@@ -81,7 +102,7 @@ function appointmentDashboard():void{
   echo '<aside class="reception-tools" aria-label="دسترسی سریع"><section class="panel"><h2>دسترسی سریع</h2><a href="/availability">'.icon('calendar').' زمان‌های آزاد</a><a href="/turn-board">'.icon('users').' تابلو انتظار</a>';
   if(allowed('reports.clinical'))echo '<a href="/reports/clinical">'.icon('chart').' گزارش عملکرد</a>';
   if(allowed('appointments.timing'))echo '<a href="/reports/timing">'.icon('chart').' زمان مراجعه</a>';
-  if(allowed('services'))echo '<a href="/appointment/catalogs">نوع ویزیت و تشخیص</a><a href="/resources">اتاق‌ها و تجهیزات</a>';
+  if(allowed('services'))echo '<a href="/appointment/catalogs">تشخیص‌ها و برنامه‌های درمانی</a><a href="/resources">اتاق‌ها و تجهیزات</a>';
   echo '</section><section class="panel"><h2>راهنمای پذیرش</h2><p>برای ثبت ورود، انتظار یا ارسال به درمان، «گردش مراجعه» را در ردیف بیمار باز کنید.</p></section></aside>';
  }
  echo '</div>';endLayout();
