@@ -108,18 +108,19 @@ function smsView():void{
 
 function appearanceView():void{
  need('settings');$id=(int)($_GET['id']??0);$r=$id?q('SELECT * FROM clinics WHERE id=?',[$id])->fetch():null;
- layout('settings','ظاهر دلخواه شما','رنگ‌ها و فونت‌ها را انتخاب کنید؛ نتیجه را پیش از ذخیره ببینید.');
+ layout('settings','ظاهر دلخواه شما','رنگ‌بندی زرشکی و کرم با الهام از بقراط؛ امکان انتخاب آزاد هر رنگ همچنان برقرار است.');
  ?><div class="appearance-layout"><section class="panel form-panel appearance-editor">
  <?php sectiontitle('رنگ و حال‌وهوای پنل','این تنظیمات برای تمام کاربران کلینیک اعمال می‌شود.');formstart('appearance'); ?>
  <div class="palette-picker" aria-label="ترکیب‌های پیشنهادی">
+ <button type="button" class="palette-choice palette-boghrat" data-palette="#831540,#6c1036,#f7f6f7" data-theme-preset="boghrat"><span></span>زرشکی و کرم · بقراط</button>
  <button type="button" class="palette-choice palette-teal" data-palette="#087f75,#065f58,#f3f6fa"><span></span>آرامش سبز</button>
  <button type="button" class="palette-choice palette-blue" data-palette="#3459a8,#23417e,#f1f5fc"><span></span>آبی آسمان</button>
  <button type="button" class="palette-choice palette-violet" data-palette="#7254a4,#513778,#f6f3fa"><span></span>بنفش ملایم</button>
  </div><div class="color-fields">
  <?php
- field('theme_color','رنگ اصلی دکمه‌ها',setting('theme_color','#0b827c'),'color','رنگ دکمه‌های اصلی و بخش انتخاب‌شده در منو.',true);
- field('theme_hover_color','رنگ هاور دکمه‌ها',setting('theme_hover_color','#086a68'),'color','رنگ دکمه وقتی نشانگر روی آن قرار می‌گیرد.',true);
- field('theme_background_color','رنگ پس‌زمینه کلی',setting('theme_background_color','#f4f7fc'),'color','رنگ فضای پشت کارت‌ها و فرم‌های پنل.',true);
+ field('theme_color','رنگ اصلی دکمه‌ها',setting('theme_color','#831540'),'color','رنگ دکمه‌های اصلی و بخش انتخاب‌شده در منو.',true);
+ field('theme_hover_color','رنگ هاور دکمه‌ها',setting('theme_hover_color','#6c1036'),'color','رنگ دکمه وقتی نشانگر روی آن قرار می‌گیرد.',true);
+ field('theme_background_color','رنگ پس‌زمینه کلی',setting('theme_background_color','#f7f6f7'),'color','رنگ فضای پشت کارت‌ها و فرم‌های پنل.',true);
  foreach(themeExtraColors() as $key=>[$variable,$fallback,$label])field($key,$label,setting($key,$fallback),'color','رنگ دلخواه را انتخاب کنید یا کد HEX را وارد کنید.',true,false,'data-theme-variable="'.e($variable).'"');
  ?></div><p class="hint">برای خوانایی بهتر، رنگ دکمه‌ها را تیره و پس‌زمینه را روشن انتخاب کنید.</p>
  <div class="appearance-fonts"><?php

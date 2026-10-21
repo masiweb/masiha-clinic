@@ -39,6 +39,19 @@
     const colors = button.dataset.palette.split(',');
     if (colors.length !== 3 || colors.some(color => !/^#[0-9a-f]{6}$/i.test(color))) return;
     inputs.forEach((input, index) => { input.value = colors[index]; });
+    if (button.dataset.themePreset === 'boghrat') {
+      const preset = {
+        theme_text:'#332939',theme_muted:'#726875',theme_border:'#e6dce4',
+        theme_surface:'#ffffff',theme_mint:'#e6f6ee',theme_lavender:'#f3e6f3',
+        theme_peach:'#f5e3c7',theme_sky:'#e8f7fc',theme_rose:'#fce9ef',
+        theme_sidebar:'#79133f',theme_sidebar_text:'#fff1f6',
+        theme_booked:'#fff0de',theme_booked_text:'#895b35'
+      };
+      for (const [key,color] of Object.entries(preset)) {
+        const item = form.elements.namedItem(key);
+        if(item)item.value=color;
+      }
+    }
     update();
   }));
   update();

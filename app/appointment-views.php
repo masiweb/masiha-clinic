@@ -5,7 +5,7 @@ function appointmentDashboard():void{
  $display=displayEffective();
  layout('appointments','میز پذیرش · نوبت‌های مراجعین','',true);
  $url=static fn(array $changes)=>'/appointments?'.http_build_query(array_replace($f,$changes));
- echo '<div class="reception-toolbar"><a class="button primary" href="/appointment/new">'.icon('plus').' ثبت / نوبت‌دهی</a>';
+ echo '<div class="reception-toolbar" aria-label="اقدامات سریع پذیرش"><a class="button primary reception-create" href="/appointment/new">'.icon('plus').' ثبت / نوبت‌دهی</a>';
  if(can('patients'))echo '<a class="button secondary" href="/patients">'.icon('users').' تمامی مراجعین</a>';
  if(displayVisible($display,'panels','filters'))echo '<a class="button secondary" href="#reception-search">'.icon('search').' جستجوی سریع</a>';
  if((user()['role']??'')==='admin'&&allowed('sms'))echo '<a class="button secondary" href="/sms/appointment-notices">اعلان یا لغو گروهی نوبت‌ها</a>';
@@ -78,8 +78,8 @@ function appointmentDashboard():void{
  }
  if(displayVisible($display,'panels','labels')){
   echo '<div class="reception-labels" aria-label="هشتگ‌های مراجعین">';
-  foreach(q('SELECT id,name FROM hashtags WHERE active=1 ORDER BY name')->fetchAll() as $tag)
-   echo '<a class="badge '.((int)$f['hashtag']===(int)$tag['id']?'selected':'').'" href="'.e($url(['hashtag'=>(int)$f['hashtag']===(int)$tag['id']?0:$tag['id']])).'">#'.e($tag['name']).'</a>';
+  foreach(q('SELECT id,name,color FROM hashtags WHERE active=1 ORDER BY name')->fetchAll() as $tag)
+   echo '<a class="badge '.((int)$f['hashtag']===(int)$tag['id']?'selected':'').'" data-hashtag-color="'.e($tag['color']).'" style="--hashtag-color:'.e(preg_match('/^#[0-9a-fA-F]{6}$/D',(string)$tag['color'])?$tag['color']:'#935475').'" href="'.e($url(['hashtag'=>(int)$f['hashtag']===(int)$tag['id']?0:$tag['id']])).'">#'.e($tag['name']).'</a>';
   echo '</div>';
  }
  if(displayVisible($display,'panels','filters')){
