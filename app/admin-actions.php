@@ -1,5 +1,7 @@
 <?php
 function adminAction($a):bool{global $db,$config;if(importAction($a))return true;
+ if($a==='sms_bulk_appointment_preview')bulkAppointmentPreview($_POST);
+ if($a==='sms_bulk_appointment_apply')bulkAppointmentApply($_POST);
  if($a==='ai_provider_save')aiSaveProvider();
  if($a==='ai_provider_test')aiTestProvider();
  if($a==='document_classify'){classifyDocument(num('document_id',1),num('document_type_id'));go('/document-classify?id='.num('document_id',1));}

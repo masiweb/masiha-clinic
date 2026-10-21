@@ -96,7 +96,7 @@ function smsView():void{
  echo '</section>';
 
  echo '<section class="panel form-panel"><div class="panel-header"><h2>ارسال گروهی</h2><span class="muted">ارسال فقط پس از قرارگرفتن در صف انجام می‌شود.</span></div>';
- echo '<a class="button primary" href="/sms/audience">فیلتر مخاطبان و پیش‌نمایش پیام</a></section>';
+ echo '<a class="button primary" href="/sms/audience">فیلتر مخاطبان و پیش‌نمایش پیام</a> <a class="button secondary" href="/sms/appointment-notices">لغو گروهی نوبت‌ها و پیامک اطلاع‌رسانی</a></section>';
 
  $rows=q("SELECT o.*,p.fname,p.lname FROM sms_outbox o JOIN patients p ON p.pid=o.pid WHERE ".patientScope('p')." AND ".patientScope('p','contact')." ORDER BY o.id DESC LIMIT 200")->fetchAll();
  echo '<section class="panel"><div class="panel-header"><div><h2>تاریخچه و صف پیامک</h2><p class="muted">آخرین ۲۰۰ پیام</p></div><form method="post">';csrf();echo '<input type="hidden" name="action" value="sms_process"><button class="button secondary" '.(!$enabled?'disabled':'').'>پردازش ۲۰ پیام</button></form></div>';
