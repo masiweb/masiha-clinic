@@ -89,7 +89,7 @@ function appointmentDashboard():void{
 }
 function appointmentCatalogView():void{
  need('services');layout('services','نوع ویزیت و تشخیص‌ها','موارد غیرفعال در سابقه حفظ می‌شوند.');
- foreach(['visit_type'=>['visit_types','نوع ویزیت'],'diagnosis'=>['diagnoses','تشخیص']] as $kind=>[$table,$title]){
+ foreach(['visit_type'=>['visit_types','نوع ویزیت'],'diagnosis'=>['diagnoses','تشخیص'],'program'=>['treatment_programs','برنامه درمانی']] as $kind=>[$table,$title]){
   echo '<section class="panel form-panel"><h2>'.e($title).'</h2>';
   foreach(q("SELECT * FROM $table ORDER BY name")->fetchAll() as $row){formstart('appointment_catalog');hidden('kind',$kind);hidden('id',$row['id']);field('name','عنوان',$row['name']);check('active','فعال',(bool)$row['active']);formend('ذخیره','/appointments');}
   formstart('appointment_catalog');hidden('kind',$kind);hidden('id',0);field('name','افزودن '.$title,'','text','',true);check('active','فعال',true);formend('افزودن','/appointments');echo '</section>';
@@ -120,7 +120,7 @@ function appointmentCell(string $key,array $s,array $display):void{
  switch($key){
   case 'patient':
    echo '<div class="reception-patient-heading">'.patientPhotoAvatar($s).'<a href="/patient?id='.(int)$s['pid'].'">'.e(patientName($s)).'</a>';
-   if(can('finance'))echo '<a class="settlement-link" href="/finance?episode='.(int)$s['episode_id'].'" aria-label="تسویه حساب '.e(patientName($s)).'" title="تسویه حساب">$</a>';
+   if(allowed('finance.debt')||allowed('finance.history')||allowed('finance.edit'))echo '<a class="settlement-link" href="/patient/finance?pid='.(int)$s['pid'].'" aria-label="امور مالی بیمار '.e(patientName($s)).'" title="تسویه حساب">$</a>';
    echo '</div><small>پرونده '.fa($s['pid']).'</small>';
    // The label is a separate colored classification; it never becomes a hashtag.
    foreach(q('SELECT DISTINCT l.name,l.color FROM labels l WHERE l.deleted=0 AND (l.id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=? AND sl.label_id=l.id)) ORDER BY l.name',[(int)($s['label_id']??0),(int)$s['id']])->fetchAll() as $label)
@@ -136,8 +136,8 @@ function appointmentCell(string $key,array $s,array $display):void{
    echo '<div class="reception-admission-text">'.(trim($s['reception_notes']??'')!==''?nl2br(e($s['reception_notes'])):'توضیح پذیرش ثبت نشده').'</div></div>';
    break;
 
-  case 'time': $minutes=max(0,(int)ceil((strtotime($s['ends_at'])-strtotime($s['starts_at']))/60));echo '<strong class="reception-time">'.jd($s['starts_at'],'HH:mm').'</strong><small class="reception-duration">مدت ویزیت: '.fa($minutes).' دقیقه</small><small>'.jd($s['starts_at'],'yyyy/MM/dd').'</small>';appointmentInlineLabel($s);break;
-  case 'therapist': echo '<span class="reception-therapist">'.icon('users').e($s['therapist_name']).'</span>';if(displayVisible($display,'panels','room'))echo '<small>'.e($s['room']?:'بدون اتاق اختصاصی').'</small>';break;
+  case 'time': $minutes=max(0,(int)ceil((strtotime($s['ends_at'])-strtotime($s['starts_at']))/60));echo '<strong class="reception-time">'.jd($s['starts_at'],'HH:mm').'</strong><small class="reception-duration">مدت ویزیت: '.fa($minutes).' دقیقه</small><small>'.jd($s['starts_at'],'yyyy/MM/dd').'</small>';appointmentInlineLabel($s);receptionVisitZone($s,'diagnoses');break;
+  case 'therapist': echo '<span class="reception-therapist">'.icon('users').e($s['therapist_name']).'</span>';if(displayVisible($display,'panels','room'))echo '<small>'.e($s['room']?:'بدون اتاق اختصاصی').'</small>';receptionVisitZone($s,'treatment');break;
   case 'state':
    $state=$s['workflow_state']??workflowInitialState($s);$next=array_values(array_diff(workflowNextStates()[$state],['visited']));
    echo '<div class="visit-state-stack"><span class="visit-state state-'.e($state).'">'.e(workflowLabels()[$state]).'</span>';
@@ -145,9 +145,9 @@ function appointmentCell(string $key,array $s,array $display):void{
     echo '<form method="post" class="visit-select-form">';csrf();hidden('action','visit_state');hidden('session_id',$s['id']);hidden('workflow_version',$s['workflow_version']);hidden('return_appointments',1);hidden('clinic_id',0);
     selectfield('state','',[$state=>workflowLabels()[$state]]+array_intersect_key(workflowLabels(),array_flip($next)),$state);echo '</form>';
    }
-   echo '<a class="text-link" href="/visit?id='.(int)$s['id'].'">تاریخچه و گردش مراجعه</a></div>';break;
+   echo '<a class="text-link" href="/visit?id='.(int)$s['id'].'">تاریخچه و گردش مراجعه</a></div>';receptionVisitZone($s,'therapist');break;
   case 'diagnoses':
-   if(appointmentClinicalAllowed($s)){receptionEditor($s,'diagnoses','تشخیص اولیه');}
+   if(appointmentClinicalAllowed($s)){receptionDiagnosisSummary($s);}
    else echo '<span class="row-selection-text">—</span>';
    appointmentQuickActions($s);
    break;
@@ -173,8 +173,6 @@ function appointmentQuickActions(array $s):void{
  }else echo '<span class="row-action-icon is-disabled" title="این نوبت قابل حذف نیست" aria-label="حذف نوبت غیرفعال"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 14h10l1-14M10 11v6m4-6v6"/></svg></span>';
  if(allowed('inventory')||allowed('inventory.consume'))echo '<a class="row-action-icon" title="ثبت کالاهای مصرفی" aria-label="ثبت کالاهای مصرفی" href="/visit?id='.$id.'#stock-consumption">'.icon('box').'</a>';
  else echo '<span class="row-action-icon is-disabled" title="مجوز ثبت کالاهای مصرفی ندارید" aria-label="ثبت کالاهای مصرفی غیرفعال">'.icon('box').'</span>';
- if(appointmentClinicalAllowed($s)&&can('episodes'))echo '<a class="row-action-icon" title="ثبت توضیحات درمانگر" aria-label="ثبت توضیحات درمانگر" href="/session?id='.$id.'">'.icon('pen').'</a>';
- else echo '<span class="row-action-icon is-disabled" title="مجوز ثبت توضیحات درمانگر ندارید" aria-label="توضیحات درمانگر غیرفعال">'.icon('pen').'</span>';
  echo '<details class="visit-more-menu"><summary class="row-action-icon" title="بیشتر" aria-label="عملیات بیشتر">'.icon('menu').'</summary><div class="visit-more-links">';
  if(allowed('appointments.reverse')&&in_array($state,['referred','waiting','in_service'],true)){
   echo '<form method="post" class="visit-step-back-form">';csrf();hidden('action','visit_step_back');hidden('session_id',$id);hidden('workflow_version',$version);
@@ -183,7 +181,7 @@ function appointmentQuickActions(array $s):void{
  echo '<a href="/patient?id='.$pid.'">اطلاعات کامل و مدارک</a><a href="/appointment/details?id='.$id.'">مشخصات مراجعه</a>';
  if(allowed('patients.edit')&&patientAllowed($pid,'contact'))echo '<a href="/patients/edit?id='.$pid.'">ویرایش مراجعه‌کننده</a>';
  if(appointmentClinicalAllowed($s))echo '<a href="/session?id='.$id.'">فرم ویزیت و توضیحات درمانگر</a>';
- if(allowed('finance.debt')||allowed('finance.history'))echo '<a href="/finance?episode='.(int)$s['episode_id'].'">تراز مالی</a>';
+ if(allowed('finance.debt')||allowed('finance.history'))echo '<a href="/patient/finance?pid='.$pid.'">تراز مالی بیمار</a>';
  if(can('episodes'))echo '<a href="/episode?id='.(int)$s['episode_id'].'">طرح درمان</a><a href="/progress?pid='.$pid.'">روند درمان</a>';
  if(allowed('finance.debt')||allowed('finance.edit'))echo '<a href="/billing?episode='.(int)$s['episode_id'].'">صورتحساب</a>';
  if(allowed('sms'))echo '<a href="/sms/audience?pid='.$pid.'">پیش‌نمایش پیامک</a>';
@@ -212,4 +210,39 @@ function appointmentInlineLabel(array $s):void{
   echo '<span class="visit-label-static">'.e($name?:'لیبل انتخاب نشده').'</span>';
  }
  echo '</div>';
+}
+
+
+/** Lower zones within time, therapist and status columns. */
+function receptionVisitZone(array $s,string $zone):void{
+ $id=(int)$s['id'];
+ $titles=['diagnoses'=>'۱ · تشخیص‌ها','treatment'=>'۲ · پکیج و برنامه درمانی','therapist'=>'۳ · توضیحات درمانگر'];
+ echo '<section class="reception-visit-zone reception-visit-zone-'.e($zone).'"><strong class="reception-zone-heading">'.e($titles[$zone]).'</strong>';
+ if($zone==='diagnoses'){
+  if(appointmentClinicalAllowed($s))receptionEditor($s,'diagnoses','انتخاب تشخیص');
+  else echo '<span class="muted">بدون دسترسی به تشخیص</span>';
+ }elseif($zone==='treatment'){
+  receptionEditor($s,'packages','پکیج‌ها');
+  if(appointmentClinicalAllowed($s))receptionEditor($s,'programs','برنامه‌های درمانی');
+  receptionTreatmentPlanEditor($s);
+ }else{
+  $note=trim((string)($s['notes']??''));
+  echo '<div class="reception-therapist-notes">'.($note!==''?nl2br(e($note)):'<span class="muted">توضیح درمانگر ثبت نشده</span>').'</div>';
+  if(appointmentClinicalAllowed($s)&&can('episodes'))
+   echo '<a class="reception-therapist-edit" href="/session?id='.$id.'" title="ویرایش توضیحات درمانگر">'.icon('pen').' ویرایش توضیحات</a>';
+ }
+ echo '</section>';
+}
+function receptionDiagnosisSummary(array $s):void{
+ $names=q('SELECT d.name FROM diagnoses d JOIN session_diagnoses sd ON sd.diagnosis_id=d.id WHERE sd.session_id=? ORDER BY d.name',[$s['id']])->fetchAll(PDO::FETCH_COLUMN);
+ if(!$names&&trim((string)($s['legacy_diagnosis']??''))!=='')$names=[$s['legacy_diagnosis']];
+ echo '<div class="reception-diagnosis-summary">'.e(implode('، ',$names)?:'—').'</div>';
+}
+function receptionTreatmentPlanEditor(array $s):void{
+ $id=(int)$s['id'];$content=(string)(q('SELECT plan_text FROM session_treatment_plans WHERE session_id=?',[$id])->fetchColumn()?:'');
+ echo '<div class="reception-plan-summary">'.($content!==''?nl2br(e($content)):'<small class="muted">برنامه اختصاصی ثبت نشده</small>').'</div>';
+ if(!appointmentClinicalAllowed($s)||!receptionDiagnosisEdit($s))return;
+ echo '<details class="row-editor editor-plan" data-row-editor><summary class="reception-plan-trigger">'.icon('pen').' ثبت برنامه اختصاصی</summary>';
+ echo '<form method="post" class="row-editor-body">';csrf();hidden('action','reception_update');hidden('kind','plan');hidden('session_id',$id);hidden('workflow_version',(int)($s['workflow_version']??0));
+ echo '<label for="plan-'.$id.'">شرح برنامه درمانی</label><textarea id="plan-'.$id.'" name="treatment_plan" rows="4" maxlength="5000">'.e($content).'</textarea><div class="editor-actions"><button class="button primary small" type="submit">ذخیره</button><button type="button" class="button secondary small" data-editor-cancel>انصراف</button></div></form></details>';
 }

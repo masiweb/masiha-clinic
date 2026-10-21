@@ -15,7 +15,7 @@ function permissions(?array $u=null):array{$u??=user();if(!$u)return defaultsFor
 function allowed($key):bool{return user()&& (user()['role']==='admin'||(permissions()[$key]??false)===true);}
 function scope($key):string{return (user()['role']??'')==='admin'?'all':(string)(permissions()[$key]??'none');}
 function demand($key):void{if(!allowed($key)){http_response_code(403);exit('اجازه انجام این عملیات را ندارید.');}}
-function patientScope($alias='p',$kind='profile'):string{$s=scope($kind);$u=(int)(user()['id']??0);if($s==='all')return '1=1';if($s!=='related')return '1=0';return "($alias.providerID=$u OR $alias.created_by=$u OR EXISTS(SELECT 1 FROM physio_episodes ax JOIN physio_sessions sx ON sx.episode_id=ax.id WHERE ax.pid=$alias.pid AND sx.therapist_id=$u))";}
+function patientScope($alias='p',$kind='profile'):string{$s=scope($kind);$u=(int)(user()['id']??0);if($s==='all')return '1=1';if($s!=='related')return '1=0';return "($alias.providerID=$u OR $alias.created_by=$u OR EXISTS(SELECT 1 FROM physio_episodes ax JOIN physio_sessions sx ON sx.episode_id=ax.id WHERE ax.pid=$alias.pid AND sx.therapist_id=$u) OR EXISTS(SELECT 1 FROM patient_therapists pt WHERE pt.pid=$alias.pid AND pt.therapist_id=$u))";}
 function patientAllowed($pid,$kind='profile'):bool{return (bool)q('SELECT p.pid FROM patients p WHERE p.pid=? AND '.patientScope('p',$kind),[$pid])->fetchColumn();}
 function requirePatient($pid):void{if(!patientAllowed($pid)){http_response_code(403);exit('به این پرونده دسترسی ندارید.');}}
 function formScope($alias,$kind='visit'):string{$s=scope('forms.'.$kind);return $s==='all'?'1=1':($s==='own'?$alias.'.created_by='.(int)user()['id']:'1=0');}

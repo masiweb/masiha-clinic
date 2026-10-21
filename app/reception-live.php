@@ -58,7 +58,7 @@ function receptionLiveApi(string $path):void{
      'selection'=>$values,
      'notes'=>$_POST['notes']??'',
      'new_diagnosis'=>$_POST['new_diagnosis']??'',
-     'new_hashtag'=>$_POST['new_hashtag']??''
+     'new_hashtag'=>$_POST['new_hashtag']??'', 'treatment_plan'=>$_POST['treatment_plan']??''
     ]);
    }elseif($action==='visit_state'){
     $target=(string)($_POST['state']??'');

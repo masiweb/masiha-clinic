@@ -54,8 +54,8 @@ function appointmentClinicalAllowed(array $s):bool{return scope('forms.visit')==
 
 function appointmentCatalogSave(string $kind,int $id,string $name,bool $active):void{
  if(!allowed('services'))throw new DomainException('اجازه مدیریت فهرست‌ها را ندارید.');
- $table=match($kind){'visit_type'=>'visit_types','diagnosis'=>'diagnoses',default=>throw new DomainException('نوع فهرست معتبر نیست.')};
- if(trim($name)===''||mb_strlen($name)>($kind==='visit_type'?160:255))throw new DomainException('نام معتبر وارد کنید.');
+ $table=match($kind){'visit_type'=>'visit_types','diagnosis'=>'diagnoses','program'=>'treatment_programs',default=>throw new DomainException('نوع فهرست معتبر نیست.')};
+ if(trim($name)===''||mb_strlen($name)>($kind==='diagnosis'?255:160))throw new DomainException('نام معتبر وارد کنید.');
  if($id){if(!q("SELECT id FROM $table WHERE id=?",[$id])->fetchColumn())throw new DomainException('مورد پیدا نشد.');q("UPDATE $table SET name=?,active=? WHERE id=?",[$name,(int)$active,$id]);}
  else {q("INSERT INTO $table(name,active) VALUES(?,?)",[$name,(int)$active]);$id=(int)q('SELECT LAST_INSERT_ID()')->fetchColumn();}
  audit('catalog_'.$kind.'_saved',$id);
