@@ -1,4 +1,33 @@
 <?php
+/** Expand appointment and patient placeholders for each filtered SMS recipient. */
+function audiencePersonalizedMessage(string $body,int $pid,array $filters):string{
+ $ctx=MasihaSms::context($pid)??[];
+ if(!$ctx)throw new DomainException('مشخصات گیرنده پیدا نشد.');
+ $ctx['start_date']=jd($filters['from'],'yyyy/MM/dd');
+ $ctx['end_date']=jd($filters['to'],'yyyy/MM/dd');
+ if(!empty($filters['therapist'])){
+  $doctor=(string)q('SELECT name FROM staff WHERE id=?',[$filters['therapist']])->fetchColumn();
+  $ctx['therapist']=$doctor;$ctx['doctor_name']=$doctor;
+ }else{
+  $ctx['doctor_name']='پزشکان و درمانگران';
+ }
+ if(!empty($filters['clinic'])){
+  $clinic=(string)q('SELECT name FROM clinics WHERE id=?',[$filters['clinic']])->fetchColumn();
+  if($clinic!==''){$ctx['clinic_name']=$clinic;$ctx['clinic']=$clinic;}
+ }
+ if(!empty($filters['use_visits'])){
+  [$where,$args]=appointmentWhere($filters);
+  $row=q('SELECT s.id'.appointmentJoins().'WHERE '.$where.' AND p.pid=? ORDER BY s.starts_at,s.id LIMIT 1',[...$args,$pid])->fetch();
+  if($row){
+   $visit=MasihaSms::context($pid,(int)$row['id']);
+   if($visit)$ctx=array_replace($ctx,$visit);
+  }
+ }
+ $ctx['start_date']=jd($filters['from'],'yyyy/MM/dd');
+ $ctx['end_date']=jd($filters['to'],'yyyy/MM/dd');
+ return MasihaSms::render($body,$ctx);
+}
+
 function audienceFilters(array $raw):array{
  $f=appointmentFilters($raw);$pid=filter_var($raw['target_pid']??0,FILTER_VALIDATE_INT,['options'=>['min_range'=>0]]);if($pid===false)throw new DomainException('شماره پرونده معتبر نیست.');$f['target_pid']=$pid;$f['use_visits']=($raw['use_visits']??'')==='1';$f['portal']=($raw['portal']??'')==='1';$f['debt']=($raw['debt']??'')==='1';$sex=$raw['sex']??'';if(!is_string($sex)||!in_array($sex,['','male','female','other'],true))throw new DomainException('جنسیت معتبر نیست.');$f['sex']=$sex;
  if($f['debt']&&!allowed('finance.debt'))throw new DomainException('اجازه فیلتر بدهی ندارید.');return $f;
@@ -20,11 +49,15 @@ function audienceQueue(string $id):int{
  global $db;if(!allowed('sms'))throw new DomainException('اجازه مدیریت پیامک ندارید.');if(!MasihaSms::enabled())throw new DomainException('ارسال پیامک غیرفعال است؛ پیش‌نمایش به‌تنهایی ارسال ایجاد نمی‌کند.');
  $db->beginTransaction();try{$p=q('SELECT * FROM sms_audience_previews WHERE id=? AND actor_id=? AND expires_at>NOW() FOR UPDATE',[$id,user()['id']])->fetch();if(!$p)throw new DomainException('پیش‌نمایش منقضی یا متعلق به حساب دیگری است.');if($p['campaign_id']){$db->commit();return (int)$p['campaign_id'];}
   $filters=json_decode($p['filters'],true);if(($filters['debt']||$filters['financial']!=='')&&!allowed('finance.debt'))throw new DomainException('مجوز مالی تغییر کرده است.');if($filters['diagnosis']&&scope('forms.visit')==='none')throw new DomainException('مجوز فرم تغییر کرده است.');$current=audienceRecipients($filters);if(json_encode($current,JSON_THROW_ON_ERROR)!==$p['recipients'])throw new DomainException('مخاطبان یا شماره‌ها تغییر کرده‌اند؛ پیش‌نمایش جدید بگیرید.');if(!$current)throw new DomainException('مخاطبی انتخاب نشده است.');
-  q('INSERT INTO sms_campaigns(title,message,audience,created_by) VALUES(?,?,?,?)',[$p['title'],$p['message'],'filtered',user()['id']]);$campaign=(int)$db->lastInsertId();foreach($current as $r)q("INSERT INTO sms_outbox(pid,event_key,mobile,message,status,scheduled_at,dedupe_key,created_by) VALUES(?,'custom',?,?,'queued',NOW(),?,?)",[$r['pid'],$r['mobile'],$p['message'],hash('sha256','preview|'.$id.'|'.$r['mobile']),user()['id']]);q('UPDATE sms_campaigns SET queued_count=? WHERE id=?',[count($current),$campaign]);q('UPDATE sms_audience_previews SET campaign_id=? WHERE id=?',[$campaign,$id]);audit('sms_audience_queued',$campaign);$db->commit();return $campaign;
+  q('INSERT INTO sms_campaigns(title,message,audience,created_by) VALUES(?,?,?,?)',[$p['title'],$p['message'],'filtered',user()['id']]);$campaign=(int)$db->lastInsertId();foreach($current as $r){
+   $personalized=audiencePersonalizedMessage((string)$p['message'],(int)$r['pid'],$filters);
+   if(trim($personalized)==='')throw new DomainException('متن پیام برای برخی گیرندگان خالی شد.');
+   q("INSERT INTO sms_outbox(pid,event_key,mobile,message,status,scheduled_at,dedupe_key,created_by) VALUES(?,'custom',?,?,'queued',NOW(),?,?)",[$r['pid'],$r['mobile'],$personalized,hash('sha256','preview|'.$id.'|'.$r['mobile']),user()['id']]);
+  }q('UPDATE sms_campaigns SET queued_count=? WHERE id=?',[count($current),$campaign]);q('UPDATE sms_audience_previews SET campaign_id=? WHERE id=?',[$campaign,$id]);audit('sms_audience_queued',$campaign);$db->commit();return $campaign;
  }catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
 }
 function audienceView():void{
  need('sms');layout('sms','مخاطبان پیامک','ابتدا فیلتر و متن را بررسی کنید؛ پیش‌نمایش هیچ پیامی ارسال نمی‌کند.');$id=is_string($_GET['preview']??null)?$_GET['preview']:'';
- if($id){$p=q('SELECT * FROM sms_audience_previews WHERE id=? AND actor_id=? AND expires_at>NOW()',[$id,user()['id']])->fetch();if($p){$rows=json_decode($p['recipients'],true);echo '<section class="panel form-panel"><h2>پیش‌نمایش: '.fa(count($rows)).' شماره یکتا</h2><p>'.nl2br(e($p['message'])).'</p><p>شماره نامعتبر و شماره تکراری حذف شده‌اند. نمونه ۵۰ مخاطب:</p>';foreach(array_slice($rows,0,50) as $r)echo '<p>پرونده '.fa($r['pid']).' · '.e(substr($r['mobile'],0,4).'***'.substr($r['mobile'],-3)).'</p>';formstart('audience_queue');hidden('preview_id',$id);echo '<button class="button primary" '.(!MasihaSms::enabled()?'disabled':'').'>تأیید و قرار دادن همین مخاطبان در صف</button></form></section>';}}
- echo '<section class="panel form-panel">';formstart('audience_preview');field('title','عنوان داخلی','','text','',true);field('message','متن دقیق پیام','','textarea','',true);echo '<div class="form-grid">';field('target_pid','شماره پرونده خاص',(int)($_GET['pid']??0),'number','صفر یعنی همه پرونده‌های مجاز.');selectfield('use_visits','فیلتر بر اساس مراجعه',['0'=>'فقط مشخصات بیمار','1'=>'اعمال فیلتر نوبت‌ها'],0);field('from','از تاریخ',date('Y-m-d'),'date');field('to','تا تاریخ',date('Y-m-d'),'date');selectfield('therapist','درمانگر',['0'=>'همه']+array_filter(therapists()),0);selectfield('state','وضعیت مراجعه',[''=>'همه']+workflowLabels(),'');selectfield('clinic','کلینیک',['0'=>'همه']+options('clinics'),0);field('room','اتاق');selectfield('label','لیبل',['0'=>'همه']+options('labels','deleted=0'),0);selectfield('service','خدمت',['0'=>'همه']+options('services','deleted=0'),0);selectfield('sex','جنسیت',[''=>'همه','male'=>'مرد','female'=>'زن','other'=>'سایر'],'');selectfield('portal','پورتال',['0'=>'همه','1'=>'فقط پورتال فعال'],0);if(allowed('finance.debt'))selectfield('debt','بدهی',['0'=>'همه','1'=>'دارای بدهی بومی یا تاریخی'],0);echo '</div>';formend('ساخت پیش‌نمایش','/sms');echo '</section>';endLayout();
+ if($id){$p=q('SELECT * FROM sms_audience_previews WHERE id=? AND actor_id=? AND expires_at>NOW()',[$id,user()['id']])->fetch();if($p){$rows=json_decode($p['recipients'],true);echo '<section class="panel form-panel"><h2>پیش‌نمایش: '.fa(count($rows)).' شماره یکتا</h2><p>قالب پیام: '.nl2br(e($p['message'])).'</p><p>نمونه شخصی‌سازی: '.nl2br(e($rows?audiencePersonalizedMessage((string)$p['message'],(int)$rows[0]['pid'],json_decode($p['filters'],true)):'—')).'</p><p>شماره نامعتبر و شماره تکراری حذف شده‌اند. نمونه ۵۰ مخاطب:</p>';foreach(array_slice($rows,0,50) as $r)echo '<p>پرونده '.fa($r['pid']).' · '.e(substr($r['mobile'],0,4).'***'.substr($r['mobile'],-3)).'</p>';formstart('audience_queue');hidden('preview_id',$id);echo '<button class="button primary" '.(!MasihaSms::enabled()?'disabled':'').'>تأیید و قرار دادن همین مخاطبان در صف</button></form></section>';}}
+ echo '<section class="panel form-panel">';formstart('audience_preview');field('title','عنوان داخلی','','text','',true);field('message','متن پیام با متغیرها','','textarea','نام: {first_name} · نام خانوادگی: {last_name} · تاریخ: {date} · شروع: {start_date} · پایان: {end_date} · پزشک: {doctor_name} · کلینیک: {clinic_name}',true);echo '<div class="form-grid">';field('target_pid','شماره پرونده خاص',(int)($_GET['pid']??0),'number','صفر یعنی همه پرونده‌های مجاز.');selectfield('use_visits','فیلتر بر اساس مراجعه',['0'=>'فقط مشخصات بیمار','1'=>'اعمال فیلتر نوبت‌ها'],0);field('from','از تاریخ',date('Y-m-d'),'date');field('to','تا تاریخ',date('Y-m-d'),'date');selectfield('therapist','درمانگر',['0'=>'همه']+array_filter(therapists()),0);selectfield('state','وضعیت مراجعه',[''=>'همه']+workflowLabels(),'');selectfield('clinic','کلینیک',['0'=>'همه']+options('clinics'),0);field('room','اتاق');selectfield('label','لیبل',['0'=>'همه']+options('labels','deleted=0'),0);selectfield('service','خدمت',['0'=>'همه']+options('services','deleted=0'),0);selectfield('sex','جنسیت',[''=>'همه','male'=>'مرد','female'=>'زن','other'=>'سایر'],'');selectfield('portal','پورتال',['0'=>'همه','1'=>'فقط پورتال فعال'],0);if(allowed('finance.debt'))selectfield('debt','بدهی',['0'=>'همه','1'=>'دارای بدهی بومی یا تاریخی'],0);echo '</div>';formend('ساخت پیش‌نمایش','/sms');echo '</section>';endLayout();
 }
