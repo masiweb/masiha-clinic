@@ -17,12 +17,15 @@ final class MasihaSms {
   $ctx=[
    'patient_name'=>trim($p['fname'].' '.$p['lname']),
    'first_name'=>(string)$p['fname'],
+   'last_name'=>(string)$p['lname'],
+   'patient_first_name'=>(string)$p['fname'],
+   'patient_last_name'=>(string)$p['lname'],
    'clinic_name'=>setting('name','مدیریت کلینیک مسیحا'),
    'clinic_phone'=>setting('phone',''),
-   'date'=>'','time'=>'','therapist'=>'','service'=>'','clinic'=>''
+   'date'=>'','start_date'=>'','end_date'=>'','time'=>'','therapist'=>'','doctor_name'=>'','service'=>'','clinic'=>''
   ];
   if($sessionId){
-   $s=q("SELECT s.starts_at,s.treatment,u.name therapist_name,COALESCE(c.name,'') clinic_name,COALESCE(v.name,s.treatment,'') service_name
+   $s=q("SELECT s.starts_at,s.ends_at,s.treatment,u.name therapist_name,COALESCE(c.name,'') clinic_name,COALESCE(v.name,s.treatment,'') service_name
          FROM physio_sessions s
          JOIN staff u ON u.id=s.therapist_id
          LEFT JOIN clinics c ON c.id=s.clinic_id
@@ -31,10 +34,14 @@ final class MasihaSms {
          WHERE s.id=? AND e.pid=?",[$sessionId,$pid])->fetch();
    if($s){
     $ctx['date']=jd($s['starts_at'],'yyyy/MM/dd');
+    $ctx['start_date']=$ctx['date'];
+    $ctx['end_date']=jd($s['ends_at'],'yyyy/MM/dd');
     $ctx['time']=fa(date('H:i',strtotime($s['starts_at'])));
     $ctx['therapist']=(string)$s['therapist_name'];
+    $ctx['doctor_name']=$ctx['therapist'];
     $ctx['service']=(string)$s['service_name'];
     $ctx['clinic']=(string)$s['clinic_name'];
+    if($ctx['clinic']!=='')$ctx['clinic_name']=$ctx['clinic'];
    }
   }
   $ctx['_mobile']=MasihaOtp::mobile((string)($p['phone_cell']??''));

@@ -84,7 +84,7 @@ function smsView():void{
  formend('ذخیره تنظیمات پیامک','/sms');
  echo '</section>';
 
- echo '<section class="panel form-panel" id="templates"><div class="panel-header"><h2>قالب‌های خودکار</h2><span class="count">'.fa(count($templates)).'</span></div><p class="hint">متغیرهای قابل استفاده: {patient_name}، {first_name}، {clinic_name}، {clinic_phone}، {date}، {time}، {therapist}، {service}، {clinic}</p>';
+ echo '<section class="panel form-panel" id="templates"><div class="panel-header"><h2>قالب‌های خودکار</h2><span class="count">'.fa(count($templates)).'</span></div><p class="hint">متغیرهای قابل استفاده: {patient_name}، {first_name}، {last_name}، {date}، {start_date}، {end_date}، {time}، {therapist}، {doctor_name}، {clinic_name}، {clinic_phone}، {service}، {clinic}</p>';
  foreach($templates as $t){
   formstart('sms_template_save');hidden('event_key',$t['event_key']);
   echo '<details '.($t['enabled']?'open':'').'><summary><strong>'.e($t['title']).'</strong> · '.($t['enabled']?'فعال':'غیرفعال').'</summary><div class="form-grid">';
@@ -179,7 +179,6 @@ function bookingView():void{
  echo '<section class="panel booking-panel booking-details"><div class="booking-section-heading"><span class="booking-step">۲</span><div><h2>جزئیات نوبت</h2><p>درمانگر را انتخاب کنید و مشخصات نوبت را در ردیف زیر تکمیل کنید.</p></div></div><div class="booking-therapist-row">';
  selectfield('therapist_id','دکتر / درمانگر',therapists(),$defaults['therapist_id']??'','درمانگر ارائه‌دهنده خدمت.',true);
  echo '</div><div class="booking-detail-fields" role="group" tabindex="0" aria-label="مشخصات نوبت؛ برای نمایش همه فیلدها به صورت افقی حرکت کنید">';
- selectfield('visit_type_id','نوع ویزیت',['0'=>'تعیین نشده']+options('visit_types','active=1'),$defaults['visit_type_id']??0);
  echo '<div class="booking-field"'.(displayVisible($bookingDisplay,'booking','service_id')?'':' hidden').'>';
  selectfield('service_id','خدمت',['0'=>'ویزیت بدون خدمت مشخص'],'0');echo '</div>';
  echo '<div class="booking-field"'.(displayVisible($bookingDisplay,'booking','tariff_id')?'':' hidden').'>';

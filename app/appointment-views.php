@@ -27,7 +27,6 @@ function appointmentDashboard():void{
  echo '<div class="reception-grid"><div class="reception-content">';
  if(displayVisible($display,'panels','filters')){
   echo '<section class="panel reception-filters"><form method="get" id="reception-filters"><div class="reception-primary-filters">';
-  selectfield('visit_type','نوع ویزیت',['0'=>'همه ویزیت‌ها']+options('visit_types','active=1'),$f['visit_type']);
   selectfield('room','اتاق',[''=>'همه اتاق‌ها']+array_column(q("SELECT DISTINCT room FROM physio_sessions WHERE room<>'' UNION SELECT name room FROM resources WHERE kind='room'")->fetchAll(),'room','room'),$f['room']);
   selectfield('therapist','درمانگر',['0'=>'همه درمانگران']+array_filter(therapists()),$f['therapist']);
   echo '<button class="button primary small" type="submit">اعمال فیلتر</button></div><div class="reception-status-tabs" aria-label="مرحله مراجعه">';
@@ -88,8 +87,8 @@ function appointmentDashboard():void{
  echo '</div>';endLayout();
 }
 function appointmentCatalogView():void{
- need('services');layout('services','نوع ویزیت و تشخیص‌ها','موارد غیرفعال در سابقه حفظ می‌شوند.');
- foreach(['visit_type'=>['visit_types','نوع ویزیت'],'diagnosis'=>['diagnoses','تشخیص'],'program'=>['treatment_programs','برنامه درمانی']] as $kind=>[$table,$title]){
+ need('services');layout('services','تشخیص‌ها و برنامه‌های درمانی','موارد غیرفعال در سابقه حفظ می‌شوند.');
+ foreach(['diagnosis'=>['diagnoses','تشخیص'],'program'=>['treatment_programs','برنامه درمانی']] as $kind=>[$table,$title]){
   echo '<section class="panel form-panel"><h2>'.e($title).'</h2>';
   foreach(q("SELECT * FROM $table ORDER BY name")->fetchAll() as $row){formstart('appointment_catalog');hidden('kind',$kind);hidden('id',$row['id']);field('name','عنوان',$row['name']);check('active','فعال',(bool)$row['active']);formend('ذخیره','/appointments');}
   formstart('appointment_catalog');hidden('kind',$kind);hidden('id',0);field('name','افزودن '.$title,'','text','',true);check('active','فعال',true);formend('افزودن','/appointments');echo '</section>';
@@ -102,7 +101,7 @@ function appointmentDetailsView():void{
  $version=(int)q('SELECT version FROM visit_workflows WHERE session_id=?',[$id])->fetchColumn();
  layout('appointments','مشخصات مراجعه');formstart('appointment_metadata');hidden('session_id',$id);hidden('workflow_version',$version);
  echo '<section class="panel form-panel"><div class="form-grid">';
- selectfield('visit_type_id','نوع ویزیت',['0'=>'تعیین نشده']+options('visit_types','active=1 OR id='.(int)$s['visit_type_id']),$s['visit_type_id']??0);
+ hidden('visit_type_id',$s['visit_type_id']??0);
  selectfield('room','اتاق',[''=>'بدون اتاق اختصاصی']+array_column(q("SELECT name FROM resources WHERE kind='room' AND active=1")->fetchAll(),'name','name')+($s['room']!==''?[$s['room']=>$s['room']]:[]),$s['room']);
  if(allowed('finance.edit'))selectfield('package_id','پکیج',['0'=>'بدون پکیج']+options('packages','(active=1 AND deleted=0) OR id='.(int)$s['package_id']),$s['package_id']??0);
  echo '</div>';
