@@ -6,7 +6,7 @@ function displayOptions():array{return [
  'columns'=>['patient'=>'اطلاعات مراجعه','time'=>'زمان نوبت','therapist'=>'دکتر / درمانگر','state'=>'وضعیت بیمار','diagnoses'=>'تشخیص اولیه'],
  'clinical'=>['diagnoses'=>'تنظیم نمایش تشخیص‌ها','programs'=>'تنظیم نمایش برنامه‌های درمانی'],
  'panels'=>['filters'=>'فیلترهای نوبت‌ها','stats'=>'آمار نوبت‌ها','labels'=>'هشتگ‌ها','room'=>'اتاق در فهرست نوبت‌ها','shortcuts'=>'میانبرهای نوبت‌ها','timeline'=>'Timeline مراجعه'],
- 'sidebar'=>['dashboard'=>'نمای کلی','appointments'=>'نوبت‌ها','patients'=>'بیماران','episodes'=>'دوره‌های درمان','finance'=>'مالی','reports'=>'گزارش‌ها','staff'=>'همکاران','services'=>'خدمات و پکیج‌ها','inventory'=>'انبار','sms'=>'پیامک','labels'=>'لیبل‌ها','forms'=>'فرم‌ها','resources'=>'اتاق‌ها و تجهیزات','imports'=>'انتقال بقراط','settings'=>'تنظیمات']
+ 'sidebar'=>['dashboard'=>'نمای کلی','appointments'=>'نوبت‌ها','patients'=>'بیماران','episodes'=>'دوره‌های درمان','finance'=>'مالی','reports'=>'گزارش‌ها','staff'=>'همکاران','services'=>'خدمات و برنامه‌های درمانی','inventory'=>'انبار','sms'=>'پیامک','labels'=>'لیبل‌ها','forms'=>'فرم‌ها','resources'=>'اتاق‌ها و تجهیزات','imports'=>'انتقال بقراط','settings'=>'تنظیمات']
 ];}
 function displayDefaults():array{
  $out=[];foreach(displayOptions() as $group=>$items){$n=0;foreach($items as $key=>$title)$out[$group][$key]=['allowed'=>true,'visible'=>true,'locked'=>false,'order'=>++$n];}return $out;

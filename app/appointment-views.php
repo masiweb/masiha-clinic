@@ -58,12 +58,11 @@ function appointmentDashboard():void{
   foreach([''=>'همه']+workflowLabels() as $key=>$label)echo '<a class="status-tab '.($f['state']===$key?'selected':'').'" '.($f['state']===$key?'aria-current="true"':'').' href="'.e($url(['state'=>$key])).'">'.e($label).'</a>';
   echo '</div>';
   hidden('state',$f['state']);
-  $advanced=false;foreach(['service','package','label','hashtag','diagnosis','presence','patient_type','clinic','financial'] as $key)if(!empty($f[$key]))$advanced=true;
+  $advanced=false;foreach(['service','label','hashtag','diagnosis','presence','patient_type','clinic','financial'] as $key)if(!empty($f[$key]))$advanced=true;
   if($f['from']!==$f['to'])$advanced=true;
-  echo '<details class="advanced-filters" '.($advanced?'open':'').'><summary>تاریخ و فیلترهای بیشتر <span>بازه، خدمت، پکیج و مالی</span></summary><div class="form-grid three">';
+  echo '<details class="advanced-filters" '.($advanced?'open':'').'><summary>تاریخ و فیلترهای بیشتر <span>بازه، خدمت، لیبل و مالی</span></summary><div class="form-grid three">';
   field('from','از تاریخ',$f['from'],'date');field('to','تا تاریخ',$f['to'],'date');
   selectfield('service','خدمت / نوع درمان',['0'=>'همه']+options('services','deleted=0'),$f['service']);
-  selectfield('package','پکیج',['0'=>'همه']+options('packages','deleted=0'),$f['package']);
   selectfield('label','لیبل',['0'=>'همه لیبل‌ها']+options('labels','deleted=0'),$f['label']);
   selectfield('hashtag','هشتگ',['0'=>'همه هشتگ‌ها']+options('hashtags','active=1'),$f['hashtag']);
   if(scope('forms.visit')!=='none')selectfield('diagnosis','تشخیص',['0'=>'همه']+options('diagnoses','active=1'),$f['diagnosis']);
@@ -131,7 +130,6 @@ function appointmentDetailsView():void{
  echo '<section class="panel form-panel"><div class="form-grid">';
  hidden('visit_type_id',$s['visit_type_id']??0);
  selectfield('room','اتاق',[''=>'بدون اتاق اختصاصی']+array_column(q("SELECT name FROM resources WHERE kind='room' AND active=1")->fetchAll(),'name','name')+($s['room']!==''?[$s['room']=>$s['room']]:[]),$s['room']);
- if(allowed('finance.edit'))selectfield('package_id','پکیج',['0'=>'بدون پکیج']+options('packages','(active=1 AND deleted=0) OR id='.(int)$s['package_id']),$s['package_id']??0);
  echo '</div>';
  foreach(['hashtags'=>['hashtags','session_hashtags','hashtag_id','هشتگ‌ها'],'diagnoses'=>['diagnoses','session_diagnoses','diagnosis_id','تشخیص‌ها']] as $key=>[$catalog,$table,$column,$title]){
   if($key==='diagnoses'&&((int)$s['therapist_id']!==(int)user()['id']||!can('episodes')))continue;
@@ -193,8 +191,9 @@ function appointmentCell(string $key,array $s,array $display):void{
    if(appointmentClinicalAllowed($s)){receptionDiagnosisSummary($s);}
    else echo '<span class="row-selection-text">—</span>';
    appointmentQuickActions($s);
+   receptionClinicalDock($s,$display);
    break;
-  case 'actions': appointmentQuickActions($s);break;
+  case 'actions': appointmentQuickActions($s);receptionClinicalDock($s,$display);break;
 
  }
 }
@@ -259,20 +258,39 @@ function appointmentInlineLabel(array $s):void{
 /** Lower zones within time, therapist and status columns. */
 function receptionVisitZone(array $s,string $zone):void{
  $id=(int)$s['id'];
- $titles=['diagnoses'=>'۱ · تشخیص‌ها','treatment'=>'۲ · پکیج و برنامه درمانی','therapist'=>'۳ · توضیحات درمانگر'];
+ $titles=['diagnoses'=>'۱ · تشخیص‌ها','treatment'=>'۲ · برنامه‌های درمانی','therapist'=>'۳ · توضیحات درمانگر'];
  echo '<section class="reception-visit-zone reception-visit-zone-'.e($zone).'"><strong class="reception-zone-heading">'.e($titles[$zone]).'</strong>';
  if($zone==='diagnoses'){
-  if(appointmentClinicalAllowed($s))receptionEditor($s,'diagnoses','انتخاب تشخیص');
+  if(appointmentClinicalAllowed($s))receptionDiagnosisSummary($s);
   else echo '<span class="muted">بدون دسترسی به تشخیص</span>';
  }elseif($zone==='treatment'){
-  receptionEditor($s,'packages','پکیج‌ها');
-  if(appointmentClinicalAllowed($s))receptionEditor($s,'programs','برنامه‌های درمانی');
-  receptionTreatmentPlanEditor($s);
+  if(appointmentClinicalAllowed($s)){
+   $programs=displayOrderedClinicalCatalog('programs',q('SELECT tp.id,tp.name FROM treatment_programs tp JOIN session_treatment_programs sp ON sp.program_id=tp.id WHERE sp.session_id=? ORDER BY tp.name',[$id])->fetchAll());
+   echo '<div class="reception-program-summary">'.($programs?e(implode('، ',array_column($programs,'name'))):'<small class="muted">برنامه درمانی ثبت نشده</small>').'</div>';
+   $plan=q('SELECT plan_text FROM session_treatment_plans WHERE session_id=?',[$id])->fetchColumn();
+   if(is_string($plan)&&trim($plan)!=='')echo '<div class="reception-plan-summary">'.nl2br(e($plan)).'</div>';
+  }else echo '<span class="muted">بدون دسترسی به برنامه درمانی</span>';
  }else{
   $note=trim((string)($s['notes']??''));
   echo '<div class="reception-therapist-notes">'.($note!==''?nl2br(e($note)):'<span class="muted">توضیح درمانگر ثبت نشده</span>').'</div>';
   if(appointmentClinicalAllowed($s)&&can('episodes'))
    echo '<a class="reception-therapist-edit" href="/session?id='.$id.'" title="ویرایش توضیحات درمانگر">'.icon('pen').' ویرایش توضیحات</a>';
+ }
+ echo '</section>';
+}
+/** Render clinical controls entirely inside the empty bottom of column five.
+ * No interactive editor belongs in the narrow time/therapist columns. */
+function receptionClinicalDock(array $s,array $display):void{
+ if(!appointmentClinicalAllowed($s))return;
+ $diagnoses=displayVisible($display,'clinical','diagnoses');
+ $programs=displayVisible($display,'clinical','programs');
+ if(!$diagnoses&&!$programs)return;
+ echo '<section class="reception-clinical-dock" aria-label="ویرایش تشخیص و برنامه‌های درمانی">';
+ echo '<strong>ویرایش اطلاعات درمانی</strong>';
+ if($diagnoses)receptionEditor($s,'diagnoses','تشخیص‌ها');
+ if($programs){
+  receptionEditor($s,'programs','برنامه‌های درمانی');
+  receptionTreatmentPlanEditor($s);
  }
  echo '</section>';
 }

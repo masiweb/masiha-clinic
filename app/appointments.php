@@ -11,7 +11,7 @@ function appointmentFilters(array $input):array {
   $f[$k]=$v;
  }
  if($f['to']<$f['from']||strtotime($f['to'])-strtotime($f['from'])>366*86400)throw new DomainException('بازه گزارش باید حداکثر یک سال باشد.');
- foreach(['therapist','clinic','visit_type','service','package','label','hashtag','diagnosis'] as $k){
+ foreach(['therapist','clinic','visit_type','service','label','hashtag','diagnosis'] as $k){
   $v=$input[$k]??'0';if(!is_scalar($v)||!preg_match('/^\d+$/D',(string)$v))throw new DomainException('فیلتر عددی معتبر نیست.');$f[$k]=(int)$v;
  }
  $multi=(string)($input['multi']??'0');
@@ -28,7 +28,6 @@ function appointmentFilters(array $input):array {
 function appointmentWhere(array $f,bool $withState=true):array{
  $where=['s.starts_at>=?','s.starts_at<DATE_ADD(?,INTERVAL 1 DAY)',patientScope('p')];$a=[$f['from'],$f['to']];
  foreach(['therapist'=>'s.therapist_id','clinic'=>'s.clinic_id','visit_type'=>'s.visit_type_id','service'=>'s.service_id'] as $k=>$col)if($f[$k]){$where[]="$col=?";$a[]=$f[$k];}
- if($f['package']){$where[]='(s.package_id=? OR EXISTS(SELECT 1 FROM session_packages sp WHERE sp.session_id=s.id AND sp.package_id=?))';$a[]=$f['package'];$a[]=$f['package'];}
  if($f['room']!==''){$where[]='s.room=?';$a[]=$f['room'];}
  if($withState&&$f['state']!==''){$where[]='w.state=?';$a[]=$f['state'];}
  if($f['label']){$where[]='(s.label_id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=s.id AND sl.label_id=?))';$a[]=$f['label'];$a[]=$f['label'];}
@@ -74,7 +73,7 @@ function appointmentJoins():string{return ' FROM physio_sessions s JOIN physio_e
 function appointmentResults(array $f,int $page=1):array{
  [$where,$a]=appointmentWhere($f);$join=appointmentJoins();
  $count=(int)q('SELECT COUNT(*)'.$join.'WHERE '.$where,$a)->fetchColumn();$page=max(1,min($page,max(1,(int)ceil($count/50))));
- $rows=q("SELECT s.*,p.pid,p.fname,p.lname,ep.diagnosis legacy_diagnosis,w.state workflow_state,COALESCE(w.version,0) workflow_version,u.name therapist_name,vt.name visit_type_name,pk.name package_name,c.name clinic_name".$join."LEFT JOIN staff u ON u.id=s.therapist_id LEFT JOIN visit_types vt ON vt.id=s.visit_type_id LEFT JOIN packages pk ON pk.id=s.package_id LEFT JOIN clinics c ON c.id=s.clinic_id WHERE $where ORDER BY s.starts_at,s.id LIMIT 50 OFFSET ".(($page-1)*50),$a)->fetchAll();
+ $rows=q("SELECT s.*,p.pid,p.fname,p.lname,ep.diagnosis legacy_diagnosis,w.state workflow_state,COALESCE(w.version,0) workflow_version,u.name therapist_name,vt.name visit_type_name,c.name clinic_name".$join."LEFT JOIN staff u ON u.id=s.therapist_id LEFT JOIN visit_types vt ON vt.id=s.visit_type_id LEFT JOIN clinics c ON c.id=s.clinic_id WHERE $where ORDER BY s.starts_at,s.id LIMIT 50 OFFSET ".(($page-1)*50),$a)->fetchAll();
  [$allWhere,$allArgs]=appointmentWhere($f,false);
  $stats=q('SELECT COALESCE(w.state,\'scheduled\') state,COUNT(*) n,COUNT(DISTINCT p.pid) patients'.$join.'WHERE '.$allWhere.' GROUP BY COALESCE(w.state,\'scheduled\')',$allArgs)->fetchAll();
  $patients=(int)q('SELECT COUNT(DISTINCT p.pid)'.$join.'WHERE '.$allWhere,$allArgs)->fetchColumn();
@@ -104,15 +103,9 @@ function appointmentMetadata(int $id,int $version,array $input):void{
   if($room!==$s['room']&&$room!=='')validateResources($room,$s['equipment']);
   $pid=(int)q('SELECT pid FROM physio_episodes WHERE id=?',[$s['episode_id']])->fetchColumn();
   if(conflict($s['starts_at'],$s['ends_at'],$s['therapist_id'],$room,$s['equipment'],$pid,$id))throw new DomainException('اتاق یا زمان نوبت تداخل دارد.');
-  $package=(int)$s['package_id'];
-  if(array_key_exists('package_id',$input)){
-   if(!allowed('finance.edit'))throw new DomainException('اجازه تغییر پکیج را ندارید.');
-   $package=filter_var($input['package_id'],FILTER_VALIDATE_INT,['options'=>['min_range'=>0]]);
-   if($package===false||($package&&(int)$s['package_id']!==$package&&!q('SELECT id FROM packages WHERE id=? AND active=1 AND deleted=0',[$package])->fetchColumn()))throw new DomainException('پکیج فعال انتخاب کنید.');
-  }
-  $before=['visit_type_id'=>$s['visit_type_id'],'room'=>$s['room'],'package_id'=>$s['package_id']];$after=['visit_type_id'=>$type?:null,'room'=>$room,'package_id'=>$package?:null];
-  q('UPDATE physio_sessions SET visit_type_id=?,room=?,package_id=? WHERE id=?',[$type?:null,$room,$package?:null,$id]);
-  if(array_key_exists('package_id',$input)&&(int)$s['package_id']!==$package){q('DELETE FROM session_packages WHERE session_id=?',[$id]);if($package)q('INSERT INTO session_packages(session_id,package_id) VALUES(?,?)',[$id,$package]);}
+  $before=['visit_type_id'=>$s['visit_type_id'],'room'=>$s['room']];
+  $after=['visit_type_id'=>$type?:null,'room'=>$room];
+  q('UPDATE physio_sessions SET visit_type_id=?,room=? WHERE id=?',[$type?:null,$room,$id]);
   $event=['before_appointment'=>$before,'after_appointment'=>$after,'actor_name'=>user()['name']];
   foreach(['diagnoses'=>['session_diagnoses','diagnosis_id','diagnoses'],'labels'=>['session_labels','label_id','labels'],'hashtags'=>['session_hashtags','hashtag_id','hashtags']] as $key=>[$table,$column,$catalog]){
    if(!array_key_exists($key,$input))continue;

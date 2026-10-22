@@ -16,7 +16,7 @@ function receptionSelections(int $id,string $kind):array{
 }
 function receptionUpdate(int $id,int $version,string $kind,array $input):void{
  global $db;
- if(!in_array($kind,['labels','hashtags','diagnoses','packages','programs','plan','notes'],true))throw new DomainException('نوع تغییر معتبر نیست.');
+ if(!in_array($kind,['labels','hashtags','diagnoses','programs','plan','notes'],true))throw new DomainException('نوع تغییر معتبر نیست.');
  $db->beginTransaction();
  try{
   $s=q('SELECT * FROM physio_sessions WHERE id=? FOR UPDATE',[$id])->fetch();
@@ -96,7 +96,7 @@ function receptionEditor(array $s,string $kind,string $title):void{
  if(in_array($kind,['diagnoses','packages','programs'],true)){
   echo '<ul class="reception-selected-values">';foreach($names as $name)echo '<li>'.e($name).'</li>';echo '</ul>';
  }
- ?><details class="row-editor editor-<?=e($kind)?>" data-row-editor><summary aria-label="<?=e($title)?>" title="<?=e($title.($summary!==''?' — '.$summary:''))?>"><span class="editor-symbol" aria-hidden="true"><?= $kind==='hashtags'?'#':icon(match($kind){'diagnoses'=>'heart','packages'=>'box','programs'=>'clipboard-list',default=>'pen'}) ?></span><?php if($kind!=='notes'&&count($selected)): ?><span class="editor-count"><?=fa(count($selected))?></span><?php elseif($summary!==''): ?><span class="editor-dot" aria-hidden="true">•</span><?php endif; ?></summary>
+ ?><details class="row-editor editor-<?=e($kind)?>" data-row-editor><summary aria-label="<?=e($title)?>" title="<?=e($title.($summary!==''?' — '.$summary:''))?>"><span class="editor-symbol" aria-hidden="true"><?= $kind==='hashtags'?'#':icon(match($kind){'diagnoses'=>'heart','packages'=>'box','programs'=>'clipboard-list',default=>'pen'}) ?></span><?php if(in_array($kind,['diagnoses','programs'],true)): ?><span class="reception-editor-title"><?=e($title)?></span><?php endif; ?><?php if($kind!=='notes'&&count($selected)): ?><span class="editor-count"><?=fa(count($selected))?></span><?php elseif($summary!==''): ?><span class="editor-dot" aria-hidden="true">•</span><?php endif; ?></summary>
 
  <form method="post" class="row-editor-body">
  <?php csrf();hidden('action','reception_update');hidden('session_id',$id);hidden('workflow_version',(int)($s['workflow_version']??0));hidden('kind',$kind); ?>

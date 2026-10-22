@@ -5,13 +5,12 @@ declare(strict_types=1);
 function receptionLiveRow(int $id):string{
  $s=q("SELECT s.*,p.pid,p.fname,p.lname,ep.diagnosis legacy_diagnosis,w.state workflow_state,
   COALESCE(w.version,0) workflow_version,u.name therapist_name,vt.name visit_type_name,
-  pk.name package_name,c.name clinic_name
+  c.name clinic_name
   FROM physio_sessions s JOIN physio_episodes ep ON ep.id=s.episode_id
   JOIN patients p ON p.pid=ep.pid
   LEFT JOIN visit_workflows w ON w.session_id=s.id
   LEFT JOIN staff u ON u.id=s.therapist_id
   LEFT JOIN visit_types vt ON vt.id=s.visit_type_id
-  LEFT JOIN packages pk ON pk.id=s.package_id
   LEFT JOIN clinics c ON c.id=s.clinic_id
   WHERE s.id=? AND ".patientScope('p')." LIMIT 1",[$id])->fetch();
  if(!$s)throw new DomainException('این نوبت در دسترس نیست.');
