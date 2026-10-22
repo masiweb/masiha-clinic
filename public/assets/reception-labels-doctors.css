@@ -135,7 +135,7 @@
     overflow-wrap:anywhere;
   }
   body.reception-mode .reception-label-stats .reception-label-stat.selected{
-    box-shadow:0 0 0 2px #5435494a!important;
+    box-shadow:none!important;
     filter:brightness(.9)!important;
   }
   body.reception-mode .reception-label-stats .reception-label-stat strong{
@@ -186,7 +186,7 @@
   }
   body.reception-mode .reception-labels .badge.selected{
     filter:brightness(.86)!important;
-    box-shadow:0 0 0 2px #44303b4d!important;
+    box-shadow:none!important;
   }
   @media(max-width:760px) {
     body.reception-mode .reception-doctor-chips{
