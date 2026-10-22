@@ -79,6 +79,7 @@ mariadb masiha_clinic < "$ROOT/deploy/billing.sql"
 mariadb masiha_clinic < "$ROOT/deploy/operations.sql"
 COPY_STARTED=1
 for dir in app public deploy importer; do cp -a "$ROOT/$dir/." "$TARGET/$dir/"; done
+php "$TARGET/deploy/import-boghrat-catalog.php"
 find "$TARGET/app" "$TARGET/public" -type d -exec chmod 755 {} +
 find "$TARGET/app" "$TARGET/public" -type f -exec chmod 644 {} +
 printf '{"commit":"%s"}\n' "$(git -C "$ROOT" rev-parse HEAD)" > "$TARGET/deploy/release.json"

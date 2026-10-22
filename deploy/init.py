@@ -23,4 +23,5 @@ for d in ['/var/lib/masiha-clinic','/var/lib/masiha-clinic/documents','/var/back
  pathlib.Path(d).mkdir(mode=0o700,exist_ok=True)
 subprocess.run(['chown','-R','www-data:www-data','/var/lib/masiha-clinic'],check=True)
 subprocess.run(['php',str(root/'deploy'/'seed.php')],input=json.dumps(c).encode(),check=True)
+subprocess.run(['php',str(root/'deploy'/'import-boghrat-catalog.php')],check=True)
 print('Standalone database and private configuration ready')

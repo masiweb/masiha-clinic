@@ -143,6 +143,21 @@ function appointmentDetailsView():void{
  echo '</section>';formend('ذخیره با ثبت سابقه','/visit?id='.$id);endLayout();
 }
 
+/** Every staff member can independently choose clinical section visibility
+ * and whether diagnoses or treatment programs appear in the first position. */
+function receptionClinicalZone(array $display,string $slot):?string{
+ $clinical=$display['clinical']??[];
+ $visible=[];
+ foreach(['diagnoses'=>'diagnoses','programs'=>'treatment'] as $option=>$zone){
+  if(($clinical[$option]['visible']??true)===true)$visible[$option]=[
+   'zone'=>$zone,'order'=>(int)($clinical[$option]['order']??($option==='diagnoses'?1:2))
+  ];
+ }
+ uasort($visible,static fn($a,$b)=>$a['order']<=>$b['order']);
+ $ordered=array_values($visible);
+ $index=$slot==='time'?0:1;
+ return $ordered[$index]['zone']??null;
+}
 function appointmentCell(string $key,array $s,array $display):void{
  switch($key){
   case 'patient':
@@ -163,8 +178,8 @@ function appointmentCell(string $key,array $s,array $display):void{
    echo '<div class="reception-admission-text">'.(trim($s['reception_notes']??'')!==''?nl2br(e($s['reception_notes'])):'توضیح پذیرش ثبت نشده').'</div></div>';
    break;
 
-  case 'time': echo '<div class="reception-visit-upper">';$minutes=max(0,(int)ceil((strtotime($s['ends_at'])-strtotime($s['starts_at']))/60));echo '<strong class="reception-time">'.jd($s['starts_at'],'HH:mm').'</strong><small class="reception-duration">مدت ویزیت: '.fa($minutes).' دقیقه</small><small>'.jd($s['starts_at'],'yyyy/MM/dd').'</small>';appointmentInlineLabel($s);echo '</div>';receptionVisitZone($s,'diagnoses');break;
-  case 'therapist': echo '<div class="reception-visit-upper"><span class="reception-therapist">'.icon('users').e($s['therapist_name']).'</span>';if(displayVisible($display,'panels','room'))echo '<small>'.e($s['room']?:'بدون اتاق اختصاصی').'</small>';echo '</div>';receptionVisitZone($s,'treatment');break;
+  case 'time': echo '<div class="reception-visit-upper">';$minutes=max(0,(int)ceil((strtotime($s['ends_at'])-strtotime($s['starts_at']))/60));echo '<strong class="reception-time">'.jd($s['starts_at'],'HH:mm').'</strong><small class="reception-duration">مدت ویزیت: '.fa($minutes).' دقیقه</small><small>'.jd($s['starts_at'],'yyyy/MM/dd').'</small>';appointmentInlineLabel($s);echo '</div>';if($zone=receptionClinicalZone($display,'time'))receptionVisitZone($s,$zone);break;
+  case 'therapist': echo '<div class="reception-visit-upper"><span class="reception-therapist">'.icon('users').e($s['therapist_name']).'</span>';if(displayVisible($display,'panels','room'))echo '<small>'.e($s['room']?:'بدون اتاق اختصاصی').'</small>';echo '</div>';if($zone=receptionClinicalZone($display,'therapist'))receptionVisitZone($s,$zone);break;
   case 'state':
    echo '<div class="reception-visit-upper">';
    $state=$s['workflow_state']??workflowInitialState($s);$next=array_values(array_diff(workflowNextStates()[$state],['visited']));
@@ -262,7 +277,8 @@ function receptionVisitZone(array $s,string $zone):void{
  echo '</section>';
 }
 function receptionDiagnosisSummary(array $s):void{
- $names=q('SELECT d.name FROM diagnoses d JOIN session_diagnoses sd ON sd.diagnosis_id=d.id WHERE sd.session_id=? ORDER BY d.name',[$s['id']])->fetchAll(PDO::FETCH_COLUMN);
+ $rows=displayOrderedClinicalCatalog('diagnoses',q('SELECT d.id,d.name FROM diagnoses d JOIN session_diagnoses sd ON sd.diagnosis_id=d.id WHERE sd.session_id=? ORDER BY d.name',[$s['id']])->fetchAll());
+ $names=array_column($rows,'name');
  if(!$names&&trim((string)($s['legacy_diagnosis']??''))!=='')$names=[$s['legacy_diagnosis']];
  echo '<div class="reception-diagnosis-summary">'.e(implode('، ',$names)?:'—').'</div>';
 }

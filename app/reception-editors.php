@@ -87,7 +87,7 @@ function receptionEditor(array $s,string $kind,string $title):void{
  static $catalogs=[];
  if($kind!=='notes'&&!isset($catalogs[$kind])){
   $catalog=match($kind){'labels'=>'labels','hashtags'=>'hashtags','diagnoses'=>'diagnoses','packages'=>'packages','programs'=>'treatment_programs'};
-  $catalogs[$kind]=q("SELECT id,name,active".($kind==='hashtags'?',color':(in_array($kind,['diagnoses','programs'],true)?'':',deleted'))." FROM $catalog ORDER BY name")->fetchAll();
+  $catalogs[$kind]=displayOrderedClinicalCatalog($kind,q("SELECT id,name,active".($kind==='hashtags'?',color':(in_array($kind,['diagnoses','programs'],true)?'':',deleted'))." FROM $catalog ORDER BY name")->fetchAll());
  }
  $names=[];foreach($catalogs[$kind]??[] as $entry)if(in_array((int)$entry['id'],$selected,true))$names[]=$entry['name'];
  if($kind==='diagnoses'&&!$names&&!empty($s['legacy_diagnosis']))$names[]=$s['legacy_diagnosis'];

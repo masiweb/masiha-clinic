@@ -4,6 +4,7 @@ declare(strict_types=1);
 function displayOptions():array{return [
  'booking'=>['service_id'=>'خدمت','tariff_id'=>'تعرفه','episode_id'=>'دوره درمان','date'=>'ورود دستی تاریخ','time'=>'ورود دستی ساعت'],
  'columns'=>['patient'=>'اطلاعات مراجعه','time'=>'زمان نوبت','therapist'=>'دکتر / درمانگر','state'=>'وضعیت بیمار','diagnoses'=>'تشخیص اولیه'],
+ 'clinical'=>['diagnoses'=>'تنظیم نمایش تشخیص‌ها','programs'=>'تنظیم نمایش برنامه‌های درمانی'],
  'panels'=>['filters'=>'فیلترهای نوبت‌ها','stats'=>'آمار نوبت‌ها','labels'=>'هشتگ‌ها','room'=>'اتاق در فهرست نوبت‌ها','shortcuts'=>'میانبرهای نوبت‌ها','timeline'=>'Timeline مراجعه'],
  'sidebar'=>['dashboard'=>'نمای کلی','appointments'=>'نوبت‌ها','patients'=>'بیماران','episodes'=>'دوره‌های درمان','finance'=>'مالی','reports'=>'گزارش‌ها','staff'=>'همکاران','services'=>'خدمات و پکیج‌ها','inventory'=>'انبار','sms'=>'پیامک','labels'=>'لیبل‌ها','forms'=>'فرم‌ها','resources'=>'اتاق‌ها و تجهیزات','imports'=>'انتقال بقراط','settings'=>'تنظیمات']
 ];}
@@ -15,6 +16,18 @@ function displayPolicy(string $role):array{
  if(!is_array($saved))return $default;
  foreach($default as $group=>&$items)foreach($items as $key=>&$item){$raw=$saved[$group][$key]??[];if(!is_array($raw))continue;foreach(['allowed','visible','locked'] as $prop)if(is_bool($raw[$prop]??null))$item[$prop]=$raw[$prop];if(is_int($raw['order']??null)&&$raw['order']>=1&&$raw['order']<=100)$item['order']=$raw['order'];}unset($items,$item);
  return $default;
+}
+/** Priority is stored per user, never in the shared clinical catalog. */
+function displayOrderedClinicalCatalog(string $kind,array $rows):array{
+ if(!in_array($kind,['diagnoses','programs'],true))return $rows;
+ $priority=displayPreferences()['catalog_order'][$kind]??[];
+ if(!is_array($priority))return $rows;
+ usort($rows,static function($a,$b)use($priority){
+  $x=(int)($priority[(string)$a['id']]??99999);
+  $y=(int)($priority[(string)$b['id']]??99999);
+  return $x===$y?strcasecmp((string)$a['name'],(string)$b['name']):($x<=>$y);
+ });
+ return $rows;
 }
 function displayPreferences():array{
  $value=json_decode(setting('display.user.'.(int)user()['id'],'{}'),true);return is_array($value)?$value:[];
@@ -51,6 +64,23 @@ function displaySave(array $input,bool $policy=false,string $role='',bool $reset
   $out[$group][$key]=['visible'=>isset($raw['visible']),'order'=>$order];
   if($policy)$out[$group][$key]+=['allowed'=>isset($raw['allowed']),'locked'=>isset($raw['locked'])];
  }
+ if(!$policy&&!$reset){
+  $catalog=$input['catalog_order']??[];
+  if(!is_array($catalog))throw new DomainException('ترتیب فهرست‌های درمانی معتبر نیست.');
+  foreach(['diagnoses'=>'diagnoses','programs'=>'treatment_programs'] as $kind=>$table){
+   $list=$catalog[$kind]??[];
+   if(!is_array($list)||count($list)>300)throw new DomainException('فهرست اولویت نامعتبر است.');
+   $valid=array_flip(array_map('intval',q("SELECT id FROM $table WHERE active=1")->fetchAll(PDO::FETCH_COLUMN)));
+   $out['catalog_order'][$kind]=[];
+   foreach($list as $id=>$position){
+    $id=filter_var($id,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
+    if(!is_scalar($position))throw new DomainException('ترتیب معتبر نیست.');
+    $position=filter_var(MasihaOtp::digits((string)$position),FILTER_VALIDATE_INT,['options'=>['min_range'=>1,'max_range'=>500]]);
+    if(!$id||$position===false||!isset($valid[$id]))throw new DomainException('اولویت تشخیص یا برنامه نامعتبر است.');
+    $out['catalog_order'][$kind][(string)$id]=$position;
+   }
+  }
+ }
  $db->beginTransaction();try{
   if($reset)q('DELETE FROM settings WHERE `key`=?',[$storage]);else setsetting($storage,json_encode($out,JSON_THROW_ON_ERROR));
   audit($policy?'display_policy_updated':'display_preferences_updated',(int)user()['id']);$db->commit();
@@ -67,13 +97,30 @@ function displaySettingsView():void{
   foreach(['admin'=>'مدیر','reception'=>'پذیرش','therapist'=>'درمانگر','finance'=>'مالی'] as $key=>$label)echo '<a class="button secondary" href="/display?policy=1&amp;role='.$key.'">پیش‌فرض '.e($label).'</a>';echo '</div>';
  }
  formstart('display_save');hidden('policy',$admin?1:0);hidden('role',$role);
- foreach(displayOptions() as $group=>$items){echo '<section class="panel form-panel"><h2>'.e(['booking'=>'فیلدهای ثبت نوبت','columns'=>'ستون‌های نوبت‌ها','panels'=>'بخش‌های داشبورد و مراجعه','sidebar'=>'منوی کناری'][$group]).'</h2><div class="table-scroll"><table><thead><tr><th>عنوان</th><th>نمایش</th><th>ترتیب</th>'.($admin?'<th>مجاز برای نقش</th><th>قفل مدیر</th>':'<th>وضعیت</th>').'</tr></thead><tbody>';
+ foreach(displayOptions() as $group=>$items){echo '<section class="panel form-panel"><h2>'.e(['booking'=>'فیلدهای ثبت نوبت','columns'=>'ستون‌های نوبت‌ها','clinical'=>'نمایش و ترتیب شخصی تشخیص‌ها و برنامه‌های درمانی','panels'=>'بخش‌های داشبورد و مراجعه','sidebar'=>'منوی کناری'][$group]).'</h2><div class="table-scroll"><table><thead><tr><th>عنوان</th><th>نمایش</th><th>ترتیب</th>'.($admin?'<th>مجاز برای نقش</th><th>قفل مدیر</th>':'<th>وضعیت</th>').'</tr></thead><tbody>';
+  if($group==='clinical')echo '<p class="hint">در فهرست مراجعات، ترتیب ۱ در بخش زیر «زمان نوبت» و ترتیب ۲ در بخش زیر «درمانگر» قرار می‌گیرد. تیک نمایش هر بخش را نیز می‌توانید مستقل تغییر دهید.</p>';
   foreach($items as $key=>$title){$r=$profile[$group][$key];$disabled=!$admin&&($r['locked']||!$r['allowed']);$prefix='display['.$group.']['.$key.']';
    echo '<tr><td>'.e($title).'</td><td><input aria-label="نمایش '.e($title).'" type="checkbox" name="'.$prefix.'[visible]" '.($r['visible']?'checked ':'').($disabled?'disabled':'').'></td><td><input aria-label="ترتیب '.e($title).'" type="number" min="1" max="100" name="'.$prefix.'[order]" value="'.(int)$r['order'].'" '.($disabled?'disabled':'').'></td>';
    if($admin)foreach(['allowed','locked'] as $prop)echo '<td><input aria-label="'.e($prop==='allowed'?'مجاز':'قفل').' '.e($title).'" type="checkbox" name="'.$prefix.'['.$prop.']" '.($r[$prop]?'checked':'').'></td>';
    else echo '<td>'.($disabled?'تعیین‌شده توسط مدیر':'شخصی').'</td>';
    echo '</tr>';
   }echo '</tbody></table></div></section>';
+ }
+ if(!$admin){
+  echo '<section class="panel form-panel"><h2>ترتیب شخصی عناوین بالینی</h2><p class="hint">عدد کوچک‌تر زودتر نمایش داده می‌شود. این ترتیب فقط برای حساب شماست.</p>';
+  foreach(['diagnoses'=>['diagnoses','اولویت تشخیص‌ها'],'programs'=>['treatment_programs','اولویت برنامه‌های درمانی']] as $kind=>[$table,$title]){
+   $entries=displayOrderedClinicalCatalog($kind,q("SELECT id,name FROM $table WHERE active=1 ORDER BY name")->fetchAll());
+   $saved=displayPreferences()['catalog_order'][$kind]??[];
+   echo '<details class="display-catalog-order"><summary>'.e($title).' ('.fa(count($entries)).' عنوان)</summary><div class="display-catalog-order-list">';
+   $position=0;
+   foreach($entries as $entry){
+    $position++;
+    $rank=(int)($saved[(string)$entry['id']]??$position);
+    echo '<label class="display-catalog-order-item"><span>'.e($entry['name']).'</span><input type="number" min="1" max="500" name="display[catalog_order]['.e($kind).']['.(int)$entry['id'].']" value="'.max(1,min(500,$rank)).'" aria-label="اولویت '.e($entry['name']).'"></label>';
+   }
+   echo '</div></details>';
+  }
+  echo '</section>';
  }
  echo '<div class="form-actions"><button class="button primary">ذخیره نمایش</button><button class="button secondary" name="reset" value="1">بازنشانی پیش‌فرض</button><a class="button secondary" href="/appointments">نوبت‌ها</a></div></form>';endLayout();
 }
