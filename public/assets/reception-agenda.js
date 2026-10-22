@@ -36,21 +36,29 @@
     events.append(node('p','reception-agenda-empty','نوبتی برای این روز ثبت نشده است.'));
    }
    for(const appointment of day.appointments){
-    const card=node('a','reception-agenda-event state-'+appointment.state);
-    card.href=appointment.href;
-    const row=node('span','reception-agenda-event-top');
-    row.append(node('strong','',appointment.time));
-    row.append(node('span','',appointment.patient));
-    const bottom=node('span','reception-agenda-event-details');
-    bottom.append(node('span','',appointment.therapist||'بدون درمانگر'));
-    if(appointment.label){
-     const badge=node('span','reception-agenda-event-label',appointment.label);
-     badge.style.backgroundColor=appointment.label_color;
-     bottom.append(badge);
+    const line=node('div','reception-agenda-line state-'+appointment.state);
+    const link=node('a','reception-agenda-line-main');
+    link.href=appointment.href;
+    link.title=appointment.patient+' · '+appointment.therapist+' · '+appointment.status;
+    const time=node('span','reception-agenda-line-time',appointment.time);
+    const patient=node('span','reception-agenda-line-patient',appointment.patient);
+    const badge=node('span','reception-agenda-line-label',appointment.label||'بدون لیبل');
+    if(appointment.label)badge.style.setProperty('--appointment-label-color',appointment.label_color);
+    else badge.classList.add('is-empty');
+    const doctor=node('span','reception-agenda-line-doctor',appointment.therapist||'—');
+    link.append(time,patient,badge,doctor);
+    line.append(link);
+    if(appointment.can_cancel){
+     const del=node('button','reception-agenda-line-delete','×');
+     del.type='button';
+     del.title='حذف نوبت '+appointment.patient+' (لغو با حفظ سابقه)';
+     del.setAttribute('aria-label','حذف نوبت '+appointment.patient);
+     del.addEventListener('click',()=>cancelAppointment(appointment,del));
+     line.append(del);
+    }else{
+     line.append(node('span','reception-agenda-line-status',appointment.status));
     }
-    const status=node('span','reception-agenda-event-status',appointment.status);
-    card.append(row,bottom,status);
-    events.append(card);
+    events.append(line);
    }
    page.append(events);
    const footer=node('div','reception-agenda-page-number',String(index+1));
@@ -58,6 +66,32 @@
    book.append(page);
   }
  };
+ async function cancelAppointment(appointment,button){
+  if(!appointment.can_cancel||button.disabled)return;
+  if(!window.confirm('نوبت «'+appointment.patient+'» در ساعت '+appointment.time+' لغو شود؟\\nسابقه مراجعه و گزارش تغییرات حفظ می‌شوند.'))return;
+  button.disabled=true;
+  button.setAttribute('aria-busy','true');
+  try{
+   const payload=new URLSearchParams({
+    session_id:String(appointment.id),
+    workflow_version:String(appointment.workflow_version),
+    csrf:overlay.dataset.agendaCsrf||''
+   });
+   const response=await fetch('/api/reception/agenda/cancel',{
+    method:'POST',credentials:'same-origin',cache:'no-store',
+    headers:{'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'},
+    body:payload.toString()
+   });
+   const result=await response.json();
+   if(!response.ok||!result.ok)throw Error(result.error||'لغو نوبت انجام نشد.');
+   await refresh();
+  }catch(error){
+   button.disabled=false;
+   button.removeAttribute('aria-busy');
+   const info=node('p','reception-agenda-error',error.message||'لغو نوبت انجام نشد.');
+   book.prepend(info);
+  }
+ }
  async function refresh(){
   if(overlay.hidden)return;
   if(request)request.abort();

@@ -3,11 +3,36 @@ declare(strict_types=1);
 
 /** Read-only, scoped, two-day appointment book. Every row obeys patient-level permissions. */
 function receptionAgendaApi(string $path):void {
- if($path!=='/api/reception/agenda')return;
+ if(!in_array($path,['/api/reception/agenda','/api/reception/agenda/cancel'],true))return;
  header('Content-Type: application/json; charset=utf-8');
  header('Cache-Control: private, no-store');
  try{
   demand('appointments');
+  if($path==='/api/reception/agenda/cancel'){
+   if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST')throw new DomainException('روش درخواست مجاز نیست.');
+   $csrf=$_POST['csrf']??null;
+   if(!is_string($csrf)||!hash_equals((string)($_SESSION['csrf']??''),$csrf)){
+    http_response_code(403);
+    echo json_encode(['ok'=>false,'error'=>'نشست یا کد امنیتی معتبر نیست.'],JSON_UNESCAPED_UNICODE);
+    exit;
+   }
+   $id=filter_var($_POST['session_id']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
+   $version=filter_var($_POST['workflow_version']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>0]]);
+   if(!$id||$version===false||$version===null)throw new DomainException('شناسه یا نسخه نوبت معتبر نیست.');
+   $record=q("SELECT s.id,s.episode_id,s.status,s.therapist_id,
+       COALESCE(w.state,'scheduled') state,COALESCE(w.version,0) workflow_version
+       FROM physio_sessions s LEFT JOIN visit_workflows w ON w.session_id=s.id
+       WHERE s.id=?",[$id])->fetch();
+   if(!$record)throw new DomainException('نوبت پیدا نشد.');
+   workflowAccess(['episode_id'=>$record['episode_id'],'therapist_id'=>$record['therapist_id']]);
+   if($record['status']!=='scheduled'||!in_array($record['state'],['scheduled','referred','waiting'],true))
+    throw new DomainException('این نوبت در وضعیت فعلی قابل حذف نیست.');
+   if((int)$record['workflow_version']!==$version)throw new DomainException('وضعیت نوبت تغییر کرده است؛ صفحه را تازه کنید.');
+   workflowTransition((int)$id,'cancelled',['reason'=>'لغو نوبت از دفتر نوبت‌ها'],$version);
+   MasihaSms::safely(fn()=>MasihaSms::cancelSession((int)$id));
+   echo json_encode(['ok'=>true,'id'=>(int)$id,'message'=>'نوبت لغو شد و سابقه آن حفظ شد.'],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+   exit;
+  }
   if(($_SERVER['REQUEST_METHOD']??'GET')!=='GET')throw new DomainException('فقط مشاهده تقویم مجاز است.');
   $date=$_GET['date']??date('Y-m-d');
   if(!is_string($date)||strlen($date)!==10)throw new DomainException('تاریخ معتبر نیست.');
@@ -20,13 +45,17 @@ function receptionAgendaApi(string $path):void {
   };
   $therapist=$int('therapist');$label=$int('label');
   $next=$day->modify('+2 days')->format('Y-m-d');
-  $where=['s.starts_at>=?','s.starts_at<?',patientScope('p')];
+  $where=['s.starts_at>=?','s.starts_at<?',patientScope('p'),"s.status<>'cancelled'","COALESCE(w.state,'scheduled')<>'cancelled'"];
   $params=[$date,$next];
   if($therapist){$where[]='s.therapist_id=?';$params[]=$therapist;}
   if($label){$where[]='(s.label_id=? OR EXISTS(SELECT 1 FROM session_labels sl WHERE sl.session_id=s.id AND sl.label_id=?))';array_push($params,$label,$label);}
-  $rows=q("SELECT s.id,s.starts_at,s.ends_at,s.status,s.treatment,p.pid,p.fname,p.lname,
+  $rows=q("SELECT s.id,s.starts_at,s.ends_at,s.status,s.treatment,s.therapist_id,
+                 COALESCE(w.version,0) workflow_version,p.pid,p.fname,p.lname,
                  COALESCE(u.name,'') therapist_name,COALESCE(w.state,'scheduled') workflow_state,
-                 COALESCE(l.name,'') label_name,COALESCE(l.color,'#0e7490') label_color
+                 COALESCE(NULLIF(l.name,''),(SELECT lx.name FROM session_labels sx
+                    JOIN labels lx ON lx.id=sx.label_id WHERE sx.session_id=s.id AND lx.deleted=0 ORDER BY lx.name LIMIT 1),'') label_name,
+                 COALESCE(l.color,(SELECT lx.color FROM session_labels sx
+                    JOIN labels lx ON lx.id=sx.label_id WHERE sx.session_id=s.id AND lx.deleted=0 ORDER BY lx.name LIMIT 1),'#64748b') label_color
            FROM physio_sessions s JOIN physio_episodes e ON e.id=s.episode_id
            JOIN patients p ON p.pid=e.pid
            LEFT JOIN staff u ON u.id=s.therapist_id
@@ -54,7 +83,11 @@ function receptionAgendaApi(string $path):void {
     'label_color'=>preg_match('/^#[0-9a-fA-F]{6}$/D',(string)$row['label_color'])?$row['label_color']:'#0e7490',
     'status'=>$states[$row['workflow_state']]??'ثبت‌شده',
     'state'=>(string)$row['workflow_state'],
-    'href'=>'/visit?id='.(int)$row['id']
+    'href'=>'/visit?id='.(int)$row['id'],
+    'workflow_version'=>(int)$row['workflow_version'],
+    'can_cancel'=>$row['status']==='scheduled'
+      && in_array($row['workflow_state'],['scheduled','referred','waiting'],true)
+      && (user()['role']!=='therapist'||(int)$row['therapist_id']===(int)user()['id'])
    ];
   }
   echo json_encode(['ok'=>true,'days'=>array_values($groups)],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
@@ -66,7 +99,7 @@ function receptionAgendaApi(string $path):void {
 function receptionAgendaWidget(array $display,string $selectedDate):void {
  if(!allowed('appointments'))return;
  echo '<button type="button" class="reception-agenda-fab" data-agenda-open aria-haspopup="dialog" aria-controls="reception-agenda-dialog" aria-label="باز کردن تقویم و دفتر نوبت‌ها" title="دفتر نوبت‌ها">'.icon('calendar').'</button>';
- echo '<div id="reception-agenda-dialog" class="reception-agenda-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="reception-agenda-title">';
+ echo '<div id="reception-agenda-dialog" class="reception-agenda-overlay" data-agenda-csrf="'.e($_SESSION['csrf']??'').'" hidden role="dialog" aria-modal="true" aria-labelledby="reception-agenda-title">';
  echo '<div class="reception-agenda-scrim" data-agenda-close></div>';
  echo '<section class="reception-agenda-window" tabindex="-1">';
  echo '<header class="reception-agenda-top"><strong id="reception-agenda-title">دفتر نوبت‌های کلینیک</strong><button type="button" class="reception-agenda-close" data-agenda-close aria-label="بستن تقویم">×</button></header>';

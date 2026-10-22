@@ -1,0 +1,172 @@
+/* Dense Boghrat-inspired appointment-book rows.
+   Prioritize visible appointments over oversized event cards. */
+.reception-agenda-book .reception-agenda-page{
+ padding:9px 19px 22px!important;
+ background-position:0 44px!important;
+ background-size:100% 26px!important;
+}
+.reception-agenda-book .reception-agenda-day{
+ min-height:28px!important;
+ height:28px!important;
+ margin:0 0 4px!important;
+ padding:0 3px 4px!important;
+ flex-shrink:0!important;
+}
+.reception-agenda-book .reception-agenda-day strong{font-size:12px!important}
+.reception-agenda-book .reception-agenda-day span{font-size:10px!important}
+.reception-agenda-book .reception-agenda-events{
+ padding:2px 0 13px!important;
+ scrollbar-width:thin!important;
+ display:block!important;
+}
+.reception-agenda-book .reception-agenda-line{
+ display:grid!important;
+ grid-template-columns:minmax(0,1fr) 23px!important;
+ gap:3px!important;
+ align-items:center!important;
+ min-height:25px!important;
+ height:25px!important;
+ padding:0 2px!important;
+ border:0!important;
+ border-bottom:1px solid #d9dcceaa!important;
+ margin:0!important;
+ border-radius:0!important;
+ background:transparent!important;
+ color:#56565a!important;
+ box-shadow:none!important;
+ transition:background .12s;
+}
+.reception-agenda-book .reception-agenda-line:nth-child(even){
+ background:#ffffff40!important;
+}
+.reception-agenda-book .reception-agenda-line:hover{
+ background:#e8f9fbcb!important;
+}
+.reception-agenda-book .reception-agenda-line.state-cancelled{
+ opacity:.64!important;
+}
+.reception-agenda-book .reception-agenda-line-main{
+ display:grid!important;
+ grid-template-columns:42px minmax(75px,1fr) minmax(38px,max-content) minmax(55px,105px)!important;
+ gap:5px!important;
+ align-items:center!important;
+ min-width:0!important;
+ width:100%!important;
+ height:23px!important;
+ color:#444c4f!important;
+ text-decoration:none!important;
+ font-size:10px!important;
+ line-height:1.4!important;
+ white-space:nowrap!important;
+}
+.reception-agenda-book .reception-agenda-line-main:hover{
+ color:#167f9c!important;
+ text-decoration:none!important;
+}
+.reception-agenda-book .reception-agenda-line-time{
+ font-variant-numeric:tabular-nums!important;
+ font-weight:800!important;
+ font-size:10px!important;
+ color:#cf785a!important;
+ direction:ltr!important;
+ text-align:center!important;
+}
+.reception-agenda-book .reception-agenda-line-patient{
+ display:block!important;
+ min-width:0!important;
+ white-space:nowrap!important;
+ overflow:hidden!important;
+ text-overflow:ellipsis!important;
+ font-size:10.5px!important;
+ font-weight:750!important;
+}
+.reception-agenda-book .reception-agenda-line-label{
+ display:inline-flex!important;
+ justify-self:start!important;
+ align-items:center!important;
+ max-width:110px!important;
+ overflow:hidden!important;
+ text-overflow:ellipsis!important;
+ white-space:nowrap!important;
+ line-height:1.25!important;
+ min-height:18px!important;
+ background:#0e7490!important;
+ color:#fff!important;
+ border:0!important;
+ border-radius:4px!important;
+ padding:2px 5px!important;
+ font-size:9px!important;
+}
+.reception-agenda-book .reception-agenda-line-label:not(.is-empty){
+ background-color:var(--appointment-label-color,#0e7490)!important;
+}
+.reception-agenda-book .reception-agenda-line-label.is-empty{
+ background:#e9e5dd!important;color:#8c8174!important;
+}
+.reception-agenda-book .reception-agenda-line-doctor{
+ min-width:0!important;
+ display:block!important;
+ white-space:nowrap!important;
+ text-overflow:ellipsis!important;
+ overflow:hidden!important;
+ font-size:9px!important;
+ color:#858078!important;
+}
+.reception-agenda-book .reception-agenda-line-delete{
+ display:grid!important;
+ place-items:center!important;
+ width:21px!important;height:21px!important;
+ min-width:21px!important;min-height:21px!important;
+ padding:0!important;
+ border:0!important;
+ border-radius:5px!important;
+ background:#fff0ed!important;
+ color:#c6534d!important;
+ box-shadow:none!important;
+ font-weight:750!important;
+ font-size:17px!important;
+ line-height:1!important;
+ cursor:pointer!important;
+}
+.reception-agenda-book .reception-agenda-line-delete:hover{
+ background:#e65d56!important;color:#fff!important;
+}
+.reception-agenda-book .reception-agenda-line-delete:focus-visible{
+ outline:2px solid #b02e3d!important;
+ outline-offset:1px!important;
+}
+.reception-agenda-book .reception-agenda-line-delete[disabled]{
+ opacity:.4;cursor:wait!important;
+}
+.reception-agenda-book .reception-agenda-line-status{
+ display:block!important;
+ max-width:24px!important;
+ overflow:hidden!important;
+ text-overflow:ellipsis!important;
+ white-space:nowrap!important;
+ color:#9a968c!important;
+ font-size:8px!important;
+}
+.reception-agenda-book .reception-agenda-empty{
+ margin:14px 6px!important;padding:9px!important;
+ font-size:11px!important;
+}
+@media(max-width:850px){
+ .reception-agenda-book .reception-agenda-page{padding:6px 8px 20px!important}
+ .reception-agenda-book .reception-agenda-line-main{
+  grid-template-columns:40px minmax(62px,1fr) minmax(30px,max-content)!important;
+  gap:4px!important;
+ }
+ .reception-agenda-book .reception-agenda-line-doctor{display:none!important}
+}
+@media(max-width:560px){
+ .reception-agenda-book .reception-agenda-line{
+  min-height:32px!important;height:32px!important;
+  grid-template-columns:minmax(0,1fr) 31px!important;
+ }
+ .reception-agenda-book .reception-agenda-line-main{height:30px!important}
+ .reception-agenda-book .reception-agenda-line-delete{
+  width:29px!important;height:29px!important;
+  font-size:19px!important;
+ }
+}
