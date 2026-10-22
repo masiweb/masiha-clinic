@@ -1,8 +1,12 @@
 <?php
 function appointmentDashboard():void{
  need('appointments');
- try{$f=appointmentFilters($_GET);$r=appointmentResults($f,max(1,(int)($_GET['p']??1)));}catch(DomainException $ex){layout('appointments','نوبت‌ها');echo '<p class="notice">'.e($ex->getMessage()).'</p>';endLayout();return;}
  $display=displayEffective();
+ try{
+  $f=appointmentFilters($_GET);
+  if(!displayVisible($display,'panels','room'))$f['room']='';
+  $r=appointmentResults($f,max(1,(int)($_GET['p']??1)));
+ }catch(DomainException $ex){layout('appointments','نوبت‌ها');echo '<p class="notice">'.e($ex->getMessage()).'</p>';endLayout();return;}
  layout('appointments','میز پذیرش · نوبت‌های مراجعین','',true);
  $url=static fn(array $changes)=>'/appointments?'.http_build_query(array_replace($f,$changes));
  echo '<div class="reception-toolbar" aria-label="اقدامات سریع پذیرش"><a class="button primary reception-create" href="/appointment/new">'.icon('plus').' ثبت / نوبت‌دهی</a>';
@@ -65,8 +69,9 @@ function appointmentDashboard():void{
   }
  }
  if(displayVisible($display,'panels','filters')){
-  echo '<section class="panel reception-filters"><form method="get" id="reception-filters"><div class="reception-primary-filters">';
-  selectfield('room','اتاق',[''=>'همه اتاق‌ها']+array_column(q("SELECT DISTINCT room FROM physio_sessions WHERE room<>'' UNION SELECT name room FROM resources WHERE kind='room'")->fetchAll(),'room','room'),$f['room']);
+  $roomVisible=displayVisible($display,'panels','room');
+  echo '<section class="panel reception-filters"><form method="get" id="reception-filters"><div class="reception-primary-filters'.($roomVisible?'':' room-hidden').'">';
+  if($roomVisible)selectfield('room','اتاق',[''=>'همه اتاق‌ها']+array_column(q("SELECT DISTINCT room FROM physio_sessions WHERE room<>'' UNION SELECT name room FROM resources WHERE kind='room'")->fetchAll(),'room','room'),$f['room']);
   selectfield('therapist','درمانگر',['0'=>'همه درمانگران']+array_filter(therapists()),$f['therapist']);
   echo '<button class="button primary small" type="submit">اعمال فیلتر</button></div>';
   echo '<div class="reception-status-tabs" aria-label="مرحله مراجعه">';
@@ -124,7 +129,9 @@ function appointmentDashboard():void{
   if(allowed('services'))echo '<a href="/appointment/catalogs">تشخیص‌ها و برنامه‌های درمانی</a><a href="/resources">اتاق‌ها و تجهیزات</a>';
   echo '</section><section class="panel"><h2>راهنمای پذیرش</h2><p>برای ثبت ورود، انتظار یا ارسال به درمان، «گردش مراجعه» را در ردیف بیمار باز کنید.</p></section></aside>';
  }
- echo '</div>';endLayout();
+ echo '</div>';
+ receptionAgendaWidget($display,$f['from']);
+ endLayout();
 }
 function appointmentCatalogView():void{
  need('services');layout('services','تشخیص‌ها و برنامه‌های درمانی','موارد غیرفعال در سابقه حفظ می‌شوند.');

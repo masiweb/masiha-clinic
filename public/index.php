@@ -1,6 +1,6 @@
 <?php
 require __DIR__.'/../app/bootstrap.php';require __DIR__.'/../app/booking-patient.php';require __DIR__.'/../app/ui.php';require __DIR__.'/../app/actions.php';require __DIR__.'/../app/views.php';require __DIR__.'/../app/admin-actions.php';require __DIR__.'/../app/admin-views.php';require __DIR__.'/../app/admin-api.php';require __DIR__.'/../app/import.php';
-require __DIR__.'/../app/patient-finance.php';require __DIR__.'/../app/bulk-appointments.php';require __DIR__.'/../app/appointment-views.php';require __DIR__.'/../app/reception-live.php';
+require __DIR__.'/../app/patient-finance.php';require __DIR__.'/../app/bulk-appointments.php';require __DIR__.'/../app/reception-agenda.php';require __DIR__.'/../app/appointment-views.php';require __DIR__.'/../app/reception-live.php';
 $path=parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH);$error='';if($path==='/api/ai/form-fill')aiHandleApi();adminApi($path);
 if($path==='/patient-photo')servePatientPhoto();
 if($path==='/logo'){$f=$config['storage'].'/logo.png';if(is_file($f)){header('Content-Type: image/png');readfile($f);}else{header('Content-Type: image/svg+xml');echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>';}exit;}
