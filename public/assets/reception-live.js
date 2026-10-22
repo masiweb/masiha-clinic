@@ -61,17 +61,6 @@
     e.preventDefault();e.stopImmediatePropagation();save(form);
   },true);
 
-  document.addEventListener('change',e=>{
-    const input=e.target;
-    if(!input.matches('[data-reception-date-jump] input[name="from"]'))return;
-    const form=input.form;if(!form||!input.value)return;
-    const to=form.querySelector('[name="to"]');if(to)to.value=input.value;
-    form.requestSubmit();
-  });
-  document.addEventListener('click',e=>{
-    if(!e.target.matches('[data-reception-date-jump] .masiha-jalali-input'))return;
-    e.target.closest('.masiha-date-wrap')?.querySelector('.masiha-date-button')?.click();
-  });
   function updateHashtagFeedback(editor){
     const input=editor.querySelector('[data-smart-hashtag]'),feedback=editor.querySelector('[data-smart-hashtag-feedback]');
     if(!input||!feedback)return;

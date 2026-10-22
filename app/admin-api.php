@@ -68,7 +68,43 @@ function adminApi($path):void{global $config;
   catch(DomainException $ex){http_response_code(403);echo json_encode(['error'=>$ex->getMessage()],JSON_UNESCAPED_UNICODE);}
   catch(Throwable $ex){http_response_code(500);error_log('Masiha timeline '.get_class($ex));echo '{"error":"نمایش سابقه انجام نشد."}';}exit;
  }
- if($path==='/api/patients'){need('patients');$term=mb_substr(MasihaOtp::digits(trim((string)($_GET['q']??''))),0,100);$where='p.active=1 AND '.patientScope();$args=[];if($term!==''){$where.=' AND (CONCAT(p.fname,\' \',p.lname) LIKE ? OR p.national_id LIKE ? OR ('.patientScope('p','contact').' AND p.phone_cell LIKE ?))';$args=array_fill(0,3,'%'.$term.'%');}$rows=q('SELECT p.pid,p.fname,p.lname,p.phone_cell,p.national_id FROM patients p WHERE '.$where.' ORDER BY p.lname LIMIT 15',$args)->fetchAll();$out=[];foreach($rows as $r)$out[]=['id'=>$r['pid'],'name'=>patientName($r),'phone'=>patientAllowed($r['pid'],'contact')?$r['phone_cell']:null,'national_id'=>$r['national_id']];echo json_encode($out,JSON_UNESCAPED_UNICODE);exit;}
+ if($path==='/api/patients'){
+  need('patients');
+  $term=mb_substr(MasihaOtp::digits(trim((string)($_GET['q']??''))),0,100);
+  $day=(string)($_GET['date']??date('Y-m-d'));
+  $when=DateTimeImmutable::createFromFormat('!Y-m-d',$day);
+  if(!$when||$when->format('Y-m-d')!==$day){
+   http_response_code(400);echo '{"error":"تاریخ جستجو معتبر نیست."}';exit;
+  }
+  $where='p.active=1 AND '.patientScope();
+  $args=[];
+  if($term!==''){
+   $where.=' AND (CONCAT(p.fname,\' \',p.lname) LIKE ? OR CAST(p.pid AS CHAR)=? OR p.national_id LIKE ? OR ('.patientScope('p','contact').' AND p.phone_cell LIKE ?))';
+   $args=['%'.$term.'%',$term,'%'.$term.'%','%'.$term.'%'];
+  }
+  $rows=q('SELECT p.pid,p.fname,p.lname,p.phone_cell,p.national_id FROM patients p WHERE '.$where.' ORDER BY p.lname,p.fname LIMIT 15',$args)->fetchAll();
+  $out=[];
+  foreach($rows as $row){
+   $pid=(int)$row['pid'];
+   $session=null;
+   if(allowed('appointments')){
+    $session=q("SELECT s.id FROM physio_sessions s JOIN physio_episodes e ON e.id=s.episode_id
+      WHERE e.pid=? AND s.starts_at>=? AND s.starts_at<DATE_ADD(?,INTERVAL 1 DAY)
+       AND s.status<>'cancelled'
+      ORDER BY s.starts_at,s.id LIMIT 1",[$pid,$day,$day])->fetchColumn();
+   }
+   $out[]=[
+    'id'=>$pid,'name'=>patientName($row),
+    'phone'=>patientAllowed($pid,'contact')?$row['phone_cell']:null,
+    'national_id'=>$row['national_id'],
+    'has_appointment'=>(bool)$session,
+    'href'=>$session?'/appointments?'.http_build_query(['from'=>$day,'to'=>$day,'q'=>(string)$pid]):'/patient?id='.$pid
+   ];
+  }
+  usort($out,static fn($a,$b)=>((int)$b['has_appointment']<=>(int)$a['has_appointment']));
+  header('Cache-Control: private, no-store');
+  echo json_encode($out,JSON_UNESCAPED_UNICODE);exit;
+ }
  if($path==='/api/booking'){need('appointments');$tid=(int)($_GET['therapist']??0);$pid=(int)($_GET['pid']??0);$eps=[];if($pid){requirePatient($pid);$eps=q("SELECT id,diagnosis FROM physio_episodes WHERE pid=? AND status='active' ORDER BY id DESC",[$pid])->fetchAll();}$services=q('SELECT s.id,s.name,s.duration,s.price FROM services s JOIN service_staff x ON x.service_id=s.id WHERE x.staff_id=? AND s.active=1 AND s.deleted=0 ORDER BY s.name',[$tid])->fetchAll();$tariffs=[];if($services){$ids=array_map('intval',array_column($services,'id'));$ph=implode(',',array_fill(0,count($ids),'?'));foreach(q("SELECT id,service_id,tariff_type,title,contract_name,price_toman,effective_from,effective_to FROM service_tariffs WHERE active=1 AND deleted=0 AND service_id IN ($ph) ORDER BY service_id,tariff_type,effective_from DESC,id DESC",$ids)->fetchAll() as $t)$tariffs[(int)$t['service_id']][]=$t;}echo json_encode(['services'=>$services,'episodes'=>$eps,'tariffs'=>$tariffs],JSON_UNESCAPED_UNICODE);exit;}
  http_response_code(404);echo '{}';exit;
 }

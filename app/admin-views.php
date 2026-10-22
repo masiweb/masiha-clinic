@@ -145,7 +145,7 @@ function appearanceView():void{
  <?php
  sectiontitle('کلینیک‌ها','محل مراجعه هنگام ثبت نوبت انتخاب می‌شود. حساب‌ها و گزارش‌ها در این سامانه مشترک‌اند.');foreach(q('SELECT * FROM clinics')->fetchAll() as $v)echo '<div class="resource-row"><strong>'.e($v['name']).'</strong><span>'.e($v['phone']).' · '.($v['active']?'فعال':'غیرفعال').'</span><a href="?id='.$v['id'].'">ویرایش</a></div>';formstart('clinic_save');hidden('id',$id);echo '<div class="form-grid">';field('name','نام کلینیک',$r['name']??'','text','نام محل ارائه خدمت.',true);field('phone','تلفن',$r['phone']??'','tel','شماره تماس پذیرش این محل.');field('address','نشانی',$r['address']??'','textarea','نشانی مراجعه حضوری.',false,true);echo '</div>';check('active','کلینیک فعال',$r['active']??true);formend('ذخیره کلینیک','/appearance');echo '</div></details>';endLayout();
 }
-function liveSearch($picker=false):void{?><div class="live-search" data-live-search <?=$picker?'data-picker':''?>><label>جستجوی مراجعه <?=icon('search')?></label><input type="search" autocomplete="off" placeholder="کد ملی، شماره تلفن، نام یا نام خانوادگی" aria-label="جستجوی زنده مراجعه"><div class="live-results" role="status" hidden></div></div><?php }
+function liveSearch($picker=false,$smart=false):void{?><div class="live-search" data-live-search <?=$picker?'data-picker':''?> <?=$smart?'data-smart-search':''?>><label>جستجو <?=icon('search')?></label><input type="search" autocomplete="off" placeholder="جستجو: نام، نام خانوادگی، موبایل یا کد پرونده" aria-label="جستجو" aria-autocomplete="list" aria-expanded="false"><div class="live-results" role="status" hidden></div></div><?php }
 function bookingView():void{
  need('appointments');
  $defaults=[];$pid=(int)($_GET['pid']??0);$selected=null;

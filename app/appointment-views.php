@@ -9,26 +9,6 @@ function appointmentDashboard():void{
  }catch(DomainException $ex){layout('appointments','نوبت‌ها');echo '<p class="notice">'.e($ex->getMessage()).'</p>';endLayout();return;}
  layout('appointments','میز پذیرش · نوبت‌های مراجعین','',true);
  $url=static fn(array $changes)=>'/appointments?'.http_build_query(array_replace($f,$changes));
- echo '<div class="reception-toolbar" aria-label="اقدامات سریع پذیرش"><a class="button primary reception-create" href="/appointment/new">'.icon('plus').' ثبت / نوبت‌دهی</a>';
- if(can('patients'))echo '<a class="button secondary" href="/patients">'.icon('users').' تمامی مراجعین</a>';
- if(displayVisible($display,'panels','filters'))echo '<a class="button secondary" href="#reception-search">'.icon('search').' جستجوی سریع</a>';
- if((user()['role']??'')==='admin'&&allowed('sms'))echo '<a class="button secondary" href="/sms/appointment-notices">اعلان یا لغو گروهی نوبت‌ها</a>';
- echo '<a class="button secondary refresh-link" href="'.e($url([])).'">بارگذاری مجدد</a></div>';
- echo '<div class="reception-datebar"><strong>برنامه مراجعین</strong><div class="reception-days">';
- foreach([-1=>'روز قبل',1=>'روز بعد'] as $step=>$label){
-  $next=['from'=>date('Y-m-d',strtotime($f['from'].' '.($step>0?'+':'').$step.' day')),'to'=>date('Y-m-d',strtotime($f['to'].' '.($step>0?'+':'').$step.' day'))];
-  if($step===1){
-   echo '<form method="get" action="/appointments" class="reception-date-jump" data-reception-date-jump>';
-   foreach($f as $k=>$value)if(!in_array($k,['from','to'],true))hidden($k,(string)$value);
-   hidden('to',$f['from']);
-   echo '<label for="reception-jump-date">'.icon('calendar').' انتخاب تاریخ مراجعه</label>';
-   echo '<input id="reception-jump-date" type="date" name="from" value="'.e($f['from']).'" required aria-label="انتخاب تاریخ دلخواه از تقویم شمسی">';
-   echo '<button type="submit" class="button secondary small reception-date-apply">نمایش نوبت‌ها</button>';
-   echo '</form>';
-  }
-  echo '<a class="button secondary small" href="'.e($url($next)).'">'.$label.'</a>';
- }
- echo '<a class="text-link" href="'.e($url(['from'=>date('Y-m-d'),'to'=>date('Y-m-d')])).'">امروز</a></div><a class="button secondary small" href="/display">'.icon('settings').' تنظیم نمایش</a></div>';
  echo '<div class="reception-grid"><div class="reception-content">';
  if(displayVisible($display,'panels','filters')){
   $activeDoctors=array_filter(therapists());
@@ -106,9 +86,6 @@ function appointmentDashboard():void{
    echo '<a class="badge '.((int)$f['hashtag']===(int)$tag['id']?'selected':'').'" data-hashtag-color="'.e($tag['color']).'" style="--hashtag-color:'.e(preg_match('/^#[0-9a-fA-F]{6}$/D',(string)$tag['color'])?$tag['color']:'#935475').'" href="'.e($url(['hashtag'=>(int)$f['hashtag']===(int)$tag['id']?0:$tag['id']])).'">#'.e($tag['name']).'</a>';
   echo '</div>';
  }
- if(displayVisible($display,'panels','filters')){
-  echo '<div class="reception-list-search"><label for="reception-search">'.icon('search').' جستجو در نوبت‌ها</label><input id="reception-search" name="q" type="search" form="reception-filters" value="'.e($f['q']).'" placeholder="نام، موبایل یا کد پرونده"><button type="submit" form="reception-filters" class="button secondary small">جستجو</button><a class="text-link" href="/appointments">پاک‌کردن فیلترها</a></div>';
- }
  // The /appointments reception list always displays the five requested columns.
  $columns=['patient','time','therapist','state','diagnoses'];
  echo '<section class="panel reception-list"><div class="panel-header"><h2>فهرست مراجعه</h2><span>'.fa($r['count']).' نوبت</span></div>';
@@ -124,6 +101,10 @@ function appointmentDashboard():void{
  echo '</div></section></div>';
  if(displayVisible($display,'panels','shortcuts')){
   echo '<aside class="reception-tools" aria-label="دسترسی سریع"><section class="panel"><h2>دسترسی سریع</h2><a href="/availability">'.icon('calendar').' زمان‌های آزاد</a><a href="/turn-board">'.icon('users').' تابلو انتظار</a>';
+  if(can('patients'))echo '<a href="/patients">'.icon('users').' تمامی مراجعین</a>';
+  echo '<a href="'.e($url([])).'">'.icon('arrow').' بارگذاری مجدد</a>';
+  if((user()['role']??'')==='admin'&&allowed('sms'))echo '<a href="/sms/appointment-notices">'.icon('calendar').' اعلان و لغو گروهی</a>';
+  echo '<a href="/display">'.icon('settings').' تنظیم نمایش</a>';
   if(allowed('reports.clinical'))echo '<a href="/reports/clinical">'.icon('chart').' گزارش عملکرد</a>';
   if(allowed('appointments.timing'))echo '<a href="/reports/timing">'.icon('chart').' زمان مراجعه</a>';
   if(allowed('services'))echo '<a href="/appointment/catalogs">تشخیص‌ها و برنامه‌های درمانی</a><a href="/resources">اتاق‌ها و تجهیزات</a>';

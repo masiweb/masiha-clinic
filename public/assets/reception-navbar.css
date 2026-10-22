@@ -1,0 +1,169 @@
+/* Persistent clinic search + daily calendar + booking on all authorized pages */
+body .workspace .topbar{
+ position:sticky!important;top:0!important;z-index:73!important;
+ min-height:54px!important;height:54px!important;
+ padding-block:5px!important;
+}
+body .workspace .clinic-reception-bar{
+ position:sticky!important;top:54px!important;z-index:72!important;
+ display:flex!important;align-items:center!important;justify-content:space-between!important;
+ flex-wrap:nowrap!important;gap:10px!important;
+ min-height:60px!important;
+ padding:7px 16px!important;
+ background:#fff!important;border-bottom:1px solid #e5dce2!important;
+ box-shadow:0 3px 9px #2f253017!important;
+ width:100%!important;max-width:100%!important;
+ isolation:isolate!important;
+ overflow:visible!important;
+}
+body .workspace .clinic-main-search{
+ flex:1 1 330px!important;
+ min-width:170px!important;max-width:none!important;
+ display:flex!important;align-items:center!important;
+ order:0;
+}
+body .workspace .clinic-main-search .live-search{
+ width:100%!important;max-width:none!important;
+ flex:1!important;min-width:0!important;margin:0!important;
+ position:relative!important;
+}
+body .workspace .clinic-main-search .live-search>label{
+ display:none!important;
+}
+body .workspace .clinic-main-search .live-search>input{
+ margin:0!important;height:41px!important;min-height:41px!important;
+ font-size:12px!important;
+ border:1px solid #d6dce8!important;
+ border-radius:8px!important;
+ padding:8px 13px!important;
+ background:#f7f9fd!important;
+ width:100%!important;max-width:none!important;
+}
+body .workspace .clinic-main-search .live-search>input:focus{
+ border-color:#7e2953!important;box-shadow:0 0 0 3px #90245415!important;
+}
+body .workspace .clinic-main-search .live-results{
+ z-index:120!important;right:0!important;left:0!important;top:calc(100% + 5px)!important;
+ max-height:min(410px,60dvh)!important;
+ border-radius:9px!important;
+ overflow-y:auto!important;padding:4px!important;
+}
+body .workspace .clinic-smart-result{
+ display:grid!important;
+ grid-template-columns:minmax(0,1fr) auto!important;
+ gap:1px 8px!important;
+ align-items:center!important;
+ padding:9px 10px!important;
+ min-height:51px!important;
+ text-decoration:none!important;
+}
+body .workspace .clinic-smart-result strong{
+ font-size:12px!important;color:#433444!important
+}
+body .workspace .clinic-smart-result small{
+ grid-column:1!important;font-size:10px!important;color:#77808e!important;
+}
+body .workspace .clinic-search-context{
+ background:#edeff3;color:#66718b;
+ border-radius:6px;padding:3px 6px;font-size:10px!important;white-space:nowrap;
+}
+body .workspace .clinic-search-context.has-visit{
+ background:#e1f6ea;color:#207c4c;
+}
+body .workspace .clinic-nav-date{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ gap:5px!important;flex:0 1 auto!important;min-width:0!important;
+ direction:rtl;white-space:nowrap!important;
+}
+body .workspace .clinic-nav-day{
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ border:1px solid #ead7e0!important;background:#fff6f9!important;
+ padding:7px 9px!important;font-size:11px!important;
+ font-weight:700!important;color:#831540!important;
+ border-radius:7px!important;min-height:38px!important;
+ text-decoration:none!important;
+}
+body .workspace .clinic-nav-day:hover{
+ background:#f5dee9!important;
+}
+body .workspace .clinic-nav-today{
+ background:#f0f4f8!important;color:#456079!important;
+ border-color:#d8e3eb!important;
+}
+body .workspace .clinic-nav-date-form{
+ margin:0!important;display:flex!important;align-items:center!important;
+ border:1px solid #d9cfdf!important;background:#fbf6f9!important;
+ padding:3px 4px!important;border-radius:8px!important;
+ min-height:39px!important;min-width:153px!important;
+}
+body .workspace .clinic-nav-date-form .masiha-date-wrap{
+ display:flex!important;align-items:center!important;gap:4px!important;
+ min-width:0!important;
+}
+body .workspace .clinic-nav-date-form .masiha-jalali-input{
+ width:111px!important;min-width:95px!important;
+ min-height:31px!important;height:31px!important;
+ padding:4px 6px!important;text-align:center!important;
+ border:0!important;background:transparent!important;
+ border-radius:5px!important;font-size:12px!important;color:#841d46!important;
+ cursor:pointer;
+}
+body .workspace .clinic-nav-date-form .masiha-date-button{
+ font-size:10px!important;min-height:30px!important;height:30px!important;
+ min-width:42px!important;padding:4px 6px!important;
+ border:1px solid #d0e3ef!important;border-radius:6px!important;
+ background:#edf7fb!important;color:#276682!important;
+}
+body .workspace .clinic-nav-date-form .masiha-datepicker{
+ position:absolute!important;z-index:130!important;
+ width:310px!important;max-height:min(490px,78dvh)!important;
+ overflow-y:auto!important;
+ box-shadow:0 16px 36px #341e3d33!important;
+}
+body .workspace .clinic-nav-book{
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ min-height:40px!important;min-width:104px!important;
+ padding:8px 14px!important;white-space:nowrap!important;
+ font-size:12px!important;border-radius:8px!important;
+ background:#30ad60!important;color:#fff!important;border-color:#22934e!important;
+ box-shadow:none!important;flex-shrink:0!important;
+}
+body .workspace .clinic-nav-book svg{
+ width:16px!important;height:16px!important
+}
+body .workspace .clinic-nav-book:hover{
+ background:#218c4b!important;color:#fff!important
+}
+body.reception-mode .page-heading{display:none!important;}
+body .workspace .page-heading>.button[href="/appointment/new"]{display:none!important;}
+/* The former appointment-only search/date/toolbar is gone; leave clinical filters unchanged. */
+body.reception-mode .reception-grid{margin-top:5px!important}
+@media(max-width:1050px){
+ body .workspace .clinic-reception-bar{
+  flex-wrap:wrap!important;
+  justify-content:center!important;
+  gap:6px!important;padding:7px 10px!important;
+ }
+ body .workspace .clinic-main-search{flex:1 1 230px!important;}
+ body .workspace .clinic-nav-date{flex:0 1 auto!important;}
+}
+@media(max-width:650px){
+ body .workspace .topbar{height:58px!important;min-height:58px!important;}
+ body .workspace .clinic-reception-bar{
+  top:58px!important;
+  display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;
+  grid-template-areas:"search book" "calendar calendar";
+  padding:7px 8px!important;gap:6px!important;
+ }
+ body .workspace .clinic-main-search{grid-area:search;min-width:0!important;}
+ body .workspace .clinic-nav-date{grid-area:calendar;justify-content:center!important;gap:4px!important;}
+ body .workspace .clinic-nav-book{grid-area:book;min-width:0!important;min-height:40px!important;padding:6px 9px!important;font-size:11px!important;}
+ body .workspace .clinic-nav-day{padding:6px!important;font-size:10px!important;min-height:34px!important;}
+ body .workspace .clinic-nav-date-form{min-width:135px!important;}
+ body .workspace .clinic-nav-date-form .masiha-jalali-input{min-width:82px!important;width:95px!important;font-size:11px!important}
+ body .workspace .clinic-nav-date-form .masiha-date-button{min-width:38px!important;font-size:9px!important;}
+ body .workspace .clinic-main-search .live-search>input{font-size:14px!important;}
+}
+@media print{
+ body .workspace .clinic-reception-bar{display:none!important}
+}
