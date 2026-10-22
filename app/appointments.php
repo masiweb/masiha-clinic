@@ -14,6 +14,9 @@ function appointmentFilters(array $input):array {
  foreach(['therapist','clinic','visit_type','service','package','label','hashtag','diagnosis'] as $k){
   $v=$input[$k]??'0';if(!is_scalar($v)||!preg_match('/^\d+$/D',(string)$v))throw new DomainException('فیلتر عددی معتبر نیست.');$f[$k]=(int)$v;
  }
+ $multi=(string)($input['multi']??'0');
+ if(!in_array($multi,['0','1'],true))throw new DomainException('فیلتر مراجعه چندنوبتی معتبر نیست.');
+ $f['multi']=(int)$multi;
  foreach(['q','room','state','presence','patient_type','financial'] as $k){$v=$input[$k]??'';if(!is_string($v)||mb_strlen($v)>100)throw new DomainException('فیلتر معتبر نیست.');$f[$k]=trim(MasihaOtp::digits($v));}
  if($f['state']!==''&&!isset(workflowLabels()[$f['state']]))throw new DomainException('مرحله مراجعه معتبر نیست.');
  if(!in_array($f['presence'],['','present','not_arrived'])||!in_array($f['patient_type'],['','new','returning'])||!in_array($f['financial'],['','debt','settled']))throw new DomainException('فیلتر معتبر نیست.');
@@ -34,11 +37,38 @@ function appointmentWhere(array $f,bool $withState=true):array{
   $clinical=scope('forms.visit')==='all'?'1=1':'(s.therapist_id='.(int)user()['id'].' OR s.created_by='.(int)user()['id'].')';
   $where[]="($clinical AND EXISTS(SELECT 1 FROM session_diagnoses sd WHERE sd.session_id=s.id AND sd.diagnosis_id=?))";$a[]=$f['diagnosis'];
  }
+ if($f['multi']){
+  $where[]="s.status<>'cancelled' AND COALESCE(w.state,'scheduled')<>'cancelled'
+   AND EXISTS(SELECT 1 FROM physio_sessions sm
+      JOIN physio_episodes em ON em.id=sm.episode_id
+      LEFT JOIN visit_workflows wm ON wm.session_id=sm.id
+      WHERE em.pid=p.pid AND DATE(sm.starts_at)=DATE(s.starts_at)
+        AND sm.status<>'cancelled' AND COALESCE(wm.state,'scheduled')<>'cancelled'
+      GROUP BY em.pid HAVING COUNT(DISTINCT sm.id)>1)";
+ }
  if($f['presence']!=='')$where[]='w.arrived_at IS '.($f['presence']==='present'?'NOT ':'').'NULL';
  if($f['patient_type']!=='')$where[]=($f['patient_type']==='new'?'NOT ':'')."(EXISTS(SELECT 1 FROM physio_sessions previous JOIN physio_episodes pe ON pe.id=previous.episode_id WHERE pe.pid=p.pid AND previous.status='done' AND previous.starts_at<s.starts_at) OR EXISTS(SELECT 1 FROM import_patient_events ie JOIN import_records ir ON ir.id=ie.record_id WHERE ir.pid=p.pid AND ie.status_code='done' AND ie.event_date<DATE(s.starts_at)))";
  if($f['q']!==''){$where[]="(CONCAT(p.fname,' ',p.lname) LIKE ? OR CAST(p.pid AS CHAR)=? OR (".patientScope('p','contact')." AND p.phone_cell LIKE ?))";array_push($a,'%'.$f['q'].'%',$f['q'],'%'.$f['q'].'%');}
  if($f['financial']!=='')$where[]="(ep.fee_toman-(SELECT COALESCE(SUM(amount_toman),0) FROM physio_payments pay WHERE pay.episode_id=ep.id AND pay.voided=0))".($f['financial']==='debt'?'>0':'<=0');
  return [implode(' AND ',$where),$a];
+}
+/** Count unique patients with two or more non-cancelled appointments on at least one
+ * day in the selected range. Appointments with different doctors count together. */
+function appointmentMultipleVisitPatientCount(array $f):int{
+ $scope=patientScope('p');
+ return (int)q("SELECT COUNT(DISTINCT repeated.pid) FROM (
+   SELECT ep.pid
+   FROM physio_sessions s
+   JOIN physio_episodes ep ON ep.id=s.episode_id
+   JOIN patients p ON p.pid=ep.pid
+   LEFT JOIN visit_workflows w ON w.session_id=s.id
+   WHERE s.starts_at>=? AND s.starts_at<DATE_ADD(?,INTERVAL 1 DAY)
+     AND $scope
+     AND s.status<>'cancelled'
+     AND COALESCE(w.state,'scheduled')<>'cancelled'
+   GROUP BY ep.pid,DATE(s.starts_at)
+   HAVING COUNT(DISTINCT s.id)>1
+ ) repeated",[$f['from'],$f['to']])->fetchColumn();
 }
 function appointmentJoins():string{return ' FROM physio_sessions s JOIN physio_episodes ep ON ep.id=s.episode_id JOIN patients p ON p.pid=ep.pid LEFT JOIN visit_workflows w ON w.session_id=s.id ';}
 function appointmentResults(array $f,int $page=1):array{

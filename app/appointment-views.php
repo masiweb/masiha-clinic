@@ -27,10 +27,49 @@ function appointmentDashboard():void{
  echo '<a class="text-link" href="'.e($url(['from'=>date('Y-m-d'),'to'=>date('Y-m-d')])).'">امروز</a></div><a class="button secondary small" href="/display">'.icon('settings').' تنظیم نمایش</a></div>';
  echo '<div class="reception-grid"><div class="reception-content">';
  if(displayVisible($display,'panels','filters')){
+  $activeDoctors=array_filter(therapists());
+  $firstDoctors=array_slice($activeDoctors,0,4,true);
+  $otherDoctors=array_slice($activeDoctors,4,null,true);
+  echo '<nav class="reception-doctor-chips" aria-label="انتخاب پزشک یا درمانگر"><strong>پزشکان معالج:</strong>';
+  echo '<a class="reception-doctor-chip '.(!(int)$f['therapist']?'active':'').'" href="'.e($url(['therapist'=>0])).'">'.icon('users').' همه پزشکان</a>';
+  foreach($firstDoctors as $doctorId=>$doctorName){
+   echo '<a class="reception-doctor-chip '.((int)$f['therapist']===(int)$doctorId?'active':'').'" href="'.e($url(['therapist'=>(int)$doctorId])).'">'.icon('heart').' '.e($doctorName).'</a>';
+  }
+  $openMore=array_key_exists((int)$f['therapist'],$otherDoctors);
+   echo '<details class="reception-doctor-more" '.($openMore?'open':'').'><summary>بیشتر '.icon('menu').'</summary><div class="reception-doctor-extra">';
+   foreach($activeDoctors as $doctorId=>$doctorName)
+    echo '<a class="reception-doctor-chip '.((int)$f['therapist']===(int)$doctorId?'active':'').'" href="'.e($url(['therapist'=>(int)$doctorId])).'">'.icon('heart').' '.e($doctorName).'</a>';
+   echo '</div></details>';
+  echo '</nav>';
+ }
+ if(displayVisible($display,'panels','labels')){
+  $labelFilters=$f;$labelFilters['label']=0;
+  [$labelWhere,$labelArgs]=appointmentWhere($labelFilters,false);
+  $labelCounts=q("SELECT l.id,l.name,l.color,COUNT(*) n
+    FROM labels l JOIN physio_sessions s ON s.label_id=l.id
+    JOIN physio_episodes ep ON ep.id=s.episode_id
+    JOIN patients p ON p.pid=ep.pid LEFT JOIN visit_workflows w ON w.session_id=s.id
+    WHERE l.active=1 AND l.deleted=0 AND ".$labelWhere."
+    GROUP BY l.id,l.name,l.color ORDER BY n DESC,l.name",$labelArgs)->fetchAll();
+  $multiCount=appointmentMultipleVisitPatientCount($f);
+  if($labelCounts||$multiCount||(int)$f['multi']){
+   echo '<nav class="reception-label-stats" aria-label="آمار لیبل نوبت‌ها">';
+   foreach($labelCounts as $row){
+    $selected=(int)$f['label']===(int)$row['id'];
+    echo '<a class="reception-label-stat '.($selected?'selected':'').'" style="--label-color:'.e($row['color']).'"
+      href="'.e($url(['label'=>$selected?0:(int)$row['id']])).'">'
+      .e($row['name']).' <strong>'.fa($row['n']).'</strong></a>';
+   }
+   echo '<a class="reception-label-stat reception-multiple-stat '.((int)$f['multi']?'selected':'').'" href="'.e($url(['multi'=>(int)$f['multi']?0:1])).'" title="بیمارانی که در یک روز بیش از یک نوبت دارند">مراجعه چندنوبتی <strong>'.fa($multiCount).'</strong></a>';
+   echo '</nav>';
+  }
+ }
+ if(displayVisible($display,'panels','filters')){
   echo '<section class="panel reception-filters"><form method="get" id="reception-filters"><div class="reception-primary-filters">';
   selectfield('room','اتاق',[''=>'همه اتاق‌ها']+array_column(q("SELECT DISTINCT room FROM physio_sessions WHERE room<>'' UNION SELECT name room FROM resources WHERE kind='room'")->fetchAll(),'room','room'),$f['room']);
   selectfield('therapist','درمانگر',['0'=>'همه درمانگران']+array_filter(therapists()),$f['therapist']);
-  echo '<button class="button primary small" type="submit">اعمال فیلتر</button></div><div class="reception-status-tabs" aria-label="مرحله مراجعه">';
+  echo '<button class="button primary small" type="submit">اعمال فیلتر</button></div>';
+  echo '<div class="reception-status-tabs" aria-label="مرحله مراجعه">';
   foreach([''=>'همه']+workflowLabels() as $key=>$label)echo '<a class="status-tab '.($f['state']===$key?'selected':'').'" '.($f['state']===$key?'aria-current="true"':'').' href="'.e($url(['state'=>$key])).'">'.e($label).'</a>';
   echo '</div>';
   hidden('state',$f['state']);
@@ -55,26 +94,6 @@ function appointmentDashboard():void{
   foreach(['absent'=>'غایب','waiting'=>'در انتظار','cancelled'=>'کنسل‌شده','in_service'=>'در حال ویزیت','visited'=>'ویزیت‌شده','discharged'=>'ترخیصی'] as $k=>$title)
    echo '<a class="summary-chip state-'.e($k).'" href="'.e($url(['state'=>$k])).'"><strong>'.fa($stats[$k]).'</strong> '.e($title).'</a>';
   echo '</section>';
- }
- if(displayVisible($display,'panels','labels')){
-  $labelFilters=$f;$labelFilters['label']=0;
-  [$labelWhere,$labelArgs]=appointmentWhere($labelFilters,false);
-  $labelCounts=q("SELECT l.id,l.name,l.color,COUNT(*) n
-    FROM labels l JOIN physio_sessions s ON s.label_id=l.id
-    JOIN physio_episodes ep ON ep.id=s.episode_id
-    JOIN patients p ON p.pid=ep.pid LEFT JOIN visit_workflows w ON w.session_id=s.id
-    WHERE l.active=1 AND l.deleted=0 AND ".$labelWhere."
-    GROUP BY l.id,l.name,l.color ORDER BY n DESC,l.name",$labelArgs)->fetchAll();
-  if($labelCounts){
-   echo '<nav class="reception-label-stats" aria-label="آمار لیبل نوبت‌ها">';
-   foreach($labelCounts as $row){
-    $selected=(int)$f['label']===(int)$row['id'];
-    echo '<a class="reception-label-stat '.($selected?'selected':'').'" style="--label-color:'.e($row['color']).'"
-      href="'.e($url(['label'=>$selected?0:(int)$row['id']])).'">'
-      .e($row['name']).' <strong>'.fa($row['n']).'</strong></a>';
-   }
-   echo '</nav>';
-  }
  }
  if(displayVisible($display,'panels','labels')){
   echo '<div class="reception-labels" aria-label="هشتگ‌های مراجعین">';

@@ -1,0 +1,204 @@
+/* The doctor/label/hashtag ribbons match the user's Boghrat screenshots.
+   Appended after all earlier reception style sheets. */
+@media screen {
+  body.reception-mode .reception-doctor-chips {
+    display:flex!important;
+    justify-content:center!important;
+    align-items:center!important;
+    flex-wrap:wrap!important;
+    gap:5px!important;
+    width:100%!important;
+    min-height:43px!important;
+    padding:7px 9px!important;
+    margin:0 0 6px!important;
+    background:#f7ecdc!important;
+    border:0!important;
+    border-radius:4px!important;
+    text-align:center!important;
+    overflow:visible!important;
+  }
+  body.reception-mode .reception-doctor-chips>strong {
+    font-size:11px!important;
+    color:#795548!important;
+    font-weight:750!important;
+    margin:0 5px!important;
+    white-space:nowrap;
+  }
+  body.reception-mode .reception-doctor-chips .reception-doctor-chip{
+    display:inline-flex!important;
+    justify-content:center!important;
+    align-items:center!important;
+    gap:5px!important;
+    min-height:27px!important;
+    max-width:235px;
+    padding:4px 8px!important;
+    border:0!important;
+    border-radius:7px!important;
+    background:#fff!important;
+    color:#825c4b!important;
+    opacity:1!important;
+    font-size:11px!important;
+    line-height:1.5!important;
+    text-decoration:none!important;
+    box-shadow:none!important;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  body.reception-mode .reception-doctor-chips .reception-doctor-chip.active {
+    background:#efd19f!important;
+    color:#633f2d!important;
+    box-shadow:0 0 0 1px #e3bd83 inset!important;
+  }
+  body.reception-mode .reception-doctor-chips .reception-doctor-chip:hover {
+    background:#f4dfbc!important;
+  }
+  body.reception-mode .reception-doctor-more{
+    display:inline-block;
+    position:relative;
+    margin:0!important;
+    min-width:0;
+  }
+  body.reception-mode .reception-doctor-more>summary {
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:5px!important;
+    min-height:27px!important;
+    padding:4px 9px!important;
+    cursor:pointer!important;
+    list-style:none!important;
+    border:0!important;
+    border-radius:7px!important;
+    color:#725545!important;
+    background:#f2d3ac!important;
+    font-size:11px!important;
+    font-weight:800!important;
+  }
+  body.reception-mode .reception-doctor-more>summary::-webkit-details-marker{display:none!important}
+  body.reception-mode .reception-doctor-more>summary svg {
+    width:13px!important;height:13px!important;
+  }
+  body.reception-mode .reception-doctor-more[open]>summary{
+    background:#eac18e!important;
+  }
+  body.reception-mode .reception-doctor-extra {
+    position:absolute!important;
+    z-index:110!important;
+    top:calc(100% + 6px)!important;
+    inset-inline-end:0!important;
+    display:flex!important;
+    flex-wrap:wrap!important;
+    justify-content:center!important;
+    align-items:center!important;
+    gap:6px!important;
+    width:min(600px,calc(100vw - 48px))!important;
+    max-height:260px!important;
+    overflow-y:auto!important;
+    border:1px solid #e7d1b4!important;
+    border-radius:9px!important;
+    background:#fff8ee!important;
+    padding:12px!important;
+    box-shadow:0 10px 30px #623e2426!important;
+    text-align:center!important;
+  }
+  /* Labels: keep their original colors, no outline or joined segmentation. */
+  body.reception-mode .reception-label-stats {
+    justify-content:center!important;
+    align-items:center!important;
+    flex-wrap:wrap!important;
+    text-align:center!important;
+    gap:5px!important;
+    margin:0 0 5px!important;
+    padding:8px 7px!important;
+    min-height:41px!important;
+  }
+  body.reception-mode .reception-label-stats .reception-label-stat,
+  body.reception-mode .reception-label-stats .reception-label-stat:first-child,
+  body.reception-mode .reception-label-stats .reception-label-stat:last-child{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:5px!important;
+    background:var(--label-color,#a15b85)!important;
+    color:#fff!important;
+    border:none!important;
+    border-left:none!important;
+    outline:none!important;
+    border-radius:6px!important;
+    min-height:26px!important;
+    padding:3px 6px!important;
+    font-size:11px!important;
+    line-height:1.4!important;
+    font-weight:750!important;
+    box-shadow:none!important;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  body.reception-mode .reception-label-stats .reception-label-stat.selected{
+    box-shadow:0 0 0 2px #5435494a!important;
+    filter:brightness(.9)!important;
+  }
+  body.reception-mode .reception-label-stats .reception-label-stat strong{
+    color:#fff!important;
+    background:#ffffff34!important;
+    border:0!important;
+    border-radius:4px!important;
+    font-size:10px!important;
+    min-width:19px!important;
+    line-height:1.35!important;
+    padding:1px 4px!important;
+  }
+  body.reception-mode .reception-label-stats .reception-multiple-stat,
+  body.reception-mode .reception-label-stats .reception-multiple-stat:first-child,
+  body.reception-mode .reception-label-stats .reception-multiple-stat:last-child{
+    background:#6553b7!important;
+  }
+  body.reception-mode .reception-labels{
+    display:flex!important;
+    justify-content:center!important;
+    align-items:center!important;
+    flex-wrap:wrap!important;
+    text-align:center!important;
+    gap:5px!important;
+    width:100%;
+    margin:0 0 6px!important;
+    padding:5px 7px!important;
+    min-height:34px!important;
+  }
+  body.reception-mode .reception-labels .badge,
+  body.reception-mode .reception-labels .badge.selected{
+    display:inline-flex!important;
+    justify-content:center!important;
+    align-items:center!important;
+    border:0!important;
+    outline:0!important;
+    background:var(--hashtag-color,#a15b85)!important;
+    color:#fff!important;
+    border-radius:6px!important;
+    padding:3px 6px!important;
+    font-size:11px!important;
+    font-weight:700!important;
+    line-height:1.4!important;
+    box-shadow:none!important;
+    max-width:min(400px,100%);
+    white-space:normal!important;
+    overflow-wrap:anywhere;
+  }
+  body.reception-mode .reception-labels .badge.selected{
+    filter:brightness(.86)!important;
+    box-shadow:0 0 0 2px #44303b4d!important;
+  }
+  @media(max-width:760px) {
+    body.reception-mode .reception-doctor-chips{
+      flex-wrap:wrap!important;
+      overflow:visible!important;
+    }
+    body.reception-mode .reception-label-stats{
+      flex-wrap:wrap!important;
+      overflow:visible!important;
+    }
+    body.reception-mode .reception-doctor-extra{
+      width:min(460px,calc(100vw - 30px))!important;
+    }
+  }
+}
