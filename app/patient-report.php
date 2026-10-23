@@ -110,9 +110,9 @@ function patientReportView():void {
  foreach($r['history'] as $item)echo '<tr><td>'.jd($item['event_date'],'yyyy/MM/dd').'</td><td>'.e($item['practitioner']?:'—').'</td><td>'.e($item['status']?:'—').'</td><td>'.e(patientReportExtract($item['services'])).'</td><td>'.e(patientReportExtract($item['goods'])).'</td><td>'.money($item['service_cost_toman']).'</td><td>'.money($item['goods_cost_toman']).'</td><td>'.money($item['discounts_toman']).'</td><td>'.money($item['payments_toman']).'</td></tr>';
  if(!$r['history'])echo '<tr><td colspan="9">مراجعه‌ای ثبت نشده است.</td></tr>';echo '</tbody></table></div></section>';
  if($r['unlinked']){echo '<section class="panel"><h2>کالاهای تحویلی بدون اتصال به نوبت</h2><div class="table-scroll"><table><thead><tr><th>تاریخ</th><th>کالا</th><th>تعداد</th><th>ارزش</th></tr></thead><tbody>';foreach($r['unlinked'] as $g)echo '<tr><td>'.jd($g['occurred_on']).'</td><td>'.e($g['name']).'</td><td>'.fa(abs((float)$g['quantity_delta'])).'</td><td>'.money(abs((int)$g['total_toman'])).'</td></tr>';echo '</tbody></table></div></section>';}
- echo '<section class="panel"><h2>پرداخت‌ها</h2><div class="table-scroll"><table><thead><tr><th>تاریخ</th><th>منبع</th><th>نوبت/دوره</th><th>مبلغ</th></tr></thead><tbody>';
- foreach($r['payments'] as $v)echo '<tr><td>'.jd($v['created_at'],'yyyy/MM/dd HH:mm').'</td><td>مسیحا</td><td>'.fa($v['episode_id']).'</td><td>'.money($v['amount_toman']).'</td></tr>';
- foreach($r['importPays'] as $v)echo '<tr><td>'.jd($v['tx_date']).'</td><td>بقراط</td><td>'.fa($v['appointment_code']?:'—').'</td><td>'.money($v['amount_toman']).'</td></tr>';
+ echo '<section class="panel"><h2>پرداخت‌ها</h2><div class="table-scroll"><table><thead><tr><th>تاریخ</th><th>نوبت/دوره</th><th>مبلغ</th></tr></thead><tbody>';
+ foreach($r['payments'] as $v)echo '<tr><td>'.jd($v['created_at'],'yyyy/MM/dd HH:mm').'</td><td>'.fa($v['episode_id']).'</td><td>'.money($v['amount_toman']).'</td></tr>';
+ foreach($r['importPays'] as $v)echo '<tr><td>'.jd($v['tx_date']).'</td><td>'.fa($v['appointment_code']?:'—').'</td><td>'.money($v['amount_toman']).'</td></tr>';
  echo '</tbody></table></div></section>';endLayout();
 }
 function patientReportExport(array $f,array $r):never {

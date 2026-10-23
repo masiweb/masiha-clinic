@@ -60,24 +60,24 @@ def pdf_render(doc):
         f'<div>تخفیف<b>{clean(meta["discount"])}</b></div>',
         '</section>',
         '<h2>ریز نوبت‌ها، خدمات و اقلام تحویلی</h2><table><thead><tr>']
-    heads=["تاریخ","منبع","پزشک/درمانگر","وضعیت","خدمت و برنامه درمانی","کالا/تجهیزات","مبلغ خدمت","مبلغ کالا","تخفیف","پرداخت"]
-    widths=[10,6,9,7,24,19,7,6,6,6]
+    heads=["تاریخ","پزشک/درمانگر","وضعیت","خدمت و برنامه درمانی","کالا/تجهیزات","مبلغ خدمت","مبلغ کالا","تخفیف","پرداخت"]
+    widths=[11,12,9,26,20,7,5,5,5]
     for h,w in zip(heads,widths):
         out.append(f'<th style="width:{w}%">{clean(h)}</th>')
     out.append('</tr></thead><tbody>')
     for x in sections["visits"]:
-        vals=[x["date"],x["source"],x["doctor"],x["status"],x["service"],x["goods"],x["service_amount"],x["goods_amount"],x["discount"],x["payment"]]
+        vals=[x["date"],x["doctor"],x["status"],x["service"],x["goods"],x["service_amount"],x["goods_amount"],x["discount"],x["payment"]]
         out.append('<tr>')
         for i,v in enumerate(vals):
-            out.append(f'<td class="{"numbers" if i>=6 else ""}">{amount(v) if i>=6 else clean(v)}</td>')
+            out.append(f'<td class="{"numbers" if i>=5 else ""}">{amount(v) if i>=5 else clean(v)}</td>')
         out.append('</tr>')
     if not sections["visits"]:
-        out.append('<tr><td colspan="10">مراجعه‌ای در این بازه ثبت نشده است.</td></tr>')
-    out.append('</tbody></table><h2>ریز دریافت‌ها و پرداخت‌ها</h2><table><thead><tr><th style="width:15%">تاریخ</th><th style="width:13%">منبع</th><th style="width:14%">شماره دوره / نوبت</th><th>شرح</th><th style="width:18%">مبلغ (تومان)</th></tr></thead><tbody>')
+        out.append('<tr><td colspan="9">مراجعه‌ای در این بازه ثبت نشده است.</td></tr>')
+    out.append('</tbody></table><h2>ریز دریافت‌ها و پرداخت‌ها</h2><table><thead><tr><th style="width:18%">تاریخ</th><th style="width:22%">شماره دوره / نوبت</th><th>شرح</th><th style="width:20%">مبلغ (تومان)</th></tr></thead><tbody>')
     for x in sections["payments"]:
-        out.append('<tr>'+''.join(f'<td class="{"numbers" if i==4 else ""}">{amount(v) if i==4 else clean(v)}</td>' for i,v in enumerate([x["date"],x["source"],x["reference"],x["description"],x["amount"]]))+'</tr>')
+        out.append('<tr>'+''.join(f'<td class="{"numbers" if i==3 else ""}">{amount(v) if i==3 else clean(v)}</td>' for i,v in enumerate([x["date"],x["reference"],x["description"],x["amount"]]))+'</tr>')
     if not sections["payments"]:
-        out.append('<tr><td colspan="5">پرداختی در این بازه ثبت نشده است.</td></tr>')
+        out.append('<tr><td colspan="4">پرداختی در این بازه ثبت نشده است.</td></tr>')
     out.append('</tbody></table><h2>جمع‌بندی حساب مراجع</h2><div class="sum">')
     for label,key in totals:
         klass="emph" if key in ("balance","debt","credit") else ""
@@ -108,57 +108,57 @@ def xlsx_render(doc):
     info=book.add_format({'font_name':'Arial','font_size':10,'font_color':'#596477','text_wrap':True,'valign':'vcenter','align':'right'})
     w=book.add_worksheet('صورتحساب')
     w.right_to_left()
-    for col,width in enumerate([16,12,19,17,44,37,19,18,17,17]):
+    for col,width in enumerate([17,22,17,45,42,19,18,17,17]):
         w.set_column(col,col,width)
     w.set_landscape();w.fit_to_pages(1,0);w.set_paper(9);w.repeat_rows(10);w.freeze_panes(11,0)
     w.set_header('&Cگزارش محرمانه خدمات درمانی')
     w.set_footer('&Rصفحه &P از &N')
     w.set_row(0,27);w.set_row(1,27)
-    w.merge_range('A1:J2','صورتحساب و ریز خدمات درمانی مراجع',title)
+    w.merge_range('A1:I2','صورتحساب و ریز خدمات درمانی مراجع',title)
     meta=doc['meta']
-    w.merge_range('A3:J3',str(meta['clinic'])+' | تاریخ تهیه: '+str(meta['issue_date']),info)
+    w.merge_range('A3:I3',str(meta['clinic'])+' | تاریخ تهیه: '+str(meta['issue_date']),info)
     w.merge_range('A5:C5','مراجع: '+str(meta['patient']),val)
     w.merge_range('D5:F5','شماره پرونده: '+str(meta['pid']),val)
-    w.merge_range('G5:J5','دوره: '+str(meta['from'])+' تا '+str(meta['to']),val)
+    w.merge_range('G5:I5','دوره: '+str(meta['from'])+' تا '+str(meta['to']),val)
     w.merge_range('A6:F6','مبنای گزارش: '+str(meta['mode']),key)
-    w.merge_range('G6:J6','تخفیف: '+str(meta['discount']),key)
-    w.merge_range('A9:J9','ریز نوبت‌ها، خدمات و تجهیزات تحویلی',section)
-    heads=['تاریخ','منبع','پزشک / درمانگر','وضعیت','شرح خدمات / برنامه درمانی','کالا و تجهیزات','مبلغ خدمات / جلسه','مبلغ کالا','تخفیف','پرداخت']
+    w.merge_range('G6:I6','تخفیف: '+str(meta['discount']),key)
+    w.merge_range('A9:I9','ریز نوبت‌ها، خدمات و تجهیزات تحویلی',section)
+    heads=['تاریخ','پزشک / درمانگر','وضعیت','شرح خدمات / برنامه درمانی','کالا و تجهیزات','مبلغ خدمات / جلسه','مبلغ کالا','تخفیف','پرداخت']
     for col,h in enumerate(heads):w.write(10,col,h,head)
     row=11
     for i,x in enumerate(doc['sections']['visits']):
         w.set_row(row,34)
-        cols=[x['date'],x['source'],x['doctor'],x['status'],x['service'],x['goods'],x['service_amount'],x['goods_amount'],x['discount'],x['payment']]
+        cols=[x['date'],x['doctor'],x['status'],x['service'],x['goods'],x['service_amount'],x['goods_amount'],x['discount'],x['payment']]
         for col,v in enumerate(cols):
-            f=(fmt_money if i%2==0 else fmt_money_alt) if col>=6 else (value if i%2==0 else alt)
-            if col>=6:w.write_number(row,col,int(v or 0),f)
+            f=(fmt_money if i%2==0 else fmt_money_alt) if col>=5 else (value if i%2==0 else alt)
+            if col>=5:w.write_number(row,col,int(v or 0),f)
             else:w.write_string(row,col,str(v if v is not None else ''),f)
         row+=1
     if row==11:
-        w.merge_range(row,0,row,9,'نوبتی در بازه انتخابی یافت نشد.',info);row+=1
+        w.merge_range(row,0,row,8,'نوبتی در بازه انتخابی یافت نشد.',info);row+=1
     row+=2
-    w.merge_range(row,0,row,9,'جمع‌بندی حساب (تومان)',section);row+=1
+    w.merge_range(row,0,row,8,'جمع‌بندی حساب (تومان)',section);row+=1
     for label,key_name in [('مانده ابتدای دوره','opening'),('هزینه دوره‌ها','billed'),('پرداخت داخلی','paid'),('بدهکار بقراط','legacy_debit'),('بستانکار بقراط','legacy_credit'),('تخفیف ثبت‌شده','discount'),('اثر حذف تخفیف','adjust'),('تغییر خالص دوره','change'),('بدهی','debt'),('بستانکاری','credit'),('مانده نهایی حساب','balance')]:
         w.merge_range(row,0,row,5,label,sum_key)
-        w.merge_range(row,6,row,9,int(doc['summary'].get(key_name,0)),sum_val)
+        w.merge_range(row,6,row,8,int(doc['summary'].get(key_name,0)),sum_val)
         row+=1
     row+=2
-    w.merge_range(row,0,row+1,9,'نکته: جمع صورتحساب از حساب دوره‌ها و دفتر مالی محاسبه شده است. مبالغ جلسه، کالا و سوابق پرداخت بقراط صرفاً برای اطلاع نمایش داده می‌شوند و مجدداً در مانده حساب منظور نمی‌شوند. تغییر وضعیت تخفیف فقط محاسبه نمایشی این گزارش را عوض می‌کند.',info)
-    w.print_area(0,0,row+1,9)
+    w.merge_range(row,0,row+1,8,'نکته: جمع صورتحساب از حساب دوره‌ها و دفتر مالی محاسبه شده است. مبالغ جلسه، کالا و سوابق پرداخت بقراط صرفاً برای اطلاع نمایش داده می‌شوند و مجدداً در مانده حساب منظور نمی‌شوند. تغییر وضعیت تخفیف فقط محاسبه نمایشی این گزارش را عوض می‌کند.',info)
+    w.print_area(0,0,row+1,8)
     payments=book.add_worksheet('ریز پرداخت‌ها')
     payments.right_to_left();payments.set_landscape();payments.fit_to_pages(1,0)
-    for i,width in enumerate([20,18,23,59,24]):payments.set_column(i,i,width)
-    payments.merge_range(0,0,1,4,'ریز دریافت‌ها و پرداخت‌های مراجع',title)
-    for col,h in enumerate(['تاریخ','منبع','شماره دوره / نوبت','شرح','مبلغ (تومان)']):payments.write(3,col,h,head)
+    for i,width in enumerate([20,24,65,23]):payments.set_column(i,i,width)
+    payments.merge_range(0,0,1,3,'ریز دریافت‌ها و پرداخت‌های مراجع',title)
+    for col,h in enumerate(['تاریخ','شماره دوره / نوبت','شرح','مبلغ (تومان)']):payments.write(3,col,h,head)
     row=4
     for i,pay in enumerate(doc['sections']['payments']):
-        items=[pay['date'],pay['source'],pay['reference'],pay['description'],pay['amount']]
+        items=[pay['date'],pay['reference'],pay['description'],pay['amount']]
         for col,item in enumerate(items):
-            f=(fmt_money if i%2==0 else fmt_money_alt) if col==4 else (value if i%2==0 else alt)
-            if col==4:payments.write_number(row,col,int(item or 0),f)
+            f=(fmt_money if i%2==0 else fmt_money_alt) if col==3 else (value if i%2==0 else alt)
+            if col==3:payments.write_number(row,col,int(item or 0),f)
             else:payments.write_string(row,col,str(item if item is not None else ''),f)
         row+=1
-    if row==4:payments.merge_range(row,0,row,4,'پرداختی در بازه انتخابی ثبت نشده است.',info)
+    if row==4:payments.merge_range(row,0,row,3,'پرداختی در بازه انتخابی ثبت نشده است.',info)
     payments.freeze_panes(4,0)
     book.close();return mem.getvalue()
 

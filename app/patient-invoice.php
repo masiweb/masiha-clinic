@@ -114,13 +114,13 @@ function patientInvoiceCsv(array $document,int $pid):never{
  $write(['مراجع',$m['patient'],'شماره پرونده',$m['pid']]);
  $write(['از تاریخ',$m['from'],'تا تاریخ',$m['to'],'مبنای گزارش',$m['mode'],'تخفیف',$m['discount']]);
  $write([]);$write(['ریز نوبت‌ها و خدمات']);
- $write(['تاریخ','منبع','شماره نوبت','درمانگر','وضعیت','خدمات و برنامه‌های درمانی','تجهیزات','مبلغ خدمات/جلسه (تومان)','ارزش کالای تحویلی (تومان)','تخفیف','پرداخت']);
+ $write(['تاریخ','شماره نوبت','درمانگر','وضعیت','خدمات و برنامه‌های درمانی','تجهیزات','مبلغ خدمات/جلسه (تومان)','ارزش کالای تحویلی (تومان)','تخفیف','پرداخت']);
  foreach($document['sections']['visits'] as $x){
-  $write([$x['date'],$x['source'],$x['code'],$x['doctor'],$x['status'],$x['service'],$x['goods'],$x['service_amount'],$x['goods_amount'],$x['discount'],$x['payment']]);
+  $write([$x['date'],$x['code'],$x['doctor'],$x['status'],$x['service'],$x['goods'],$x['service_amount'],$x['goods_amount'],$x['discount'],$x['payment']]);
  }
  $write([]);$write(['ریز دریافت‌ها و پرداخت‌ها']);
- $write(['تاریخ','منبع','دوره/نوبت','شرح','مبلغ (تومان)']);
- foreach($document['sections']['payments'] as $x)$write([$x['date'],$x['source'],$x['reference'],$x['description'],$x['amount']]);
+ $write(['تاریخ','دوره/نوبت','شرح','مبلغ (تومان)']);
+ foreach($document['sections']['payments'] as $x)$write([$x['date'],$x['reference'],$x['description'],$x['amount']]);
  $write([]);$write(['جمع‌بندی حساب','مبلغ (تومان)']);
  foreach(['مانده ابتدای دوره'=>'opening','هزینه دوره درمان'=>'billed','پرداخت داخلی'=>'paid',
           'بدهکار بقراط'=>'legacy_debit','بستانکار بقراط'=>'legacy_credit',
