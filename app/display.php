@@ -111,12 +111,22 @@ function displaySettingsView():void{
   foreach(['diagnoses'=>['diagnoses','اولویت تشخیص‌ها'],'programs'=>['treatment_programs','اولویت برنامه‌های درمانی']] as $kind=>[$table,$title]){
    $entries=displayOrderedClinicalCatalog($kind,q("SELECT id,name FROM $table WHERE active=1 ORDER BY name")->fetchAll());
    $saved=displayPreferences()['catalog_order'][$kind]??[];
-   echo '<details class="display-catalog-order"><summary>'.e($title).' ('.fa(count($entries)).' عنوان)</summary><div class="display-catalog-order-list">';
+   echo '<details class="display-catalog-order"><summary>'.e($title).' ('.fa(count($entries)).' عنوان)</summary>';
+   if($kind==='programs')echo '<p class="hint">برای تغییر اولویت، هر برنامه را از دستگیره بکشید و در جای جدید رها کنید. در موبایل از کلیدهای بالا و پایین هم می‌توانید استفاده کنید؛ سپس «ذخیره نمایش» را بزنید.</p>';
+   echo '<div class="display-catalog-order-list" '.($kind==='programs'?'data-program-sortable="true"':'').'>';
    $position=0;
    foreach($entries as $entry){
     $position++;
     $rank=(int)($saved[(string)$entry['id']]??$position);
-    echo '<label class="display-catalog-order-item"><span>'.e($entry['name']).'</span><input type="number" min="1" max="500" name="display[catalog_order]['.e($kind).']['.(int)$entry['id'].']" value="'.max(1,min(500,$rank)).'" aria-label="اولویت '.e($entry['name']).'"></label>';
+    if($kind==='programs'){
+     echo '<div class="display-catalog-order-item display-program-sort-item" data-program-item draggable="true" data-program-id="'.(int)$entry['id'].'">';
+     echo '<button type="button" class="program-drag-handle" aria-label="کشیدن '.e($entry['name']).'" title="برای جابه‌جایی بکشید">⠿</button>';
+     echo '<span class="program-sort-rank">'.fa($position).'</span><span class="program-sort-name">'.e($entry['name']).'</span>';
+     echo '<button type="button" class="program-move-up" aria-label="انتقال '.e($entry['name']).' به بالا" title="بالا">↑</button><button type="button" class="program-move-down" aria-label="انتقال '.e($entry['name']).' به پایین" title="پایین">↓</button>';
+     echo '<input type="number" min="1" max="500" name="display[catalog_order][programs]['.(int)$entry['id'].']" value="'.max(1,min(500,$rank)).'" aria-label="اولویت '.e($entry['name']).'"></div>';
+    }else{
+     echo '<label class="display-catalog-order-item"><span>'.e($entry['name']).'</span><input type="number" min="1" max="500" name="display[catalog_order]['.e($kind).']['.(int)$entry['id'].']" value="'.max(1,min(500,$rank)).'" aria-label="اولویت '.e($entry['name']).'"></label>';
+    }
    }
    echo '</div></details>';
   }
