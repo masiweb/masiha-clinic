@@ -24,4 +24,5 @@ for d in ['/var/lib/masiha-clinic','/var/lib/masiha-clinic/documents','/var/back
 subprocess.run(['chown','-R','www-data:www-data','/var/lib/masiha-clinic'],check=True)
 subprocess.run(['php',str(root/'deploy'/'seed.php')],input=json.dumps(c).encode(),check=True)
 subprocess.run(['php',str(root/'deploy'/'import-boghrat-catalog.php')],check=True)
+subprocess.run(['bash',str(root/'deploy'/'install-report-exporter.sh')],check=True)
 print('Standalone database and private configuration ready')

@@ -75,7 +75,7 @@ function patientReportDetails(array $f):array {
 function patientReportView():void {
  demand('reports');try{$f=patientReportInput();$r=$f['pid']?patientReportDetails($f):['people'=>patientReportList($f)];}
  catch(DomainException $ex){layout('reports','گزارش مراجعین');echo '<p class="notice">'.e($ex->getMessage()).'</p>';endLayout();return;}
- if($f['pid']&&($_GET['export']??'')==='csv'){patientReportExport($f,$r);return;}
+ if($f['pid']&&in_array(($_GET['export']??''),['pdf','xlsx','csv'],true)){patientInvoiceExport($f,$r,(string)$_GET['export']);return;}
  layout('reports','گزارش کامل مراجعین','نوبت‌ها، روند درمان، خدمات، تجهیزات، پرداخت‌ها و مانده مالی بیماران.');
  echo '<div class="actions"><a href="/reports" class="button secondary">گزارش مالی مجموعه</a><a href="/reports/clinical" class="button secondary">گزارش درمانگران</a></div>';
  echo '<section class="panel form-panel"><form method="get" action="/reports/patients"><div class="form-grid three">';
@@ -92,7 +92,11 @@ function patientReportView():void {
   if($page>=1&&$page<=$r['people']['pages'])
    echo '<a class="button secondary" href="/reports/patients?'.e(http_build_query(array_replace($f,['p'=>$page]))).'">'.e($title).'</a>';
  echo '<span>'.fa($r['people']['total']).' مراجع · صفحه '.fa($r['people']['page']).' از '.fa($r['people']['pages']).'</span></div></section>';endLayout();return;}
- $s=$r['summary'];echo '<section class="panel"><div class="panel-header"><h2>'.e(patientName($r['person'])).' · پرونده '.fa($f['pid']).'</h2><a class="button secondary" href="?'.e(http_build_query(array_merge($f,['export'=>'csv']))).'">خروجی CSV</a></div>';
+ $s=$r['summary'];echo '<section class="panel"><div class="panel-header"><h2>'.e(patientName($r['person'])).' · پرونده '.fa($f['pid']).'</h2><div class="actions">';
+ foreach(['pdf'=>'دانلود فاکتور PDF','xlsx'=>'دانلود اکسل','csv'=>'دانلود CSV'] as $format=>$title){
+  echo '<a class="button secondary" href="/reports/patients?'.e(http_build_query(array_merge($f,['export'=>$format]))).'">'.e($title).'</a>';
+ }
+ echo '</div></div>';
  echo '<p class="hint">مبالغ به تومان است؛ بهای جلسه و کالا صرفاً اطلاعاتی است و روی صورتحساب دوره دوباره محاسبه نمی‌شود. پرداخت‌های وارداتی بقراط نیز در مانده دفتر بقراط منظور شده‌اند.</p></section>';
  echo '<div class="stats-grid three">';foreach(['مانده ابتدا'=>$s['opening'],'هزینه دوره‌های درمان'=>$s['billed'],'پرداخت داخلی'=>$s['paid'],'بدهکار دفتر بقراط'=>$s['legacy_debit'],'بستانکار دفتر بقراط'=>$s['legacy_credit'],'تخفیف'=>$s['discount'],'اثر فرضی حذف تخفیف'=>$s['adjust'],'تغییرات بازه'=>$s['change'],'بدهی'=>$s['debt'],'بستانکاری'=>$s['credit'],'مانده حساب'=>$s['balance']] as $title=>$value)
  echo '<article class="stat-card"><span>'.e($title).'</span><strong>'.money($value).' تومان</strong></article>';echo '</div>';

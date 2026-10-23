@@ -8,6 +8,10 @@ BACKUP_COMMAND=${MASIHA_BACKUP_COMMAND:-/usr/local/sbin/masiha-backup}
 [[ -f ${MASIHA_CONFIG:-/etc/masiha-clinic/config.php} ]] || { echo 'Use setup.sh for a new installation'; exit 1; }
 [[ $(realpath "$ROOT") != $(realpath "$TARGET") ]] || { echo 'Deploy from a separate coherent checkout'; exit 1; }
 git -C "$ROOT" rev-parse --verify HEAD >/dev/null
+# Install PDF/XLSX runtime before stopping services or taking a deployment snapshot.
+if [[ -f "$ROOT/deploy/install-report-exporter.sh" ]]; then
+ "$ROOT/deploy/install-report-exporter.sh"
+fi
 [[ -z $(git -C "$ROOT" status --porcelain) ]] || { echo 'Commit or remove local checkout changes before deploying'; exit 1; }
 for dir in app public deploy importer; do [[ -d $TARGET/$dir ]] || { echo "Missing deployed directory: $dir"; exit 1; }; done
 find "$ROOT/app" "$ROOT/public" "$ROOT/deploy" "$ROOT/importer" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
