@@ -12,7 +12,7 @@ function patientReportInput():array {
 function patientReportList(array $f):array {
  $where=['p.active=1'];$args=[];
  if($f['search']!==''){$where[]="(CONCAT(p.fname,' ',p.lname) LIKE ? OR CAST(p.pid AS CHAR)=? OR (".patientScope('p','contact')." AND p.phone_cell LIKE ?))";array_push($args,'%'.$f['search'].'%',$f['search'],'%'.$f['search'].'%');}
- $native="EXISTS(SELECT 1 FROM physio_episodes e JOIN physio_sessions s ON s.episode_id=e.id WHERE e.pid=p.pid AND s.starts_at>=? AND s.starts_at<DATE_ADD(?,INTERVAL 1 DAY)".($f['mode']==='services'?" AND s.status='done'":'').')';
+ $native="EXISTS(SELECT 1 FROM physio_episodes e JOIN physio_sessions s ON s.episode_id=e.id WHERE e.pid=p.pid AND s.starts_at>=? AND s.starts_at<DATE_ADD(?,INTERVAL 1 DAY)".($f['mode']==='services'?" AND (s.status='done' OR EXISTS(SELECT 1 FROM visit_workflows fw WHERE fw.session_id=s.id AND fw.treatment_finished_at IS NOT NULL) OR EXISTS(SELECT 1 FROM inventory_movements gm WHERE gm.session_id=s.id AND gm.quantity_delta<0 AND gm.reversal_of IS NULL))":'').')';
  $import="EXISTS(SELECT 1 FROM import_records r JOIN import_patient_events v ON v.record_id=r.id WHERE r.pid=p.pid AND v.event_date>=? AND v.event_date<=?".($f['mode']==='services'?" AND (COALESCE(v.service_cost_toman,0)<>0 OR COALESCE(v.goods_cost_toman,0)<>0 OR v.services IS NOT NULL OR v.goods IS NOT NULL)":'').')';
  $where[]="($native OR $import)";array_push($args,$f['from'],$f['to'],$f['from'],$f['to']);
  $criteria=implode(' AND ',$where);
@@ -41,7 +41,7 @@ function patientReportDetails(array $f):array {
   LEFT JOIN visit_workflows w ON w.session_id=s.id LEFT JOIN staff u ON u.id=s.therapist_id
   LEFT JOIN services sv ON sv.id=s.service_id
   WHERE e.pid=? AND s.starts_at>=? AND s.starts_at<DATE_ADD(?,INTERVAL 1 DAY)".
-  ($f['mode']==='services'?" AND s.status='done'":'')." ORDER BY s.starts_at,s.id LIMIT 1001",[$pid,$f['from'],$f['to']])->fetchAll();
+  ($f['mode']==='services'?" AND (s.status='done' OR EXISTS(SELECT 1 FROM visit_workflows fw WHERE fw.session_id=s.id AND fw.treatment_finished_at IS NOT NULL) OR EXISTS(SELECT 1 FROM inventory_movements gm WHERE gm.session_id=s.id AND gm.quantity_delta<0 AND gm.reversal_of IS NULL))":'')." ORDER BY s.starts_at,s.id LIMIT 1001",[$pid,$f['from'],$f['to']])->fetchAll();
  if(count($rows)>1000)throw new DomainException('تعداد جلسات زیاد است. بازه را کوتاه کنید.');
  $program=q('SELECT sp.session_id,t.name FROM session_treatment_programs sp JOIN treatment_programs t ON t.id=sp.program_id JOIN physio_sessions s ON s.id=sp.session_id JOIN physio_episodes e ON e.id=s.episode_id WHERE e.pid=? AND s.starts_at>=? AND s.starts_at<DATE_ADD(?,INTERVAL 1 DAY)',[$pid,$f['from'],$f['to']])->fetchAll();
  $programs=[];foreach($program as $x)$programs[$x['session_id']][]=$x['name'];
