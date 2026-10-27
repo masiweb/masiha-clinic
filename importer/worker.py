@@ -154,7 +154,11 @@ def sign_in(page,c):
  # Login-first flow: authenticate on account.boghrat.com before opening reception.
  print('Boghrat login-first: opening login',flush=True)
 
- page.goto(c['login_url'],wait_until='domcontentloaded',timeout=45000)
+ # Historic installs saved /auth/login; use the current SSO entry point.
+ login_url=c['login_url']
+ if login_url.rstrip('/')=='https://account.boghrat.com/auth/login':
+  login_url='https://account.boghrat.com/auth/sso'
+ page.goto(login_url,wait_until='domcontentloaded',timeout=45000)
 
  # Angular SSO may start in OTP mode and reveal password only on request.
  login_ready_end=time.monotonic()+30
