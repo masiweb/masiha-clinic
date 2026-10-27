@@ -6,6 +6,7 @@ Never log credentials, page text, URLs with session state, or patient data.
 import json,sys,subprocess,time,os,fcntl,re,pathlib,shutil,signal
 from urllib.parse import urlparse
 from parser import record_from_dom
+from login_mode import password_form, PasswordModeError
 BASE=pathlib.Path(__file__).resolve().parent
 class Stop(Exception):
  def __init__(self,code,status='error'):self.code=code;self.status=status
@@ -133,123 +134,46 @@ def turn_page(page,wanted):
   time.sleep(.6)
  if current!=wanted:raise Stop('pagination_mismatch')
 
-def select_password_login(page):
- # SSO sometimes opens in one-time-password mode. Change only the visible
- # login method; never request, solve, or bypass an OTP challenge.
- label=re.compile(r'^\s*ورود\s+با\s+رمز[\s\u200c]*عبور\s*$')
- targets=[
-  page.get_by_role('button',name=label),
-  page.get_by_role('link',name=label),
-  page.get_by_text('ورود با رمز عبور',exact=True),
- ]
- for target in targets:
-  if target.count()==1 and target.is_visible():
-   target.click()
-   print('Boghrat login-first: password_mode_selected',flush=True)
-   return True
- return False
-
-
 def sign_in(page,c):
  # Login-first flow: authenticate on account.boghrat.com before opening reception.
  print('Boghrat login-first: opening login',flush=True)
 
- # Historic installs saved /auth/login; use the current SSO entry point.
- login_url=c['login_url']
- if login_url.rstrip('/')=='https://account.boghrat.com/auth/login':
-  login_url='https://account.boghrat.com/auth/sso'
- page.goto(login_url,wait_until='domcontentloaded',timeout=45000)
+ page.goto(c['login_url'],wait_until='domcontentloaded',timeout=45000)
 
- # Angular SSO may start in OTP mode and reveal password only on request.
- login_ready_end=time.monotonic()+30
- user=None
- password=None
- switched=False
- last_route=None
+ # The official SSO starts in mobile/OTP mode; switch to password mode using
+ # its visible button, never request or attempt to solve a one-time code.
+ try:
+  fields=password_form(page,visible_block,timeout=30)
+ except PasswordModeError as exc:
+  raise Stop(exc.code,'blocked')
 
- while time.monotonic()<login_ready_end:
-  host=urlparse(page.url).hostname
-  path=urlparse(page.url).path
-  route=f'{host}{path}'
-
-  if route!=last_route:
-   print(f'Boghrat login-first route: {route}',flush=True)
-   last_route=route
-
-  # An existing valid session may redirect straight to the clinic app.
-  if host=='app.boghrat.com':
-   break
-
-  if host!='account.boghrat.com':
-   raise Stop('unexpected_login_origin','blocked')
-
-  user=page.locator('input[type="text"]:visible, input[type="tel"]:visible, input[autocomplete="username"]:visible')
-  password=page.locator('input[type="password"]:visible')
-  if user.count()==1 and password.count()==1:
-   visible_block(page)
-   break
-
-  # Switch first: visible_block intentionally rejects OTP forms.
-  if not switched and select_password_login(page):
-   switched=True
-   try:
-    password.wait_for(state='visible',timeout=8000)
-   except Exception:
-    raise Stop('password_form_not_ready','blocked')
-   continue
-
-  visible_block(page)
-  time.sleep(.5)
-
- host=urlparse(page.url).hostname
-
- if host=='account.boghrat.com':
-  if user is None or password is None or user.count()!=1 or password.count()!=1:
-   raise Stop('login_form_changed','blocked')
-
-  print('Boghrat login-first: form_ready',flush=True)
-
+ if fields is not None:
+  user,password=fields
+  print('Boghrat login-first: password_form_ready',flush=True)
   user.fill(c['username'])
   password.fill(c['password'])
-
-  # Never click a switch back to OTP instead of the actual submit button.
-  login_button=page.get_by_role('button',name=re.compile(r'^\s*ورود\s*$'))
-  if login_button.count()!=1:
-   login_button=page.locator('button[type="submit"]:visible')
-  if login_button.count()!=1:
-   login_button=page.locator('button:visible').filter(
-    has_text=re.compile(r'^\s*ورود(?:\s+به\s+(?:حساب(?:\s+کاربری)?|بقراط))?\s*$')
-   )
-  if login_button.count()!=1:
+  button=page.get_by_role('button',name='ورود',exact=True)
+  if button.count()!=1 or not button.is_visible():
    raise Stop('login_button_changed','blocked')
-
-  login_button.click()
-
+  button.click()
   print('Boghrat login-first: login_clicked',flush=True)
-
-  login_end=time.monotonic()+40
+  end=time.monotonic()+45
   last_route=None
-
-  while time.monotonic()<login_end:
+  while time.monotonic()<end:
    host=urlparse(page.url).hostname
    path=urlparse(page.url).path
    route=f'{host}{path}'
-
    if route!=last_route:
     print(f'Boghrat login-first after click: {route}',flush=True)
     last_route=route
-
    if host=='app.boghrat.com':
     break
-
+   if host!='account.boghrat.com':
+    raise Stop('unexpected_login_origin','blocked')
    if page.locator('ng-otp-input:visible').count():
     raise Stop('otp_required','blocked')
-
-   # Detect an explicit human-verification page, but do not bypass it.
    visible_block(page)
-
    time.sleep(.5)
-
  if urlparse(page.url).hostname!='app.boghrat.com':
   raise Stop('login_not_completed','blocked')
 

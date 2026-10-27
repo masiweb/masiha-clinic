@@ -9,7 +9,7 @@ COUNT=${1:-3}
 
 targets=(
   "APP|https://app.boghrat.com/"
-  "ACCOUNT|https://account.boghrat.com/auth/login"
+  "ACCOUNT|https://account.boghrat.com/auth/sso"
   "ADMAPI|https://admapi.boghrat.com/boghratsite/application/Config/getwebconfig"
 )
 

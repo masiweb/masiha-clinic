@@ -19,6 +19,7 @@ import subprocess
 import time
 from collections import deque
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
+from login_mode import password_form, PasswordModeError
 
 BASE = pathlib.Path(__file__).resolve().parent
 APP_HOST = "app.boghrat.com"
@@ -64,37 +65,27 @@ def body_text(page):
 
 def login(page, connection):
     page.goto(connection["login_url"], wait_until="domcontentloaded", timeout=45000)
-    end = time.monotonic() + 30
-    user = password = None
+    try:
+        fields = password_form(page, body_text, timeout=30)
+    except PasswordModeError as exc:
+        raise AuditStop(exc.code)
 
-    while time.monotonic() < end:
-        host = urlparse(page.url).hostname
-        if host == APP_HOST:
-            break
-        if host != ACCOUNT_HOST:
-            raise AuditStop("unexpected_login_origin")
-        body_text(page)
-        user = page.locator('input[type="text"]:visible')
-        password = page.locator('input[type="password"]:visible')
-        if user.count() == 1 and password.count() == 1:
-            break
-        time.sleep(.5)
-
-    if urlparse(page.url).hostname == ACCOUNT_HOST:
-        if user is None or password is None or user.count() != 1 or password.count() != 1:
-            raise AuditStop("login_form_changed")
+    if fields is not None:
+        user, password = fields
         user.fill(connection["username"])
         password.fill(connection["password"])
-        button = page.locator("button:visible").filter(has_text="ورود")
-        if button.count() < 1:
+        button = page.get_by_role("button", name="ورود", exact=True)
+        if button.count() != 1 or not button.is_visible():
             raise AuditStop("login_button_changed")
-        button.first.click()
+        button.click()
 
         end = time.monotonic() + 45
         while time.monotonic() < end:
             host = urlparse(page.url).hostname
             if host == APP_HOST:
                 break
+            if host != ACCOUNT_HOST:
+                raise AuditStop("unexpected_login_origin")
             if page.locator("ng-otp-input:visible").count():
                 raise AuditStop("otp_required")
             body_text(page)

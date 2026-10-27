@@ -6,9 +6,6 @@ CREATE TABLE IF NOT EXISTS import_connections (
  clinic_name VARCHAR(160) NOT NULL DEFAULT '', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 INSERT IGNORE INTO import_connections(id) VALUES(1);
--- Migrate only the original default, preserving custom Boghrat login links.
-UPDATE import_connections SET login_url='https://account.boghrat.com/auth/sso'
-WHERE login_url='https://account.boghrat.com/auth/login';
 CREATE TABLE IF NOT EXISTS import_runs (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,account_key CHAR(64) NOT NULL,
  status VARCHAR(30) NOT NULL DEFAULT 'paused',page_no INT NOT NULL DEFAULT 1,row_no INT NOT NULL DEFAULT 0,
@@ -422,3 +419,6 @@ CREATE TABLE IF NOT EXISTS service_tariffs (
 ALTER TABLE physio_sessions ADD COLUMN IF NOT EXISTS tariff_id BIGINT UNSIGNED NULL AFTER service_id;
 ALTER TABLE physio_sessions ADD COLUMN IF NOT EXISTS tariff_title_snapshot VARCHAR(160) NOT NULL DEFAULT '' AFTER tariff_id;
 ALTER TABLE physio_sessions ADD INDEX IF NOT EXISTS idx_physio_sessions_tariff(tariff_id);
+
+-- Upgrade legacy accounts without touching username, encrypted password or import runs.
+UPDATE import_connections SET login_url='https://account.boghrat.com/auth/sso' WHERE id=1 AND login_url='https://account.boghrat.com/auth/login';
