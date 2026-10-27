@@ -1,11 +1,14 @@
 CREATE TABLE IF NOT EXISTS import_connections (
- id INT PRIMARY KEY, login_url VARCHAR(255) NOT NULL DEFAULT 'https://account.boghrat.com/auth/login',
+ id INT PRIMARY KEY, login_url VARCHAR(255) NOT NULL DEFAULT 'https://account.boghrat.com/auth/sso',
  source_url VARCHAR(512) NOT NULL DEFAULT 'https://app.boghrat.com/clinic/secretary/reception/',
  username VARCHAR(100) NOT NULL DEFAULT '', password_cipher TEXT NULL,
  hourly_limit INT NOT NULL DEFAULT 30,delay_seconds INT NOT NULL DEFAULT 8,total_limit INT NOT NULL DEFAULT 100,storage_mb INT NOT NULL DEFAULT 128,
  clinic_name VARCHAR(160) NOT NULL DEFAULT '', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 INSERT IGNORE INTO import_connections(id) VALUES(1);
+-- Migrate only the original default, preserving custom Boghrat login links.
+UPDATE import_connections SET login_url='https://account.boghrat.com/auth/sso'
+WHERE login_url='https://account.boghrat.com/auth/login';
 CREATE TABLE IF NOT EXISTS import_runs (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,account_key CHAR(64) NOT NULL,
  status VARCHAR(30) NOT NULL DEFAULT 'paused',page_no INT NOT NULL DEFAULT 1,row_no INT NOT NULL DEFAULT 0,
